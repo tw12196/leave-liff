@@ -67,6 +67,7 @@
   .leave-type-opt { border: 1.5px solid var(--line); border-radius: 10px; padding: 10px 6px; text-align: center; font-size: 13px; color: var(--ink-soft); cursor: pointer; transition: border-color .15s, color .15s, background .15s; }
   .leave-type-opt.active { border-color: var(--teal); color: var(--teal-deep); background: var(--teal-tint); font-weight: 600; }
   input[type="date"], textarea { width: 100%; border: 1.5px solid var(--line); border-radius: 10px; padding: 11px 12px; font-size: 15px; font-family: inherit; color: var(--ink); background: #fff; }
+  input[type="file"] { width: 100%; font-size: 13px; color: var(--ink-soft); padding: 8px 0; }
   input[type="date"]:focus, textarea:focus { outline: none; border-color: var(--teal); }
   textarea { resize: vertical; min-height: 72px; }
   .date-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -149,6 +150,12 @@
       <div class="field">
         <label>เหตุผล (ไม่บังคับ)</label>
         <textarea id="reason" placeholder="ระบุเหตุผลโดยย่อ..."></textarea>
+      </div>
+
+      <div class="field">
+        <label>แนบเอกสาร (ถ้ามี เช่น ใบรับรองแพทย์)</label>
+        <input type="file" id="attachment" accept="image/*,.pdf">
+        <div class="hint" id="attachmentHint">รองรับรูปภาพหรือ PDF ขนาดไม่เกิน 5MB</div>
       </div>
 
       <button class="submit-btn" id="submitBtn">ส่งคำขอลา</button>
@@ -319,6 +326,36 @@
   }
   document.getElementById('hourValue').addEventListener('input', updateHourPreview);
 
+  document.getElementById('attachment').addEventListener('change', function (e) {
+    const file = e.target.files[0];
+    const hint = document.getElementById('attachmentHint');
+    if (!file) {
+      hint.textContent = 'รองรับรูปภาพหรือ PDF ขนาดไม่เกิน 5MB';
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      hint.textContent = 'ไฟล์ใหญ่เกินไป (เกิน 5MB) กรุณาเลือกไฟล์ใหม่';
+      hint.style.color = 'var(--danger)';
+      e.target.value = '';
+      return;
+    }
+    hint.style.color = '';
+    hint.textContent = 'เลือกไฟล์แล้ว: ' + file.name + ' (' + Math.round(file.size / 1024) + ' KB)';
+  });
+
+  function fileToBase64(file) {
+    return new Promise(function (resolve, reject) {
+      const reader = new FileReader();
+      reader.onload = function () {
+        // ตัด prefix "data:...;base64," ออก เหลือแต่ตัวข้อมูล base64 ล้วนๆ
+        const result = reader.result;
+        resolve(result.substring(result.indexOf(',') + 1));
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
   document.getElementById('submitBtn').addEventListener('click', function () {
     const banner = document.getElementById('resultBanner');
     banner.innerHTML = '';
@@ -341,24 +378,34 @@
     }
 
     const reason = document.getElementById('reason').value;
+    const attachmentFile = document.getElementById('attachment').files[0];
     const btn = document.getElementById('submitBtn');
     btn.disabled = true;
-    btn.textContent = 'กำลังส่งคำขอ...';
+    btn.textContent = attachmentFile ? 'กำลังอัปโหลดเอกสาร...' : 'กำลังส่งคำขอ...';
 
-    fetch(API_URL, {
-      method: 'POST',
-      body: JSON.stringify({
-        action: 'submitLeaveRequest',
-        payload: {
-          lineUserId: profile.userId,
-          leaveType: selectedType,
-          durationType: durationType,
-          startDate: requestStartDate,
-          endDate: requestEndDate,
-          durationValue: requestDurationValue,
-          reason: reason
-        }
-      })
+    const attachmentPromise = attachmentFile ? fileToBase64(attachmentFile) : Promise.resolve(null);
+
+    attachmentPromise.then(function (base64) {
+      btn.textContent = 'กำลังส่งคำขอ...';
+      const payload = {
+        lineUserId: profile.userId,
+        leaveType: selectedType,
+        durationType: durationType,
+        startDate: requestStartDate,
+        endDate: requestEndDate,
+        durationValue: requestDurationValue,
+        reason: reason
+      };
+      if (base64 && attachmentFile) {
+        payload.attachmentBase64 = base64;
+        payload.attachmentName = attachmentFile.name;
+        payload.attachmentMimeType = attachmentFile.type || 'application/octet-stream';
+      }
+
+      return fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'submitLeaveRequest', payload: payload })
+      });
     })
       .then(function (res) { return res.json(); })
       .then(function (res) {
