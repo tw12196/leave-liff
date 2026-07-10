@@ -122,12 +122,28 @@
       </div>
 
       <div class="field">
+        <label>ระยะเวลาลา</label>
+        <div class="leave-type-row" id="durationTypeRow">
+          <div class="leave-type-opt active" data-duration="day" style="grid-column: span 1;">เต็มวัน</div>
+          <div class="leave-type-opt" data-duration="hour" style="grid-column: span 2;">ระบุชั่วโมง (ลาแค่วันเดียว)</div>
+        </div>
+      </div>
+
+      <div class="field" id="dayModeFields">
         <label>ช่วงวันที่ลา</label>
         <div class="date-row">
           <input type="date" id="startDate">
           <input type="date" id="endDate">
         </div>
         <div class="day-preview" id="dayPreview">เลือกวันที่เพื่อดูจำนวนวันลา</div>
+      </div>
+
+      <div class="field" id="hourModeFields" style="display:none;">
+        <label>วันที่ลา</label>
+        <input type="date" id="hourDate">
+        <label style="margin-top:12px;">จำนวนชั่วโมง (สูงสุด 8 ชั่วโมง/วัน)</label>
+        <input type="number" id="hourValue" min="1" max="8" step="1" placeholder="เช่น 4">
+        <div class="day-preview" id="hourPreview">ระบุจำนวนชั่วโมงเพื่อดูสัดส่วนวันลา</div>
       </div>
 
       <div class="field">
@@ -159,6 +175,7 @@
 
   let profile = null;
   let selectedType = null;
+  let durationType = 'day';
 
   const leaveLabels = { sick: 'ลาป่วย', personal: 'ลากิจ', vacation: 'ลาพักร้อน' };
 
@@ -253,18 +270,28 @@
   document.getElementById('leaveTypeRow').addEventListener('click', function (e) {
     const opt = e.target.closest('.leave-type-opt');
     if (!opt) return;
-    document.querySelectorAll('.leave-type-opt').forEach(function (el) { el.classList.remove('active'); });
+    document.querySelectorAll('#leaveTypeRow .leave-type-opt').forEach(function (el) { el.classList.remove('active'); });
     opt.classList.add('active');
     selectedType = opt.dataset.type;
   });
 
-  function countWeekdays(start, end) {
+  document.getElementById('durationTypeRow').addEventListener('click', function (e) {
+    const opt = e.target.closest('.leave-type-opt');
+    if (!opt) return;
+    document.querySelectorAll('#durationTypeRow .leave-type-opt').forEach(function (el) { el.classList.remove('active'); });
+    opt.classList.add('active');
+    durationType = opt.dataset.duration;
+    document.getElementById('dayModeFields').style.display = (durationType === 'day') ? '' : 'none';
+    document.getElementById('hourModeFields').style.display = (durationType === 'hour') ? '' : 'none';
+  });
+
+  // นับวันทำงาน จันทร์-เสาร์ (หยุดเฉพาะวันอาทิตย์) ให้ตรงกับฝั่ง backend
+  function countWorkdays(start, end) {
     let count = 0;
     const cur = new Date(start);
     const last = new Date(end);
     while (cur <= last) {
-      const day = cur.getDay();
-      if (day !== 0 && day !== 6) count++;
+      if (cur.getDay() !== 0) count++;
       cur.setDate(cur.getDate() + 1);
     }
     return count;
@@ -276,23 +303,44 @@
     const preview = document.getElementById('dayPreview');
     if (!start || !end) { preview.textContent = 'เลือกวันที่เพื่อดูจำนวนวันลา'; return; }
     if (new Date(end) < new Date(start)) { preview.textContent = 'วันที่สิ้นสุดต้องไม่ก่อนวันเริ่มลา'; return; }
-    const days = countWeekdays(start, end);
-    preview.innerHTML = 'รวม <strong>' + days + ' วัน</strong> (นับเฉพาะวันจันทร์-ศุกร์)';
+    const days = countWorkdays(start, end);
+    preview.innerHTML = 'รวม <strong>' + days + ' วัน</strong> (นับวันทำงานจันทร์-เสาร์)';
   }
   document.getElementById('startDate').addEventListener('change', updateDayPreview);
   document.getElementById('endDate').addEventListener('change', updateDayPreview);
 
+  function updateHourPreview() {
+    const hours = Number(document.getElementById('hourValue').value);
+    const preview = document.getElementById('hourPreview');
+    if (!hours || hours <= 0) { preview.textContent = 'ระบุจำนวนชั่วโมงเพื่อดูสัดส่วนวันลา'; return; }
+    if (hours > 8) { preview.textContent = 'ระบุได้สูงสุด 8 ชั่วโมง/วัน'; return; }
+    const dayEquivalent = Math.round((hours / 8) * 100) / 100;
+    preview.innerHTML = 'เทียบเท่า <strong>' + dayEquivalent + ' วัน</strong> (คิดจาก 8 ชั่วโมง = 1 วันทำงาน)';
+  }
+  document.getElementById('hourValue').addEventListener('input', updateHourPreview);
+
   document.getElementById('submitBtn').addEventListener('click', function () {
     const banner = document.getElementById('resultBanner');
     banner.innerHTML = '';
-    const start = document.getElementById('startDate').value;
-    const end = document.getElementById('endDate').value;
-    const reason = document.getElementById('reason').value;
 
     if (!selectedType) return showBanner('error', 'กรุณาเลือกประเภทการลา');
-    if (!start || !end) return showBanner('error', 'กรุณาเลือกช่วงวันที่ลา');
-    if (new Date(end) < new Date(start)) return showBanner('error', 'วันที่สิ้นสุดต้องไม่ก่อนวันเริ่มลา');
 
+    let requestStartDate, requestEndDate, requestDurationValue;
+    if (durationType === 'day') {
+      requestStartDate = document.getElementById('startDate').value;
+      requestEndDate = document.getElementById('endDate').value;
+      if (!requestStartDate || !requestEndDate) return showBanner('error', 'กรุณาเลือกช่วงวันที่ลา');
+      if (new Date(requestEndDate) < new Date(requestStartDate)) return showBanner('error', 'วันที่สิ้นสุดต้องไม่ก่อนวันเริ่มลา');
+      requestDurationValue = null;
+    } else {
+      requestStartDate = document.getElementById('hourDate').value;
+      requestEndDate = requestStartDate;
+      requestDurationValue = Number(document.getElementById('hourValue').value);
+      if (!requestStartDate) return showBanner('error', 'กรุณาเลือกวันที่ลา');
+      if (!requestDurationValue || requestDurationValue <= 0 || requestDurationValue > 8) return showBanner('error', 'กรุณาระบุจำนวนชั่วโมงระหว่าง 1-8 ชั่วโมง');
+    }
+
+    const reason = document.getElementById('reason').value;
     const btn = document.getElementById('submitBtn');
     btn.disabled = true;
     btn.textContent = 'กำลังส่งคำขอ...';
@@ -304,8 +352,10 @@
         payload: {
           lineUserId: profile.userId,
           leaveType: selectedType,
-          startDate: start,
-          endDate: end,
+          durationType: durationType,
+          startDate: requestStartDate,
+          endDate: requestEndDate,
+          durationValue: requestDurationValue,
           reason: reason
         }
       })
