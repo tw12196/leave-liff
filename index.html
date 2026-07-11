@@ -414,7 +414,7 @@
     ],
     personal: [
       { value: 'day', label: 'เต็มวัน' },
-      { value: 'hour', label: 'รายชั่วโมง (16:00-17:00)' }
+      { value: 'hour', label: 'รายชั่วโมง' }
     ]
   };
 
@@ -434,30 +434,36 @@
     document.getElementById('hourFixedFields').style.display = (durationType === 'hour') ? '' : 'none';
   }
 
-  // เตรียม dropdown เวลา 08:00-18:00 (ชั่วโมงเต็มเท่านั้น นาทีเป็น 00 เสมอ โดยธรรมชาติของ dropdown)
+  // เตรียม dropdown เวลา 08:00-18:00 ทีละครึ่งชั่วโมง (นาทีเลือกได้แค่ 00 หรือ 30 เท่านั้น โดยธรรมชาติของ dropdown)
   const HOUR_RANGE_START = 8;
   const HOUR_RANGE_END = 18;
-  function populateHourSelect(selectEl, defaultHour) {
+  function populateHourSelect(selectEl, defaultVal) {
     selectEl.innerHTML = '';
     for (let h = HOUR_RANGE_START; h <= HOUR_RANGE_END; h++) {
-      const val = (h < 10 ? '0' + h : h) + ':00';
-      const opt = document.createElement('option');
-      opt.value = val;
-      opt.textContent = val + ' น.';
-      if (h === defaultHour) opt.selected = true;
-      selectEl.appendChild(opt);
+      ['00', '30'].forEach(function (mm) {
+        if (h === HOUR_RANGE_END && mm === '30') return; // ไม่เกินขอบเขตบนสุด
+        const val = (h < 10 ? '0' + h : h) + ':' + mm;
+        const opt = document.createElement('option');
+        opt.value = val;
+        opt.textContent = val + ' น.';
+        if (val === defaultVal) opt.selected = true;
+        selectEl.appendChild(opt);
+      });
     }
   }
-  populateHourSelect(document.getElementById('hourStartSelect'), 9);
-  populateHourSelect(document.getElementById('hourEndSelect'), 10);
+  populateHourSelect(document.getElementById('hourStartSelect'), '09:00');
+  populateHourSelect(document.getElementById('hourEndSelect'), '10:00');
+
+  function timeToHoursDecimal(t) {
+    const parts = t.split(':');
+    return Number(parts[0]) + Number(parts[1] || 0) / 60;
+  }
 
   function updateHourFixedPreview() {
     const startVal = document.getElementById('hourStartSelect').value;
     const endVal = document.getElementById('hourEndSelect').value;
     const preview = document.getElementById('hourFixedPreview');
-    const startHour = Number(startVal.split(':')[0]);
-    const endHour = Number(endVal.split(':')[0]);
-    const hours = endHour - startHour;
+    const hours = Math.round((timeToHoursDecimal(endVal) - timeToHoursDecimal(startVal)) * 100) / 100;
     if (hours <= 0) { preview.textContent = 'เวลาสิ้นสุดต้องอยู่หลังเวลาเริ่มลา'; return; }
     if (hours > 8) { preview.textContent = 'ลาได้ไม่เกิน 8 ชั่วโมง/วัน'; return; }
     const dayEquivalent = Math.round((hours / 8) * 100) / 100;
@@ -571,7 +577,7 @@
       requestStartTime = document.getElementById('hourStartSelect').value;
       requestEndTime = document.getElementById('hourEndSelect').value;
       if (!requestStartDate) return showBanner('error', 'กรุณาเลือกวันที่ลา');
-      const hrs = Number(requestEndTime.split(':')[0]) - Number(requestStartTime.split(':')[0]);
+      const hrs = timeToHoursDecimal(requestEndTime) - timeToHoursDecimal(requestStartTime);
       if (hrs <= 0) return showBanner('error', 'เวลาสิ้นสุดต้องอยู่หลังเวลาเริ่มลา');
       if (hrs > 8) return showBanner('error', 'ลาได้ไม่เกิน 8 ชั่วโมงต่อวัน');
     }
