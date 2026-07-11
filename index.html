@@ -53,7 +53,7 @@
 
   .section-label { font-size: 12.5px; font-weight: 600; letter-spacing: .04em; color: var(--ink-soft); margin: 22px 2px 10px; text-transform: uppercase; }
 
-  .balance-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .balance-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
   .balance-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 10px; text-align: center; }
   .balance-card .label { font-size: 12px; color: var(--ink-soft); margin-bottom: 6px; }
   .balance-card .remaining { font-size: 22px; font-weight: 700; color: var(--teal-deep); line-height: 1; }
@@ -82,8 +82,9 @@
   .submit-btn:disabled { background: #b7c3c5; }
 
   .banner { border-radius: 12px; padding: 13px 14px; font-size: 13.5px; margin-top: 14px; line-height: 1.5; }
-  .banner.success { background: var(--teal-tint); color: var(--teal-deep); }
+  .banner.success { background: var(--teal-tint); color: var(--teal-deep); white-space: pre-line; }
   .banner.error { background: var(--danger-tint); color: var(--danger); }
+  .banner.warning { background: var(--amber-tint); color: var(--amber); white-space: pre-line; }
 
   .hint { font-size: 12px; color: var(--ink-soft); margin-top: 8px; }
 
@@ -140,10 +141,9 @@
     <div class="card">
       <div class="field">
         <label>ประเภทการลา</label>
-        <div class="leave-type-row" id="leaveTypeRow">
+        <div class="leave-type-row" id="leaveTypeRow" style="grid-template-columns: repeat(2, 1fr);">
           <div class="leave-type-opt" data-type="sick">ลาป่วย</div>
           <div class="leave-type-opt" data-type="personal">ลากิจ</div>
-          <div class="leave-type-opt" data-type="vacation">ลาพักร้อน</div>
         </div>
       </div>
 
@@ -176,8 +176,8 @@
       </div>
 
       <div class="field">
-        <label>เหตุผล (ไม่บังคับ)</label>
-        <textarea id="reason" placeholder="ระบุเหตุผลโดยย่อ..."></textarea>
+        <label>เหตุผล <span style="color:var(--danger);">*</span></label>
+        <textarea id="reason" placeholder="ระบุเหตุผลในการลา..." required></textarea>
       </div>
 
       <div class="field">
@@ -221,7 +221,7 @@
   let durationType = 'day';
   const isHistoryView = new URLSearchParams(location.search).get('view') === 'history';
 
-  const leaveLabels = { sick: 'ลาป่วย', personal: 'ลากิจ', vacation: 'ลาพักร้อน' };
+  const leaveLabels = { sick: 'ลาป่วย', personal: 'ลากิจ' };
 
   function setStatus(msg) {
     const el = document.getElementById('statusText');
@@ -322,6 +322,9 @@
         ? '<div class="history-reason">📎 <a href="' + h.attachmentUrl + '" target="_blank" style="color:var(--teal-deep);">ดูเอกสารแนบ</a></div>'
         : '';
       const reasonLine = h.reason ? '<div class="history-reason">เหตุผล: ' + h.reason + '</div>' : '';
+      const overQuotaLine = h.overQuotaDays > 0
+        ? '<div class="history-reason" style="color:var(--danger);">⚠️ เกินโควตา ' + h.overQuotaDays + ' วัน (หักเงินเดือน)</div>'
+        : '';
       let actionBtn = '';
       if (h.canWithdraw) {
         actionBtn = '<button class="cancel-btn" data-rid="' + h.requestId + '" data-mode="withdraw">ถอนคำขอนี้</button>';
@@ -338,6 +341,7 @@
         '    <span class="history-badge ' + statusBadgeClass(h.status) + '">' + h.statusLabel + '</span>' +
         '  </div>' +
         reasonLine +
+        overQuotaLine +
         attachmentLine +
         actionBtn +
         '</div>';
@@ -378,16 +382,17 @@
   function renderBalances(balances) {
     const grid = document.getElementById('balanceGrid');
     grid.innerHTML = '';
-    ['sick', 'personal', 'vacation'].forEach(function (key) {
+    ['sick', 'personal'].forEach(function (key) {
       const b = balances[key];
       const pct = b.quota > 0 ? Math.max(0, Math.min(100, (b.remaining / b.quota) * 100)) : 0;
+      const isOver = b.remaining < 0;
       const card = document.createElement('div');
       card.className = 'balance-card';
       card.innerHTML =
         '<div class="label">' + leaveLabels[key] + '</div>' +
-        '<div class="remaining">' + b.remaining + '</div>' +
-        '<div class="of-total">จาก ' + b.quota + ' วัน</div>' +
-        '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%"></div></div>';
+        '<div class="remaining"' + (isOver ? ' style="color:var(--danger);"' : '') + '>' + (isOver ? 'เกิน ' + Math.abs(b.remaining) : b.remaining) + '</div>' +
+        '<div class="of-total">จาก ' + b.quota + ' วัน' + (isOver ? ' (เกินโควตา)' : '') + '</div>' +
+        '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%' + (isOver ? ';background:var(--danger);' : '') + '"></div></div>';
       grid.appendChild(card);
     });
   }
@@ -507,7 +512,8 @@
       if (hrs > 8) return showBanner('error', 'ลาได้ไม่เกิน 8 ชั่วโมงต่อวัน');
     }
 
-    const reason = document.getElementById('reason').value;
+    const reason = document.getElementById('reason').value.trim();
+    if (!reason) return showBanner('error', 'กรุณาระบุเหตุผลในการลา');
     const attachmentFile = document.getElementById('attachment').files[0];
     const btn = document.getElementById('submitBtn');
     btn.disabled = true;
@@ -543,7 +549,7 @@
         btn.disabled = false;
         btn.textContent = 'ส่งคำขอลา';
         if (res.success) {
-          showBanner('success', res.message);
+          showBanner(res.overQuotaDays > 0 ? 'warning' : 'success', res.message);
           loadBalance();
         } else {
           showBanner('error', res.message);
