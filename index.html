@@ -69,6 +69,12 @@
   .leave-type-opt { border: 1.5px solid var(--line); border-radius: 10px; padding: 10px 6px; text-align: center; font-size: 13px; color: var(--ink-soft); cursor: pointer; transition: border-color .15s, color .15s, background .15s; }
   .leave-type-opt.active { border-color: var(--teal); color: var(--teal-deep); background: var(--teal-tint); font-weight: 600; }
   input[type="date"], textarea { width: 100%; border: 1.5px solid var(--line); border-radius: 10px; padding: 11px 12px; font-size: 15px; font-family: inherit; color: var(--ink); background: #fff; }
+  select#hourStartSelect, select#hourEndSelect {
+    width: 100%; border: 1.5px solid var(--line); border-radius: 10px;
+    padding: 16px 14px; font-size: 20px; font-weight: 600; font-family: inherit;
+    color: var(--ink); background: #fff; text-align: center;
+  }
+  select#hourStartSelect:focus, select#hourEndSelect:focus { outline: none; border-color: var(--teal); }
   input[type="file"] { width: 100%; font-size: 13px; color: var(--ink-soft); padding: 8px 0; }
   input[type="date"]:focus, textarea:focus { outline: none; border-color: var(--teal); }
   textarea { resize: vertical; min-height: 72px; }
@@ -177,7 +183,7 @@
       <div class="field" id="hourFixedFields" style="display:none;">
         <label>วันที่ลา</label>
         <input type="date" id="hourFixedDate">
-        <label style="margin-top:12px;">ช่วงเวลาที่ลา (เลือกได้เฉพาะชั่วโมงเต็ม)</label>
+        <label style="margin-top:12px;">ช่วงเวลาที่ลา</label>
         <div class="date-row">
           <select id="hourStartSelect"></select>
           <select id="hourEndSelect"></select>
