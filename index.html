@@ -177,7 +177,12 @@
       <div class="field" id="hourFixedFields" style="display:none;">
         <label>วันที่ลา</label>
         <input type="date" id="hourFixedDate">
-        <div class="day-preview">ลาชั่วโมงกิจ ช่วงเวลา <strong>16:00 - 17:00 น.</strong> (1 ชั่วโมง) — เวลานี้เป็นช่วงตายตัวตามนโยบายบริษัท ไม่สามารถปรับเปลี่ยนได้</div>
+        <label style="margin-top:12px;">ช่วงเวลาที่ลา (เลือกได้เฉพาะชั่วโมงเต็ม)</label>
+        <div class="date-row">
+          <select id="hourStartSelect"></select>
+          <select id="hourEndSelect"></select>
+        </div>
+        <div class="day-preview" id="hourFixedPreview">เลือกเวลาเริ่มและสิ้นสุดเพื่อดูจำนวนชั่วโมง</div>
       </div>
 
       <div class="field">
@@ -429,6 +434,39 @@
     document.getElementById('hourFixedFields').style.display = (durationType === 'hour') ? '' : 'none';
   }
 
+  // เตรียม dropdown เวลา 08:00-18:00 (ชั่วโมงเต็มเท่านั้น นาทีเป็น 00 เสมอ โดยธรรมชาติของ dropdown)
+  const HOUR_RANGE_START = 8;
+  const HOUR_RANGE_END = 18;
+  function populateHourSelect(selectEl, defaultHour) {
+    selectEl.innerHTML = '';
+    for (let h = HOUR_RANGE_START; h <= HOUR_RANGE_END; h++) {
+      const val = (h < 10 ? '0' + h : h) + ':00';
+      const opt = document.createElement('option');
+      opt.value = val;
+      opt.textContent = val + ' น.';
+      if (h === defaultHour) opt.selected = true;
+      selectEl.appendChild(opt);
+    }
+  }
+  populateHourSelect(document.getElementById('hourStartSelect'), 9);
+  populateHourSelect(document.getElementById('hourEndSelect'), 10);
+
+  function updateHourFixedPreview() {
+    const startVal = document.getElementById('hourStartSelect').value;
+    const endVal = document.getElementById('hourEndSelect').value;
+    const preview = document.getElementById('hourFixedPreview');
+    const startHour = Number(startVal.split(':')[0]);
+    const endHour = Number(endVal.split(':')[0]);
+    const hours = endHour - startHour;
+    if (hours <= 0) { preview.textContent = 'เวลาสิ้นสุดต้องอยู่หลังเวลาเริ่มลา'; return; }
+    if (hours > 8) { preview.textContent = 'ลาได้ไม่เกิน 8 ชั่วโมง/วัน'; return; }
+    const dayEquivalent = Math.round((hours / 8) * 100) / 100;
+    preview.innerHTML = startVal + ' - ' + endVal + ' น. รวม <strong>' + hours + ' ชั่วโมง</strong> (เทียบเท่า ' + dayEquivalent + ' วัน)';
+  }
+  document.getElementById('hourStartSelect').addEventListener('change', updateHourFixedPreview);
+  document.getElementById('hourEndSelect').addEventListener('change', updateHourFixedPreview);
+  updateHourFixedPreview();
+
   document.getElementById('leaveTypeRow').addEventListener('click', function (e) {
     const opt = e.target.closest('.leave-type-opt');
     if (!opt) return;
@@ -515,7 +553,7 @@
 
     if (!selectedType) return showBanner('error', 'กรุณาเลือกประเภทการลา');
 
-    let requestStartDate, requestEndDate, halfDayPeriod;
+    let requestStartDate, requestEndDate, halfDayPeriod, requestStartTime, requestEndTime;
     if (durationType === 'day') {
       requestStartDate = document.getElementById('startDate').value;
       requestEndDate = document.getElementById('endDate').value;
@@ -530,7 +568,12 @@
     } else if (durationType === 'hour') {
       requestStartDate = document.getElementById('hourFixedDate').value;
       requestEndDate = requestStartDate;
+      requestStartTime = document.getElementById('hourStartSelect').value;
+      requestEndTime = document.getElementById('hourEndSelect').value;
       if (!requestStartDate) return showBanner('error', 'กรุณาเลือกวันที่ลา');
+      const hrs = Number(requestEndTime.split(':')[0]) - Number(requestStartTime.split(':')[0]);
+      if (hrs <= 0) return showBanner('error', 'เวลาสิ้นสุดต้องอยู่หลังเวลาเริ่มลา');
+      if (hrs > 8) return showBanner('error', 'ลาได้ไม่เกิน 8 ชั่วโมงต่อวัน');
     }
 
     const reason = document.getElementById('reason').value.trim();
@@ -551,6 +594,8 @@
         startDate: requestStartDate,
         endDate: requestEndDate,
         halfDayPeriod: halfDayPeriod,
+        startTime: requestStartTime,
+        endTime: requestEndTime,
         reason: reason
       };
       if (base64 && attachmentFile) {
