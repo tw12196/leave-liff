@@ -147,15 +147,15 @@
         </div>
       </div>
 
-      <div class="field">
+      <div class="field" id="durationTypeField" style="display:none;">
         <label>ระยะเวลาลา</label>
-        <div class="leave-type-row" id="durationTypeRow">
-          <div class="leave-type-opt active" data-duration="day" style="grid-column: span 1;">เต็มวัน</div>
-          <div class="leave-type-opt" data-duration="hour" style="grid-column: span 2;">ระบุชั่วโมง (ลาแค่วันเดียว)</div>
+        <div class="leave-type-row" id="durationTypeRow" style="grid-template-columns: repeat(2, 1fr);">
+          <div class="leave-type-opt active" data-duration="day">เต็มวัน</div>
+          <div class="leave-type-opt" data-duration="">-</div>
         </div>
       </div>
 
-      <div class="field" id="dayModeFields">
+      <div class="field" id="dayModeFields" style="display:none;">
         <label>ช่วงวันที่ลา</label>
         <div class="date-row">
           <input type="date" id="startDate">
@@ -164,15 +164,20 @@
         <div class="day-preview" id="dayPreview">เลือกวันที่เพื่อดูจำนวนวันลา</div>
       </div>
 
-      <div class="field" id="hourModeFields" style="display:none;">
+      <div class="field" id="halfDayFields" style="display:none;">
         <label>วันที่ลา</label>
-        <input type="date" id="hourDate">
-        <label style="margin-top:12px;">ช่วงเวลาที่ลา</label>
-        <div class="date-row">
-          <input type="time" id="hourStartTime">
-          <input type="time" id="hourEndTime">
+        <input type="date" id="halfDayDate">
+        <label style="margin-top:12px;">ช่วงเวลา</label>
+        <div class="leave-type-row" id="halfDayPeriodRow" style="grid-template-columns: repeat(2, 1fr);">
+          <div class="leave-type-opt active" data-period="morning">เช้า (08:00-12:00)</div>
+          <div class="leave-type-opt" data-period="afternoon">บ่าย (13:00-17:00)</div>
         </div>
-        <div class="day-preview" id="hourPreview">เลือกเวลาเริ่มและสิ้นสุดเพื่อดูจำนวนชั่วโมง</div>
+      </div>
+
+      <div class="field" id="hourFixedFields" style="display:none;">
+        <label>วันที่ลา</label>
+        <input type="date" id="hourFixedDate">
+        <div class="day-preview">ลาชั่วโมงกิจ ช่วงเวลา <strong>16:00 - 17:00 น.</strong> (1 ชั่วโมง) — เวลานี้เป็นช่วงตายตัวตามนโยบายบริษัท ไม่สามารถปรับเปลี่ยนได้</div>
       </div>
 
       <div class="field">
@@ -397,12 +402,41 @@
     });
   }
 
+  const DURATION_OPTIONS = {
+    sick: [
+      { value: 'day', label: 'เต็มวัน' },
+      { value: 'halfday', label: 'ครึ่งวัน' }
+    ],
+    personal: [
+      { value: 'day', label: 'เต็มวัน' },
+      { value: 'hour', label: 'รายชั่วโมง (16:00-17:00)' }
+    ]
+  };
+
+  function renderDurationOptions(type) {
+    const row = document.getElementById('durationTypeRow');
+    const opts = DURATION_OPTIONS[type] || [];
+    row.innerHTML = opts.map(function (o, i) {
+      return '<div class="leave-type-opt' + (i === 0 ? ' active' : '') + '" data-duration="' + o.value + '">' + o.label + '</div>';
+    }).join('');
+    durationType = opts.length ? opts[0].value : 'day';
+    updateFieldVisibility();
+  }
+
+  function updateFieldVisibility() {
+    document.getElementById('dayModeFields').style.display = (durationType === 'day') ? '' : 'none';
+    document.getElementById('halfDayFields').style.display = (durationType === 'halfday') ? '' : 'none';
+    document.getElementById('hourFixedFields').style.display = (durationType === 'hour') ? '' : 'none';
+  }
+
   document.getElementById('leaveTypeRow').addEventListener('click', function (e) {
     const opt = e.target.closest('.leave-type-opt');
     if (!opt) return;
     document.querySelectorAll('#leaveTypeRow .leave-type-opt').forEach(function (el) { el.classList.remove('active'); });
     opt.classList.add('active');
     selectedType = opt.dataset.type;
+    document.getElementById('durationTypeField').style.display = '';
+    renderDurationOptions(selectedType);
   });
 
   document.getElementById('durationTypeRow').addEventListener('click', function (e) {
@@ -411,8 +445,14 @@
     document.querySelectorAll('#durationTypeRow .leave-type-opt').forEach(function (el) { el.classList.remove('active'); });
     opt.classList.add('active');
     durationType = opt.dataset.duration;
-    document.getElementById('dayModeFields').style.display = (durationType === 'day') ? '' : 'none';
-    document.getElementById('hourModeFields').style.display = (durationType === 'hour') ? '' : 'none';
+    updateFieldVisibility();
+  });
+
+  document.getElementById('halfDayPeriodRow').addEventListener('click', function (e) {
+    const opt = e.target.closest('.leave-type-opt');
+    if (!opt) return;
+    document.querySelectorAll('#halfDayPeriodRow .leave-type-opt').forEach(function (el) { el.classList.remove('active'); });
+    opt.classList.add('active');
   });
 
   // นับวันทำงาน จันทร์-เสาร์ (หยุดเฉพาะวันอาทิตย์) ให้ตรงกับฝั่ง backend
@@ -438,25 +478,6 @@
   }
   document.getElementById('startDate').addEventListener('change', updateDayPreview);
   document.getElementById('endDate').addEventListener('change', updateDayPreview);
-
-  function timeToHours(t) {
-    const parts = t.split(':');
-    return Number(parts[0]) + Number(parts[1] || 0) / 60;
-  }
-
-  function updateHourPreview() {
-    const startTime = document.getElementById('hourStartTime').value;
-    const endTime = document.getElementById('hourEndTime').value;
-    const preview = document.getElementById('hourPreview');
-    if (!startTime || !endTime) { preview.textContent = 'เลือกเวลาเริ่มและสิ้นสุดเพื่อดูจำนวนชั่วโมง'; return; }
-    const hours = Math.round((timeToHours(endTime) - timeToHours(startTime)) * 100) / 100;
-    if (hours <= 0) { preview.textContent = 'เวลาสิ้นสุดต้องอยู่หลังเวลาเริ่มลา'; return; }
-    if (hours > 8) { preview.textContent = 'ลาได้ไม่เกิน 8 ชั่วโมง/วัน'; return; }
-    const dayEquivalent = Math.round((hours / 8) * 100) / 100;
-    preview.innerHTML = startTime + ' - ' + endTime + ' น. รวม <strong>' + hours + ' ชั่วโมง</strong> (เทียบเท่า ' + dayEquivalent + ' วัน)';
-  }
-  document.getElementById('hourStartTime').addEventListener('input', updateHourPreview);
-  document.getElementById('hourEndTime').addEventListener('input', updateHourPreview);
 
   document.getElementById('attachment').addEventListener('change', function (e) {
     const file = e.target.files[0];
@@ -494,22 +515,22 @@
 
     if (!selectedType) return showBanner('error', 'กรุณาเลือกประเภทการลา');
 
-    let requestStartDate, requestEndDate, requestStartTime, requestEndTime;
+    let requestStartDate, requestEndDate, halfDayPeriod;
     if (durationType === 'day') {
       requestStartDate = document.getElementById('startDate').value;
       requestEndDate = document.getElementById('endDate').value;
       if (!requestStartDate || !requestEndDate) return showBanner('error', 'กรุณาเลือกช่วงวันที่ลา');
       if (new Date(requestEndDate) < new Date(requestStartDate)) return showBanner('error', 'วันที่สิ้นสุดต้องไม่ก่อนวันเริ่มลา');
-    } else {
-      requestStartDate = document.getElementById('hourDate').value;
+    } else if (durationType === 'halfday') {
+      requestStartDate = document.getElementById('halfDayDate').value;
       requestEndDate = requestStartDate;
-      requestStartTime = document.getElementById('hourStartTime').value;
-      requestEndTime = document.getElementById('hourEndTime').value;
       if (!requestStartDate) return showBanner('error', 'กรุณาเลือกวันที่ลา');
-      if (!requestStartTime || !requestEndTime) return showBanner('error', 'กรุณาเลือกเวลาเริ่มและสิ้นสุดการลา');
-      const hrs = timeToHours(requestEndTime) - timeToHours(requestStartTime);
-      if (hrs <= 0) return showBanner('error', 'เวลาสิ้นสุดต้องอยู่หลังเวลาเริ่มลา');
-      if (hrs > 8) return showBanner('error', 'ลาได้ไม่เกิน 8 ชั่วโมงต่อวัน');
+      const periodEl = document.querySelector('#halfDayPeriodRow .leave-type-opt.active');
+      halfDayPeriod = periodEl ? periodEl.dataset.period : 'morning';
+    } else if (durationType === 'hour') {
+      requestStartDate = document.getElementById('hourFixedDate').value;
+      requestEndDate = requestStartDate;
+      if (!requestStartDate) return showBanner('error', 'กรุณาเลือกวันที่ลา');
     }
 
     const reason = document.getElementById('reason').value.trim();
@@ -529,8 +550,7 @@
         durationType: durationType,
         startDate: requestStartDate,
         endDate: requestEndDate,
-        startTime: requestStartTime,
-        endTime: requestEndTime,
+        halfDayPeriod: halfDayPeriod,
         reason: reason
       };
       if (base64 && attachmentFile) {
