@@ -440,23 +440,32 @@
     document.getElementById('hourFixedFields').style.display = (durationType === 'hour') ? '' : 'none';
   }
 
-  // เตรียม dropdown เวลา 08:00-18:00 ทีละครึ่งชั่วโมง (นาทีเลือกได้แค่ 00 หรือ 30 เท่านั้น โดยธรรมชาติของ dropdown)
-  const HOUR_RANGE_START = 8;
-  const HOUR_RANGE_END = 18;
-  function populateHourSelect(selectEl, defaultVal) {
-    selectEl.innerHTML = '';
-    for (let h = HOUR_RANGE_START; h <= HOUR_RANGE_END; h++) {
-      ['00', '30'].forEach(function (mm) {
-        if (h === HOUR_RANGE_END && mm === '30') return; // ไม่เกินขอบเขตบนสุด
-        const val = (h < 10 ? '0' + h : h) + ':' + mm;
-        const opt = document.createElement('option');
-        opt.value = val;
-        opt.textContent = val + ' น.';
-        if (val === defaultVal) opt.selected = true;
-        selectEl.appendChild(opt);
-      });
+  // เตรียม dropdown เวลาลากิจรายชั่วโมง 08:00-18:00 ทีละ "ชั่วโมงเต็ม" เท่านั้น
+    // ยกเว้น 2 จุดนี้ที่ยังเลือกครึ่งชั่วโมงได้ (ต้องตรงกับ PERSONAL_ALLOWED_HALF_HOURS ฝั่ง Code.gs เป๊ะๆ กันคำขอถูก backend ปฏิเสธ):
+    //   - 08:30 -> ใช้คู่กับ 08:00 เป็นช่วง "08:00-08:30 น." (มาสาย 30 นาที)
+    //   - 16:30 -> ใช้คู่กับ 17:00 เป็นช่วง "16:30-17:00 น." (ออกก่อนเลิกงาน 30 นาที)
+    const HOUR_RANGE_START = 8;
+    const HOUR_RANGE_END = 18;
+    const ALLOWED_HALF_HOURS = ['08:30', '16:30'];
+    function buildHourOptionList() {
+          const opts = [];
+          for (let h = HOUR_RANGE_START; h <= HOUR_RANGE_END; h++) {
+                  opts.push((h < 10 ? '0' + h : h) + ':00');
+          }
+          ALLOWED_HALF_HOURS.forEach(function (v) { opts.push(v); });
+          opts.sort();
+          return opts;
     }
-  }
+    function populateHourSelect(selectEl, defaultVal) {
+          selectEl.innerHTML = '';
+          buildHourOptionList().forEach(function (val) {
+                  const opt = document.createElement('option');
+                  opt.value = val;
+                  opt.textContent = val + ' น.';
+                  if (val === defaultVal) opt.selected = true;
+                  selectEl.appendChild(opt);
+          });
+    }
   populateHourSelect(document.getElementById('hourStartSelect'), '09:00');
   populateHourSelect(document.getElementById('hourEndSelect'), '10:00');
 
