@@ -224,6 +224,11 @@
   const API_URL = 'https://script.google.com/macros/s/AKfycby4eYabeQ6xJ-60NtHE9QoRh6LKK6-l0IMf399bgSZ1EYIMRvaarHZqDiJO6KS_Xrla8g/exec';
   // ==========================
 
+  // เปลี่ยนเส้นทางไปหน้าเบิกเงินล่วงหน้า ถ้าเปิดมาจากปุ่ม "เบิกเงินล่วงหน้า" ใน Rich Menu (?page=advance)
+  if (new URLSearchParams(location.search).get('page') === 'advance') {
+    location.replace('advance.html' + location.search);
+  }
+
   window.onerror = function (message) {
     document.getElementById('loadingScreen').style.display = 'none';
     document.getElementById('errorScreen').style.display = '';
