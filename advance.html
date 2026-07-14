@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>เบิกเงินล่วงหน้า</title>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #17262b;
+    --ink-soft: #5b6b70;
+    --line: #e4e9ea;
+    --paper: #f6f8f8;
+    --card: #ffffff;
+    --purple: #7856a8;
+    --purple-deep: #5c4184;
+    --purple-tint: #efe9f6;
+    --danger: #c05656;
+    --danger-tint: #f8e9e9;
+    --amber: #c98a3a;
+    --amber-tint: #fbf0e2;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Sarabun', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  #app { max-width: 480px; margin: 0 auto; padding: 20px 16px 40px; min-height: 100vh; }
+
+  .state-screen {
+    min-height: 70vh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center; gap: 10px;
+    color: var(--ink-soft);
+  }
+  .spinner {
+    width: 30px; height: 30px; border-radius: 50%;
+    border: 3px solid var(--line); border-top-color: var(--purple);
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .status-text { font-size: 12px; color: var(--ink-soft); margin-top: 6px; }
+
+  .topbar { display: flex; align-items: center; gap: 12px; padding: 4px 2px 18px; }
+  .avatar { width: 46px; height: 46px; border-radius: 50%; background: var(--purple-tint); border: 1px solid var(--line); object-fit: cover; }
+  .who .name { font-weight: 600; font-size: 16px; line-height: 1.2; }
+  .who .dept { font-size: 12.5px; color: var(--ink-soft); }
+
+  .section-label { font-size: 12.5px; font-weight: 600; letter-spacing: .04em; color: var(--ink-soft); margin: 22px 2px 10px; text-transform: uppercase; }
+
+  .eligible-card {
+    background: linear-gradient(135deg, var(--purple), var(--purple-deep));
+    border-radius: var(--radius); padding: 18px; color: #fff;
+  }
+  .eligible-card .label { font-size: 12.5px; opacity: .85; }
+  .eligible-card .amount { font-size: 32px; font-weight: 700; line-height: 1.2; margin-top: 4px; }
+  .eligible-card .amount span { font-size: 15px; font-weight: 500; opacity: .85; }
+  .eligible-card .sub { font-size: 12px; opacity: .85; margin-top: 10px; line-height: 1.5; }
+  .eligible-card .sub b { font-weight: 600; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; margin-top: 6px; }
+  .field { margin-bottom: 16px; }
+  .field:last-child { margin-bottom: 0; }
+  .field label { display: block; font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
+
+  .amount-input-wrap { position: relative; }
+  input[type="number"] {
+    width: 100%; border: 1.5px solid var(--line); border-radius: 10px;
+    padding: 13px 46px 13px 14px; font-size: 20px; font-weight: 600; font-family: inherit;
+    color: var(--ink); background: #fff;
+  }
+  input[type="number"]:focus, textarea:focus { outline: none; border-color: var(--purple); }
+  .amount-input-wrap .suffix {
+    position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+    font-size: 14px; color: var(--ink-soft); font-weight: 500;
+  }
+  .quick-amount-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+  .quick-amount-opt {
+    border: 1.5px solid var(--line); border-radius: 10px; padding: 8px 4px; text-align: center;
+    font-size: 13px; color: var(--ink-soft); cursor: pointer;
+  }
+  .quick-amount-opt.active { border-color: var(--purple); color: var(--purple-deep); background: var(--purple-tint); font-weight: 600; }
+
+  textarea { width: 100%; border: 1.5px solid var(--line); border-radius: 10px; padding: 11px 12px; font-size: 15px; font-family: inherit; color: var(--ink); background: #fff; resize: vertical; min-height: 72px; }
+
+  .submit-btn { width: 100%; margin-top: 20px; padding: 14px; border: none; border-radius: 12px; background: var(--purple); color: #fff; font-size: 15px; font-weight: 600; font-family: inherit; cursor: pointer; }
+  .submit-btn:active { background: var(--purple-deep); }
+  .submit-btn:disabled { background: #c3b8d6; }
+
+  .banner { border-radius: 12px; padding: 13px 14px; font-size: 13.5px; margin-top: 14px; line-height: 1.5; white-space: pre-line; }
+  .banner.success { background: var(--purple-tint); color: var(--purple-deep); }
+  .banner.error { background: var(--danger-tint); color: var(--danger); }
+  .banner.warning { background: var(--amber-tint); color: var(--amber); }
+
+  .hint { font-size: 12px; color: var(--ink-soft); margin-top: 8px; }
+
+  .history-card {
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 16px; margin-bottom: 10px;
+  }
+  .history-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .history-amount { font-weight: 700; font-size: 17px; color: var(--purple-deep); }
+  .history-dates { font-size: 12.5px; color: var(--ink-soft); margin-top: 3px; }
+  .history-badge { font-size: 11.5px; font-weight: 600; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+  .history-badge.pending { background: var(--amber-tint); color: var(--amber); }
+  .history-badge.approved { background: var(--purple-tint); color: var(--purple-deep); }
+  .history-badge.rejected { background: var(--danger-tint); color: var(--danger); }
+  .history-reason { font-size: 12.5px; color: var(--ink-soft); margin-top: 8px; }
+  .history-empty { text-align: center; color: var(--ink-soft); font-size: 13px; padding: 20px 0; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="loadingScreen" class="state-screen">
+    <div class="spinner"></div>
+    <div>กำลังโหลดข้อมูลค่ะ...</div>
+    <div class="status-text" id="statusText"></div>
+  </div>
+
+  <div id="errorScreen" class="state-screen" style="display:none;">
+    <div style="font-size:28px;">⚠️</div>
+    <div id="errorMessage">เกิดข้อผิดพลาด</div>
+  </div>
+
+  <div id="mainScreen" style="display:none;">
+    <div class="topbar">
+      <img id="avatar" class="avatar" src="" alt="">
+      <div class="who">
+        <div class="name" id="empName">-</div>
+        <div class="dept" id="empDept">-</div>
+      </div>
+    </div>
+
+    <div class="section-label">สิทธิ์เบิกเงินล่วงหน้า</div>
+    <div class="eligible-card">
+      <div class="label">เบิกได้สูงสุดตอนนี้</div>
+      <div class="amount" id="remainingAmount">- <span>บาท</span></div>
+      <div class="sub" id="eligibleDetail">กำลังคำนวณ...</div>
+    </div>
+
+    <div class="section-label">ยื่นคำขอเบิกเงินล่วงหน้า</div>
+    <div class="card">
+      <div class="field">
+        <label>จำนวนเงินที่ต้องการเบิก</label>
+        <div class="amount-input-wrap">
+          <input type="number" id="amount" placeholder="0" min="1" step="1">
+          <span class="suffix">บาท</span>
+        </div>
+        <div class="quick-amount-row" id="quickAmountRow"></div>
+      </div>
+
+      <div class="field">
+        <label>เหตุผล <span style="color:var(--danger);">*</span></label>
+        <textarea id="reason" placeholder="ระบุเหตุผลในการเบิกเงินล่วงหน้า..." required></textarea>
+      </div>
+
+      <button class="submit-btn" id="submitBtn">ส่งคำขอเบิกเงิน</button>
+      <div class="hint">คำขอจะถูกส่งไปยังคุณพรรณลักษณ์ วีระนิติกุลผ่าน LINE ทันทีเพื่อรออนุมัติ</div>
+      <div id="resultBanner"></div>
+    </div>
+
+    <div class="section-label">ประวัติการเบิกเงินล่วงหน้า</div>
+    <div id="historyList">
+      <div class="history-empty">กำลังโหลดประวัติ...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ===== ค่าที่ต้องตั้ง =====
+  const LIFF_ID = '2010663561-4ovJMpxr';
+  const API_URL = 'https://script.google.com/macros/s/AKfycby4eYabeQ6xJ-60NtHE9QoRh6LKK6-l0IMf399bgSZ1EYIMRvaarHZqDiJO6KS_Xrla8g/exec';
+  // ==========================
+
+  window.onerror = function (message) {
+    document.getElementById('loadingScreen').style.display = 'none';
+    document.getElementById('errorScreen').style.display = '';
+    document.getElementById('errorMessage').innerHTML =
+      'พบข้อผิดพลาดในหน้าเว็บ:<br><span style="font-size:12px;word-break:break-all;">' + message + '</span>';
+    return true;
+  };
+
+  let profile = null;
+  let remainingEligible = 0;
+
+  function setStatus(msg) {
+    const el = document.getElementById('statusText');
+    if (el) el.textContent = msg;
+  }
+
+  function showScreen(id) {
+    ['loadingScreen', 'errorScreen', 'mainScreen'].forEach(function (s) {
+      document.getElementById(s).style.display = (s === id) ? '' : 'none';
+    });
+  }
+
+  function showError(msg) {
+    document.getElementById('errorMessage').textContent = msg;
+    showScreen('errorScreen');
+  }
+
+  function init() {
+    setStatus('เช็ก LIFF SDK...');
+    if (typeof liff === 'undefined') {
+      showError('โหลด LINE LIFF SDK ไม่สำเร็จ กรุณาเช็กการเชื่อมต่ออินเทอร์เน็ต แล้วลองเปิดใหม่อีกครั้งค่ะ');
+      return;
+    }
+    setStatus('SDK พร้อม กำลัง liff.init()...');
+    const stallTimer = setTimeout(function () {
+      showError('การเชื่อมต่อกับ LINE ใช้เวลานานผิดปกติ กรุณาลองปิดแล้วเปิดหน้านี้ใหม่อีกครั้งค่ะ');
+    }, 12000);
+
+    liff.init({ liffId: LIFF_ID }).then(function () {
+      clearTimeout(stallTimer);
+      setStatus('init สำเร็จ กำลังเช็กสถานะล็อกอิน...');
+      if (!liff.isLoggedIn()) {
+        setStatus('ยังไม่ได้ล็อกอิน กำลังนำไปหน้า login...');
+        liff.login();
+        return;
+      }
+      setStatus('ล็อกอินแล้ว กำลังดึงโปรไฟล์...');
+      return liff.getProfile();
+    }).then(function (p) {
+      if (!p) return;
+      profile = p;
+      document.getElementById('avatar').src = profile.pictureUrl || '';
+      loadEligibility();
+    }).catch(function (err) {
+      clearTimeout(stallTimer);
+      showError('เชื่อมต่อ LINE ไม่สำเร็จ: ' + (err && err.message ? err.message : err));
+    });
+  }
+
+  function loadEligibility() {
+    setStatus('กำลังคำนวณสิทธิ์เบิกเงินล่วงหน้า...');
+    fetch(API_URL + '?action=getAdvanceEligibility&lineUserId=' + encodeURIComponent(profile.userId))
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (!data.found) {
+          showError('ไม่พบข้อมูลของคุณในระบบ กรุณาติดต่อ HR เพื่อเพิ่มชื่อเข้าระบบก่อนใช้งาน (User ID: ' + profile.userId + ')');
+          return;
+        }
+        renderProfile(data);
+        renderEligibility(data);
+        showScreen('mainScreen');
+        loadHistory();
+      })
+      .catch(function (err) {
+        showError('โหลดข้อมูลสิทธิ์เบิกเงินไม่สำเร็จ: ' + err);
+      });
+  }
+
+  function renderProfile(data) {
+    document.getElementById('empName').textContent = data.employeeName;
+    document.getElementById('empDept').textContent = data.department;
+  }
+
+  function renderEligibility(data) {
+    remainingEligible = data.remaining;
+    document.getElementById('remainingAmount').innerHTML = data.remaining.toLocaleString('th-TH') + ' <span>บาท</span>';
+    document.getElementById('eligibleDetail').innerHTML =
+      'คำนวณจาก ' + data.eligibleDays + ' วัน (วันที่มาทำงาน + วันอาทิตย์) x 300 บาท = ' + data.maxEligibleAmount.toLocaleString('th-TH') + ' บาท' +
+      (data.alreadyAdvanced > 0 ? '<br>หักยอดที่เบิกไปแล้วเดือนนี้ ' + data.alreadyAdvanced.toLocaleString('th-TH') + ' บาท' : '');
+    renderQuickAmounts(data.remaining);
+    document.getElementById('amount').max = data.remaining;
+  }
+
+  function renderQuickAmounts(remaining) {
+    const row = document.getElementById('quickAmountRow');
+    const options = [remaining, Math.floor(remaining / 2), Math.min(300, remaining)].filter(function (v, i, arr) {
+      return v > 0 && arr.indexOf(v) === i;
+    }).sort(function (a, b) { return a - b; });
+    row.innerHTML = options.map(function (v) {
+      return '<div class="quick-amount-opt" data-amount="' + v + '">' + v.toLocaleString('th-TH') + '</div>';
+    }).join('');
+  }
+
+  document.getElementById('quickAmountRow').addEventListener('click', function (e) {
+    const opt = e.target.closest('.quick-amount-opt');
+    if (!opt) return;
+    document.querySelectorAll('.quick-amount-opt').forEach(function (el) { el.classList.remove('active'); });
+    opt.classList.add('active');
+    document.getElementById('amount').value = opt.dataset.amount;
+  });
+
+  function loadHistory() {
+    const container = document.getElementById('historyList');
+    fetch(API_URL + '?action=getAdvanceHistory&lineUserId=' + encodeURIComponent(profile.userId))
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        renderHistory(data.history || []);
+      })
+      .catch(function () {
+        container.innerHTML = '<div class="history-empty">โหลดประวัติไม่สำเร็จ ลองรีเฟรชหน้านี้ใหม่ค่ะ</div>';
+      });
+  }
+
+  function statusBadgeClass(status) {
+    if (status === 'Approved') return 'approved';
+    if (status === 'Rejected') return 'rejected';
+    return 'pending';
+  }
+
+  function renderHistory(history) {
+    const container = document.getElementById('historyList');
+    if (!history.length) {
+      container.innerHTML = '<div class="history-empty">ยังไม่มีประวัติการเบิกเงินล่วงหน้าค่ะ</div>';
+      return;
+    }
+    container.innerHTML = history.map(function (h) {
+      return '' +
+        '<div class="history-card">' +
+        '  <div class="history-top">' +
+        '    <div>' +
+        '      <div class="history-amount">' + Number(h.amount).toLocaleString('th-TH') + ' บาท</div>' +
+        '      <div class="history-dates">' + h.submittedAt + '</div>' +
+        '    </div>' +
+        '    <span class="history-badge ' + statusBadgeClass(h.status) + '">' + h.statusLabel + '</span>' +
+        '  </div>' +
+        (h.reason ? '<div class="history-reason">เหตุผล: ' + h.reason + '</div>' : '') +
+        '</div>';
+    }).join('');
+  }
+
+  document.getElementById('submitBtn').addEventListener('click', function () {
+    const banner = document.getElementById('resultBanner');
+    banner.innerHTML = '';
+
+    const amount = Number(document.getElementById('amount').value);
+    const reason = document.getElementById('reason').value.trim();
+
+    if (!amount || amount <= 0) return showBanner('error', 'กรุณาระบุจำนวนเงินที่ต้องการเบิก');
+    if (amount > remainingEligible) return showBanner('error', 'ขอเบิกเกินสิทธิ์ที่มีค่ะ เบิกได้สูงสุด ' + remainingEligible.toLocaleString('th-TH') + ' บาท');
+    if (!reason) return showBanner('error', 'กรุณาระบุเหตุผลในการเบิกเงินล่วงหน้า');
+
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.textContent = 'กำลังส่งคำขอ...';
+
+    fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'submitAdvanceRequest', payload: { lineUserId: profile.userId, amount: amount, reason: reason } })
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (res) {
+        btn.disabled = false;
+        btn.textContent = 'ส่งคำขอเบิกเงิน';
+        if (res.success) {
+          showBanner(res.message.indexOf('⚠️') > -1 ? 'warning' : 'success', res.message);
+          document.getElementById('amount').value = '';
+          document.getElementById('reason').value = '';
+          loadEligibility();
+          loadHistory();
+        } else {
+          showBanner('error', res.message);
+        }
+      })
+      .catch(function (err) {
+        btn.disabled = false;
+        btn.textContent = 'ส่งคำขอเบิกเงิน';
+        showBanner('error', 'ส่งคำขอไม่สำเร็จ: ' + err);
+      });
+  });
+
+  function showBanner(type, msg) {
+    document.getElementById('resultBanner').innerHTML = '<div class="banner ' + type + '">' + msg + '</div>';
+  }
+
+  init();
+</script>
+</body>
+</html>
