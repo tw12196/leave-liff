@@ -217,6 +217,14 @@
   </div>
 </div>
 
+<div id="successModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(23,38,43,0.5); z-index:1000; align-items:center; justify-content:center; padding:20px;">
+  <div style="background:#fff; border-radius:16px; padding:28px 24px; max-width:320px; width:100%; text-align:center; box-shadow:0 12px 40px rgba(0,0,0,0.25);">
+    <div style="font-size:36px; line-height:1; margin-bottom:10px;">✅</div>
+    <div id="successModalMessage" style="font-size:15.5px; font-weight:600; color:var(--ink); margin-bottom:20px; line-height:1.5;"></div>
+    <button id="successModalOkBtn" style="width:100%; padding:12px; border:none; border-radius:12px; background:var(--teal); color:#fff; font-size:15px; font-weight:600; font-family:inherit; cursor:pointer;">ตกลง</button>
+  </div>
+</div>
+
 <script>
   // ===== ค่าที่ต้องตั้ง =====
   const LIFF_ID = '2010663561-4ovJMpxr';
@@ -635,7 +643,7 @@
         btn.disabled = false;
         btn.textContent = 'ส่งคำขอลา';
         if (res.success) {
-          alert('ส่งคำขอลางานเรียบร้อยแล้ว');
+          showSuccessModal('ส่งคำขอลางานเรียบร้อยแล้ว');
           showBanner(res.overQuotaDays > 0 ? 'warning' : 'success', res.message);
           loadBalance();
         } else {
@@ -652,6 +660,15 @@
   function showBanner(type, msg) {
     document.getElementById('resultBanner').innerHTML = '<div class="banner ' + type + '">' + msg + '</div>';
   }
+
+  // ป็อปอัปแบบกำหนดเองแทน alert() เดิม เพื่อไม่ให้โชว์ชื่อโดเมน "tw12196.github.io" ที่เบราว์เซอร์แปะให้อัตโนมัติ
+  function showSuccessModal(msg) {
+    document.getElementById('successModalMessage').textContent = msg;
+    document.getElementById('successModalOverlay').style.display = 'flex';
+  }
+  document.getElementById('successModalOkBtn').addEventListener('click', function () {
+    document.getElementById('successModalOverlay').style.display = 'none';
+  });
 
   init();
 </script>
