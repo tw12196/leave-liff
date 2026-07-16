@@ -635,6 +635,7 @@
         btn.disabled = false;
         btn.textContent = 'ส่งคำขอลา';
         if (res.success) {
+          alert('ส่งคำขอลางานเรียบร้อยแล้ว');
           showBanner(res.overQuotaDays > 0 ? 'warning' : 'success', res.message);
           loadBalance();
         } else {
