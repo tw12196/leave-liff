@@ -160,7 +160,7 @@
       </div>
 
       <button class="submit-btn" id="submitBtn">ส่งคำขอเบิกเงิน</button>
-      <div class="hint">คำขอจะถูกส่งไปยังคุณพรรณลักษณ์ วีระนิติกุลผ่าน LINE ทันทีเพื่อรออนุมัติ</div>
+      <div class="hint" id="submitHint">ถ้าไม่เกินสิทธิ์คงเหลือ ระบบจะบันทึกให้ทันที ถ้าเกินสิทธิ์ ระบบจะส่งคำขอเข้ากลุ่มเพื่อขออนุมัติก่อนค่ะ</div>
       <div id="resultBanner"></div>
     </div>
 
@@ -264,10 +264,9 @@
     remainingEligible = data.remaining;
     document.getElementById('remainingAmount').innerHTML = data.remaining.toLocaleString('th-TH') + ' <span>บาท</span>';
     document.getElementById('eligibleDetail').innerHTML =
-      'คำนวณจาก ' + data.eligibleDays + ' วัน (วันที่มาทำงาน + วันอาทิตย์) x 300 บาท = ' + data.maxEligibleAmount.toLocaleString('th-TH') + ' บาท' +
+      'คำนวณจาก ' + data.eligibleDays + ' วัน (วันที่มาทำงาน + วันอาทิตย์ + วันหยุดบริษัท) x 300 บาท = ' + data.maxEligibleAmount.toLocaleString('th-TH') + ' บาท' +
       (data.alreadyAdvanced > 0 ? '<br>หักยอดที่เบิกไปแล้วเดือนนี้ ' + data.alreadyAdvanced.toLocaleString('th-TH') + ' บาท' : '');
     renderQuickAmounts(data.remaining);
-    document.getElementById('amount').max = data.remaining;
   }
 
   function renderQuickAmounts(remaining) {
@@ -335,8 +334,9 @@
     const reason = document.getElementById('reason').value.trim();
 
     if (!amount || amount <= 0) return showBanner('error', 'กรุณาระบุจำนวนเงินที่ต้องการเบิก');
-    if (amount > remainingEligible) return showBanner('error', 'ขอเบิกเกินสิทธิ์ที่มีค่ะ เบิกได้สูงสุด ' + remainingEligible.toLocaleString('th-TH') + ' บาท');
     if (!reason) return showBanner('error', 'กรุณาระบุเหตุผลในการเบิกเงินล่วงหน้า');
+    // หมายเหตุ: ไม่บล็อกยอดที่เกินสิทธิ์คงเหลือแล้ว (ยื่นได้เสมอ) เพราะฝั่ง Apps Script
+    // (submitAdvanceRequest) รองรับเคสเกินสิทธิ์อยู่แล้ว โดยจะส่งเข้ากลุ่มขออนุมัติก่อนบันทึกให้เอง
 
     const btn = document.getElementById('submitBtn');
     btn.disabled = true;
@@ -351,7 +351,7 @@
         btn.disabled = false;
         btn.textContent = 'ส่งคำขอเบิกเงิน';
         if (res.success) {
-          showBanner(res.message.indexOf('⚠️') > -1 ? 'warning' : 'success', res.message);
+          showBanner(res.isOverLimit ? 'warning' : 'success', res.message);
           document.getElementById('amount').value = '';
           document.getElementById('reason').value = '';
           loadEligibility();
