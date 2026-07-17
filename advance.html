@@ -110,8 +110,15 @@
   .history-badge.pending { background: var(--amber-tint); color: var(--amber); }
   .history-badge.approved { background: var(--purple-tint); color: var(--purple-deep); }
   .history-badge.rejected { background: var(--danger-tint); color: var(--danger); }
+  .history-badge.withdrawn { background: var(--line); color: var(--ink-soft); }
   .history-reason { font-size: 12.5px; color: var(--ink-soft); margin-top: 8px; }
   .history-empty { text-align: center; color: var(--ink-soft); font-size: 13px; padding: 20px 0; }
+  .withdraw-btn {
+    margin-top: 10px; width: 100%; padding: 8px; border: 1.5px solid var(--line); border-radius: 8px;
+    background: #fff; color: var(--ink-soft); font-size: 12.5px; font-weight: 600; font-family: inherit; cursor: pointer;
+  }
+  .withdraw-btn:active { background: var(--paper); }
+  .withdraw-btn:disabled { opacity: .5; }
 </style>
 </head>
 <body>
@@ -140,7 +147,6 @@
     <div class="eligible-card">
       <div class="label">เบิกได้สูงสุดตอนนี้</div>
       <div class="amount" id="remainingAmount">- <span>บาท</span></div>
-      <div class="sub" id="eligibleDetail">กำลังคำนวณ...</div>
     </div>
 
     <div class="section-label">ยื่นคำขอเบิกเงินล่วงหน้า</div>
@@ -155,8 +161,8 @@
       </div>
 
       <div class="field">
-        <label>เหตุผล <span style="color:var(--danger);">*</span></label>
-        <textarea id="reason" placeholder="ระบุเหตุผลในการเบิกเงินล่วงหน้า..." required></textarea>
+        <label>เหตุผล</label>
+        <textarea id="reason" placeholder="ระบุเหตุผลในการเบิกเงินล่วงหน้า (ไม่บังคับ)..."></textarea>
       </div>
 
       <button class="submit-btn" id="submitBtn">ส่งคำขอเบิกเงิน</button>
@@ -263,9 +269,6 @@
   function renderEligibility(data) {
     remainingEligible = data.remaining;
     document.getElementById('remainingAmount').innerHTML = data.remaining.toLocaleString('th-TH') + ' <span>บาท</span>';
-    document.getElementById('eligibleDetail').innerHTML =
-      'คำนวณจาก ' + data.eligibleDays + ' วัน (วันที่มาทำงาน + วันอาทิตย์ + วันหยุดบริษัท) x 300 บาท = ' + data.maxEligibleAmount.toLocaleString('th-TH') + ' บาท' +
-      (data.alreadyAdvanced > 0 ? '<br>หักยอดที่เบิกไปแล้วเดือนนี้ ' + data.alreadyAdvanced.toLocaleString('th-TH') + ' บาท' : '');
     renderQuickAmounts(data.remaining);
   }
 
@@ -302,6 +305,7 @@
   function statusBadgeClass(status) {
     if (status === 'Approved') return 'approved';
     if (status === 'Rejected') return 'rejected';
+    if (status === 'Withdrawn') return 'withdrawn';
     return 'pending';
   }
 
@@ -322,9 +326,40 @@
         '    <span class="history-badge ' + statusBadgeClass(h.status) + '">' + h.statusLabel + '</span>' +
         '  </div>' +
         (h.reason ? '<div class="history-reason">เหตุผล: ' + h.reason + '</div>' : '') +
+        (h.canWithdraw ? '<button class="withdraw-btn" data-request-id="' + h.requestId + '">ถอนคำขอนี้</button>' : '') +
         '</div>';
     }).join('');
   }
+
+  document.getElementById('historyList').addEventListener('click', function (e) {
+    const btn = e.target.closest('.withdraw-btn');
+    if (!btn) return;
+    if (!confirm('ยืนยันถอนคำขอเบิกเงินล่วงหน้านี้ใช่ไหมคะ')) return;
+
+    btn.disabled = true;
+    btn.textContent = 'กำลังถอนคำขอ...';
+
+    fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'withdrawAdvanceRequest', payload: { lineUserId: profile.userId, requestId: btn.dataset.requestId } })
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (res) {
+        if (res.success) {
+          loadEligibility();
+          loadHistory();
+        } else {
+          btn.disabled = false;
+          btn.textContent = 'ถอนคำขอนี้';
+          alert(res.message);
+        }
+      })
+      .catch(function (err) {
+        btn.disabled = false;
+        btn.textContent = 'ถอนคำขอนี้';
+        alert('ถอนคำขอไม่สำเร็จ: ' + err);
+      });
+  });
 
   document.getElementById('submitBtn').addEventListener('click', function () {
     const banner = document.getElementById('resultBanner');
@@ -334,8 +369,7 @@
     const reason = document.getElementById('reason').value.trim();
 
     if (!amount || amount <= 0) return showBanner('error', 'กรุณาระบุจำนวนเงินที่ต้องการเบิก');
-    if (!reason) return showBanner('error', 'กรุณาระบุเหตุผลในการเบิกเงินล่วงหน้า');
-    // หมายเหตุ: ไม่บล็อกยอดที่เกินสิทธิ์คงเหลือแล้ว (ยื่นได้เสมอ) เพราะฝั่ง Apps Script
+    // หมายเหตุ: ไม่บังคับใส่เหตุผล และไม่บล็อกยอดที่เกินสิทธิ์คงเหลือแล้ว (ยื่นได้เสมอ) เพราะฝั่ง Apps Script
     // (submitAdvanceRequest) รองรับเคสเกินสิทธิ์อยู่แล้ว โดยจะส่งเข้ากลุ่มขออนุมัติก่อนบันทึกให้เอง
 
     const btn = document.getElementById('submitBtn');
