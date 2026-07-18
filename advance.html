@@ -177,6 +177,16 @@
   </div>
 </div>
 
+<div id="confirmModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(23,38,43,0.5); z-index:1000; align-items:center; justify-content:center; padding:20px;">
+  <div style="background:#fff; border-radius:16px; padding:28px 24px; max-width:320px; width:100%; text-align:center; box-shadow:0 12px 40px rgba(0,0,0,0.25);">
+    <div id="confirmModalMessage" style="font-size:15.5px; font-weight:600; color:var(--ink); margin-bottom:20px; line-height:1.5;"></div>
+    <div style="display:flex; gap:10px;">
+      <button id="confirmModalCancelBtn" style="flex:1; padding:12px; border:1.5px solid var(--line); border-radius:12px; background:#fff; color:var(--ink-soft); font-size:14px; font-weight:600; font-family:inherit; cursor:pointer;">ยกเลิก</button>
+      <button id="confirmModalOkBtn" style="flex:1; padding:12px; border:none; border-radius:12px; background:var(--purple); color:#fff; font-size:14px; font-weight:600; font-family:inherit; cursor:pointer;">ยืนยันถอนคำขอ</button>
+    </div>
+  </div>
+</div>
+
 <script>
   // ===== ค่าที่ต้องตั้ง =====
   const LIFF_ID = '2010663561-4ovJMpxr';
@@ -331,34 +341,52 @@
     }).join('');
   }
 
+  // ป็อปอัปแบบกำหนดเองแทน confirm()/alert() เดิม เพื่อไม่ให้โชว์ชื่อโดเมน "tw12196.github.io" ที่เบราว์เซอร์แปะให้อัตโนมัติ
+  let confirmModalCallback = null;
+  function showConfirmModal(msg, onConfirm) {
+    document.getElementById('confirmModalMessage').textContent = msg;
+    confirmModalCallback = onConfirm;
+    document.getElementById('confirmModalOverlay').style.display = 'flex';
+  }
+  document.getElementById('confirmModalCancelBtn').addEventListener('click', function () {
+    document.getElementById('confirmModalOverlay').style.display = 'none';
+    confirmModalCallback = null;
+  });
+  document.getElementById('confirmModalOkBtn').addEventListener('click', function () {
+    document.getElementById('confirmModalOverlay').style.display = 'none';
+    const cb = confirmModalCallback;
+    confirmModalCallback = null;
+    if (cb) cb();
+  });
+
   document.getElementById('historyList').addEventListener('click', function (e) {
     const btn = e.target.closest('.withdraw-btn');
     if (!btn) return;
-    if (!confirm('ยืนยันถอนคำขอเบิกเงินล่วงหน้านี้ใช่ไหมคะ')) return;
+    showConfirmModal('ยืนยันถอนคำขอเบิกเงินล่วงหน้านี้ใช่ไหมคะ', function () {
+      btn.disabled = true;
+      btn.textContent = 'กำลังถอนคำขอ...';
 
-    btn.disabled = true;
-    btn.textContent = 'กำลังถอนคำขอ...';
-
-    fetch(API_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'withdrawAdvanceRequest', payload: { lineUserId: profile.userId, requestId: btn.dataset.requestId } })
-    })
-      .then(function (res) { return res.json(); })
-      .then(function (res) {
-        if (res.success) {
-          loadEligibility();
-          loadHistory();
-        } else {
+      fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'withdrawAdvanceRequest', payload: { lineUserId: profile.userId, requestId: btn.dataset.requestId } })
+      })
+        .then(function (res) { return res.json(); })
+        .then(function (res) {
+          if (res.success) {
+            loadEligibility();
+            loadHistory();
+          } else {
+            btn.disabled = false;
+            btn.textContent = 'ถอนคำขอนี้';
+            showBanner('error', res.message);
+          }
+        })
+        .catch(function (err) {
           btn.disabled = false;
           btn.textContent = 'ถอนคำขอนี้';
-          alert(res.message);
-        }
-      })
-      .catch(function (err) {
-        btn.disabled = false;
-        btn.textContent = 'ถอนคำขอนี้';
-        alert('ถอนคำขอไม่สำเร็จ: ' + err);
-      });
+          showBanner('error', 'ถอนคำขอไม่สำเร็จ: ' + err);
+        });
+    });
   });
 
   document.getElementById('submitBtn').addEventListener('click', function () {
