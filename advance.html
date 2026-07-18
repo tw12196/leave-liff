@@ -187,6 +187,14 @@
   </div>
 </div>
 
+<div id="infoModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(23,38,43,0.5); z-index:1000; align-items:center; justify-content:center; padding:20px;">
+  <div style="background:#fff; border-radius:16px; padding:28px 24px; max-width:320px; width:100%; text-align:center; box-shadow:0 12px 40px rgba(0,0,0,0.25);">
+    <div style="font-size:36px; line-height:1; margin-bottom:10px;">⏰</div>
+    <div id="infoModalMessage" style="font-size:15.5px; font-weight:600; color:var(--ink); margin-bottom:20px; line-height:1.5;"></div>
+    <button id="infoModalOkBtn" style="width:100%; padding:12px; border:none; border-radius:12px; background:var(--purple); color:#fff; font-size:15px; font-weight:600; font-family:inherit; cursor:pointer;">รับทราบ</button>
+  </div>
+</div>
+
 <script>
   // ===== ค่าที่ต้องตั้ง =====
   const LIFF_ID = '2010663561-4ovJMpxr';
@@ -359,6 +367,15 @@
     if (cb) cb();
   });
 
+  // ป็อปอัปกลางจอ ใช้เฉพาะข้อความแจ้งเตือน "ยื่นเกิน 15:00 น." ให้เห็นชัดกว่าแถบสีแดงด้านบนฟอร์ม
+  function showInfoModal(msg) {
+    document.getElementById('infoModalMessage').textContent = msg;
+    document.getElementById('infoModalOverlay').style.display = 'flex';
+  }
+  document.getElementById('infoModalOkBtn').addEventListener('click', function () {
+    document.getElementById('infoModalOverlay').style.display = 'none';
+  });
+
   document.getElementById('historyList').addEventListener('click', function (e) {
     const btn = e.target.closest('.withdraw-btn');
     if (!btn) return;
@@ -418,6 +435,8 @@
           document.getElementById('reason').value = '';
           loadEligibility();
           loadHistory();
+        } else if (res.message && res.message.indexOf('15:00') > -1) {
+          showInfoModal(res.message);
         } else {
           showBanner('error', res.message);
         }
