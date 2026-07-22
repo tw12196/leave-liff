@@ -235,6 +235,17 @@
   </div>
 </div>
 
+<div id="confirmModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(23,38,43,0.5); z-index:1000; align-items:center; justify-content:center; padding:20px;">
+  <div style="background:#fff; border-radius:16px; padding:28px 24px; max-width:320px; width:100%; text-align:center; box-shadow:0 12px 40px rgba(0,0,0,0.25);">
+    <div style="font-size:36px; line-height:1; margin-bottom:10px;">❓</div>
+    <div id="confirmModalMessage" style="font-size:15.5px; font-weight:600; color:var(--ink); margin-bottom:20px; line-height:1.5; white-space:pre-line;"></div>
+    <div style="display:flex; gap:10px;">
+      <button id="confirmModalCancelBtn" style="flex:1; padding:12px; border:1px solid #d8dee0; border-radius:12px; background:#fff; color:var(--ink); font-size:15px; font-weight:600; font-family:inherit; cursor:pointer;">ยกเลิก</button>
+      <button id="confirmModalOkBtn" style="flex:1; padding:12px; border:none; border-radius:12px; background:var(--teal); color:#fff; font-size:15px; font-weight:600; font-family:inherit; cursor:pointer;">ยืนยัน</button>
+    </div>
+  </div>
+</div>
+
 <input type="file" id="extraAttachmentInput" accept="image/*,.pdf" style="display:none;">
 
 <script>
@@ -394,7 +405,7 @@
     document.getElementById('historyBanner').innerHTML = '<div class="banner ' + type + '">' + msg + '</div>';
   }
 
-  document.getElementById('historyList').addEventListener('click', function (e) {
+  document.getElementById('historyList').addEventListener('click', async function (e) {
     const attachBtn = e.target.closest('.attach-btn');
     if (attachBtn) {
       pendingAttachRequestId = attachBtn.dataset.rid;
@@ -407,7 +418,8 @@
     const confirmMsg = isWithdraw
       ? 'ยืนยันถอนคำขอลานี้ใช่ไหมคะ? (ยังไม่มีใครอนุมัติ ถอนได้ทันทีไม่ต้องรอยืนยัน)'
       : 'ยืนยันขอยกเลิกวันลานี้ใช่ไหมคะ? คำขอจะถูกส่งไปให้หัวหน้างานยืนยันอีกครั้ง';
-    if (!confirm(confirmMsg)) return;
+    const confirmed = await showConfirmModal(confirmMsg);
+    if (!confirmed) return;
     btn.disabled = true;
     btn.textContent = isWithdraw ? 'กำลังถอนคำขอ...' : 'กำลังส่งคำขอยกเลิก...';
     fetch(API_URL, {
@@ -416,11 +428,17 @@
     })
       .then(function (res) { return res.json(); })
       .then(function (res) {
-        alert(res.message);
+        if (res.success) {
+          showSuccessModal(res.message);
+        } else {
+          showBanner('error', res.message);
+          btn.disabled = false;
+          btn.textContent = isWithdraw ? 'ถอนคำขอนี้' : 'ขอยกเลิกวันลานี้';
+        }
         loadHistory();
       })
       .catch(function (err) {
-        alert('ดำเนินการไม่สำเร็จ: ' + err);
+        showBanner('error', 'ดำเนินการไม่สำเร็จ: ' + err);
         btn.disabled = false;
         btn.textContent = isWithdraw ? 'ถอนคำขอนี้' : 'ขอยกเลิกวันลานี้';
       });
@@ -738,6 +756,26 @@
   document.getElementById('successModalOkBtn').addEventListener('click', function () {
     document.getElementById('successModalOverlay').style.display = 'none';
   });
+
+  // ป็อปอัปยืนยันแบบกำหนดเองแทน confirm() เดิม เพื่อไม่ให้โชว์ชื่อโดเมน "tw12196.github.io" ที่เบราว์เซอร์แปะให้อัตโนมัติ
+  function showConfirmModal(msg) {
+    return new Promise(function (resolve) {
+      document.getElementById('confirmModalMessage').textContent = msg;
+      document.getElementById('confirmModalOverlay').style.display = 'flex';
+      const okBtn = document.getElementById('confirmModalOkBtn');
+      const cancelBtn = document.getElementById('confirmModalCancelBtn');
+      function cleanup(result) {
+        document.getElementById('confirmModalOverlay').style.display = 'none';
+        okBtn.removeEventListener('click', onOk);
+        cancelBtn.removeEventListener('click', onCancel);
+        resolve(result);
+      }
+      function onOk() { cleanup(true); }
+      function onCancel() { cleanup(false); }
+      okBtn.addEventListener('click', onOk);
+      cancelBtn.addEventListener('click', onCancel);
+    });
+  }
 
   init();
 </script>
