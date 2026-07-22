@@ -9,118 +9,141 @@
 <title>ระบบขออนุมัติลางาน</title>
 <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --ink: #17262b;
-    --ink-soft: #5b6b70;
-    --line: #e4e9ea;
-    --paper: #f6f8f8;
-    --card: #ffffff;
-    --teal: #2e7d8c;
-    --teal-deep: #1f5964;
-    --teal-tint: #e7f1f2;
-    --danger: #c05656;
-    --danger-tint: #f8e9e9;
-    --amber: #c98a3a;
-    --amber-tint: #fbf0e2;
+    --ink: #2b2b28;
+    --ink-mid: #8a8a80;
+    --ink-mid2: #9a9a8e;
+    --ink-light: #a3a398;
+    --green-dark: #4e7f61;
+    --green-mid: #7bab8a;
+    --green-fill: #e7f0e3;
+    --green-border: #a9cdb0;
+    --ring-green: #5c9a76;
+    --ring-track: #e7ecdf;
+    --red: #c0432a;
+    --red-bg: #fff2ee;
+    --red-border: #f3c8ba;
+    --red-track: #f6d9cd;
+    --amber-bg: #fdf0dc;
+    --amber: #a85f1b;
+    --input-border: #e6e0d0;
+    --input-bg: #fbf9f3;
+    --page-bg: #f6f3ea;
     --radius: 14px;
   }
   * { box-sizing: border-box; }
   html, body {
     margin: 0; padding: 0;
-    background: var(--paper);
+    background: var(--page-bg);
     color: var(--ink);
-    font-family: 'Sarabun', system-ui, sans-serif;
+    font-family: 'Noto Sans Thai', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
-  #app { max-width: 480px; margin: 0 auto; padding: 20px 16px 40px; min-height: 100vh; }
+  #app { max-width: 480px; margin: 0 auto; min-height: 100vh; background: var(--page-bg); padding-bottom: 40px; }
 
   .state-screen {
     min-height: 70vh; display: flex; flex-direction: column;
     align-items: center; justify-content: center; text-align: center; gap: 10px;
-    color: var(--ink-soft);
+    color: var(--ink-mid); padding: 0 24px;
   }
   .spinner {
     width: 30px; height: 30px; border-radius: 50%;
-    border: 3px solid var(--line); border-top-color: var(--teal);
+    border: 3px solid var(--ring-track); border-top-color: var(--green-dark);
     animation: spin 0.8s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .status-text { font-size: 12px; color: var(--ink-soft); margin-top: 6px; }
+  .status-text { font-size: 12px; color: var(--ink-mid); margin-top: 6px; }
 
-  .topbar { display: flex; align-items: center; gap: 12px; padding: 4px 2px 18px; }
-  .avatar { width: 46px; height: 46px; border-radius: 50%; background: var(--teal-tint); border: 1px solid var(--line); object-fit: cover; }
-  .who .name { font-weight: 600; font-size: 16px; line-height: 1.2; }
-  .who .dept { font-size: 12.5px; color: var(--ink-soft); }
+  .header-band { background: linear-gradient(160deg, #7bab8a, #4e7f61); padding: 18px 24px 34px; border-radius: 0 0 32px 32px; color: #fff; }
+  .header-title { text-align: center; font-weight: 700; font-size: 17px; margin-bottom: 18px; }
+  .topbar { display: flex; align-items: center; gap: 14px; }
+  .avatar { width: 52px; height: 52px; border-radius: 16px; background: rgba(255,255,255,.25); border: 2px solid rgba(255,255,255,.5); object-fit: cover; flex-shrink: 0; }
+  .who .name { font-weight: 700; font-size: 16px; line-height: 1.2; }
+  .who .dept { font-size: 12px; opacity: .85; margin-top: 2px; }
 
-  .section-label { font-size: 12.5px; font-weight: 600; letter-spacing: .04em; color: var(--ink-soft); margin: 22px 2px 10px; text-transform: uppercase; }
+  .section-label { font-size: 14.5px; font-weight: 700; color: var(--green-dark); padding: 24px 16px 10px; }
+  .section-label:first-of-type { padding-top: 0; }
 
-  .balance-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-  .balance-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 10px; text-align: center; }
-  .balance-card .label { font-size: 12px; color: var(--ink-soft); margin-bottom: 6px; }
-  .balance-card .remaining { font-size: 22px; font-weight: 700; color: var(--teal-deep); line-height: 1; }
-  .balance-card .of-total { font-size: 11px; color: var(--ink-soft); margin-top: 4px; }
-  .balance-card .bar-track { height: 4px; border-radius: 4px; background: var(--line); margin-top: 8px; overflow: hidden; }
-  .balance-card .bar-fill { height: 100%; background: var(--teal); border-radius: 4px; }
-
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; margin-top: 6px; }
-  .field { margin-bottom: 16px; }
-  .field:last-child { margin-bottom: 0; }
-  .field label { display: block; font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
-  .leave-type-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  .leave-type-opt { border: 1.5px solid var(--line); border-radius: 10px; padding: 10px 6px; text-align: center; font-size: 13px; color: var(--ink-soft); cursor: pointer; transition: border-color .15s, color .15s, background .15s; }
-  .leave-type-opt.active { border-color: var(--teal); color: var(--teal-deep); background: var(--teal-tint); font-weight: 600; }
-  input[type="date"], textarea { width: 100%; border: 1.5px solid var(--line); border-radius: 10px; padding: 11px 12px; font-size: 15px; font-family: inherit; color: var(--ink); background: #fff; }
-  select#hourStartSelect, select#hourEndSelect {
-    width: 100%; border: 1.5px solid var(--line); border-radius: 10px;
-    padding: 16px 14px; font-size: 20px; font-weight: 600; font-family: inherit;
-    color: var(--ink); background: #fff; text-align: center;
+  .balance-row { display: flex; gap: 12px; padding: 0 16px; margin-top: -18px; }
+  .balance-ring-card {
+    flex: 1; background: #fff; border-radius: 24px; padding: 16px 12px; text-align: center;
+    box-shadow: 0 8px 20px rgba(60,90,70,.12); display: flex; flex-direction: column; align-items: center; gap: 8px;
   }
-  select#hourStartSelect:focus, select#hourEndSelect:focus { outline: none; border-color: var(--teal); }
-  input[type="file"] { width: 100%; font-size: 13px; color: var(--ink-soft); padding: 8px 0; }
-  input[type="date"]:focus, textarea:focus { outline: none; border-color: var(--teal); }
-  textarea { resize: vertical; min-height: 72px; }
+  .balance-ring-card.over { background: var(--red-bg); border: 1.5px solid var(--red-border); box-shadow: 0 8px 20px rgba(200,90,60,.12); }
+  .ring { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+  .ring-inner { width: 46px; height: 46px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; color: var(--green-dark); }
+  .ring-inner.over { background: var(--red-bg); font-size: 13px; color: var(--red); }
+  .ring-label { font-size: 12px; color: var(--ink-mid); font-weight: 700; }
+  .ring-label.over { color: var(--red); font-weight: 800; }
+
+  .card { background: #fff; margin: 0 16px 16px; border-radius: 24px; padding: 22px 20px; box-shadow: 0 6px 20px rgba(60,90,70,.08); display: flex; flex-direction: column; gap: 16px; }
+  .field label { display: block; font-size: 13.5px; font-weight: 700; color: var(--ink); margin-bottom: 8px; }
+  .leave-type-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .leave-type-opt {
+    border: 1.5px solid var(--input-border); border-radius: 999px; padding: 9px 18px;
+    text-align: center; font-size: 13px; color: var(--ink-mid2); font-weight: 600; background: var(--input-bg);
+    cursor: pointer; transition: border-color .15s, color .15s, background .15s;
+  }
+  .leave-type-opt.active { border-color: var(--green-border); color: var(--green-dark); background: var(--green-fill); font-weight: 700; }
+
+  input[type="date"], textarea {
+    width: 100%; border: 1.5px solid var(--input-border); border-radius: var(--radius); padding: 12px 14px;
+    font-size: 13.5px; font-family: inherit; color: var(--ink); background: var(--input-bg);
+  }
+  select#hourStartSelect, select#hourEndSelect {
+    width: 100%; border: 1.5px solid var(--input-border); border-radius: var(--radius);
+    padding: 14px; font-size: 18px; font-weight: 700; font-family: inherit;
+    color: var(--ink); background: var(--input-bg); text-align: center;
+  }
+  select#hourStartSelect:focus, select#hourEndSelect:focus, input[type="date"]:focus, textarea:focus { outline: none; border-color: var(--green-border); }
+  textarea { resize: none; min-height: 72px; }
   .date-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
-  .day-preview { font-size: 13px; color: var(--ink-soft); margin-top: 10px; padding: 9px 12px; background: var(--paper); border-radius: 9px; }
-  .day-preview strong { color: var(--teal-deep); }
+  .day-preview { font-size: 12.5px; color: var(--ink-mid); margin-top: 10px; padding: 9px 12px; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: 12px; }
+  .day-preview strong { color: var(--green-dark); }
 
-  .submit-btn { width: 100%; margin-top: 20px; padding: 14px; border: none; border-radius: 12px; background: var(--teal); color: #fff; font-size: 15px; font-weight: 600; font-family: inherit; cursor: pointer; }
-  .submit-btn:active { background: var(--teal-deep); }
-  .submit-btn:disabled { background: #b7c3c5; }
+  .attach-box { border: 1.5px dashed #cfd8c9; border-radius: var(--radius); padding: 16px; display: flex; align-items: center; gap: 10px; background: var(--input-bg); flex-wrap: wrap; }
+  .attach-chip { background: var(--green-dark); color: #fff; font-weight: 700; font-size: 12.5px; padding: 8px 14px; border-radius: 10px; cursor: pointer; white-space: nowrap; }
+  .attach-filename { font-size: 12px; color: var(--ink-mid2); word-break: break-all; }
 
-  .banner { border-radius: 12px; padding: 13px 14px; font-size: 13.5px; margin-top: 14px; line-height: 1.5; }
-  .banner.success { background: var(--teal-tint); color: var(--teal-deep); white-space: pre-line; }
-  .banner.error { background: var(--danger-tint); color: var(--danger); }
-  .banner.warning { background: var(--amber-tint); color: var(--amber); white-space: pre-line; }
+  .submit-btn { width: 100%; padding: 16px; border: none; border-radius: var(--radius); background: var(--green-dark); color: #fff; font-size: 15.5px; font-weight: 700; font-family: inherit; cursor: pointer; }
+  .submit-btn:active { background: #3c6b52; }
+  .submit-btn:disabled { background: #b9c7bd; }
+  .submit-hint { font-size: 11.5px; color: var(--ink-light); text-align: center; line-height: 1.5; }
 
-  .hint { font-size: 12px; color: var(--ink-soft); margin-top: 8px; }
+  .banner { border-radius: 12px; padding: 13px 14px; font-size: 13.5px; margin-top: 4px; line-height: 1.5; }
+  .banner.success { background: var(--green-fill); color: #3c6b52; white-space: pre-line; }
+  .banner.error { background: var(--red-bg); color: var(--red); }
+  .banner.warning { background: var(--amber-bg); color: var(--amber); white-space: pre-line; }
+
+  .hint { font-size: 11px; color: var(--ink-light); margin-top: 6px; }
 
   .history-card {
-    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
-    padding: 14px 16px; margin-bottom: 10px;
+    background: #fff; border-radius: 20px; box-shadow: 0 6px 16px rgba(60,90,70,.08);
+    padding: 14px 16px; margin-bottom: 12px;
   }
   .history-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-  .history-type { font-weight: 600; font-size: 14.5px; }
-  .history-dates { font-size: 12.5px; color: var(--ink-soft); margin-top: 3px; }
+  .history-type { font-weight: 700; font-size: 14.5px; color: var(--ink); }
+  .history-dates { font-size: 12.5px; color: var(--ink-mid); margin-top: 3px; }
   .history-badge {
-    font-size: 11.5px; font-weight: 600; padding: 4px 10px; border-radius: 999px; white-space: nowrap;
+    font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 999px; white-space: nowrap;
   }
-  .history-badge.pending { background: var(--amber-tint); color: var(--amber); }
-  .history-badge.approved { background: var(--teal-tint); color: var(--teal-deep); }
-  .history-badge.rejected { background: var(--danger-tint); color: var(--danger); }
-  .history-reason { font-size: 12.5px; color: var(--ink-soft); margin-top: 8px; }
-  .history-empty { text-align: center; color: var(--ink-soft); font-size: 13px; padding: 20px 0; }
+  .history-badge.pending { background: var(--amber-bg); color: var(--amber); }
+  .history-badge.approved { background: var(--green-fill); color: #3c6b52; }
+  .history-badge.rejected { background: var(--red-bg); color: var(--red); }
+  .history-reason { font-size: 12.5px; color: var(--ink-mid); margin-top: 8px; }
+  .history-empty { text-align: center; color: var(--ink-mid); font-size: 13px; padding: 20px 0; }
   .cancel-btn {
-    margin-top: 10px; width: 100%; padding: 9px; border: 1.5px solid var(--danger);
-    background: #fff; color: var(--danger); border-radius: 9px; font-size: 13px; font-weight: 600;
+    margin-top: 10px; width: 100%; padding: 9px; border: 1.5px solid var(--red);
+    background: #fff; color: var(--red); border-radius: 12px; font-size: 13px; font-weight: 700;
     font-family: inherit; cursor: pointer;
   }
   .cancel-btn:disabled { opacity: 0.5; }
   .attach-btn {
-    margin-top: 10px; width: 100%; padding: 9px; border: 1.5px solid var(--teal);
-    background: #fff; color: var(--teal-deep); border-radius: 9px; font-size: 13px; font-weight: 600;
+    margin-top: 10px; width: 100%; padding: 9px; border: 1.5px solid var(--green-dark);
+    background: #fff; color: var(--green-dark); border-radius: 12px; font-size: 13px; font-weight: 700;
     font-family: inherit; cursor: pointer;
   }
   .attach-btn:disabled { opacity: 0.5; }
@@ -140,32 +163,34 @@
   </div>
 
   <div id="mainScreen" style="display:none;">
-    <div class="topbar">
-      <img id="avatar" class="avatar" src="" alt="">
-      <div class="who">
-        <div class="name" id="empName">-</div>
-        <div class="dept" id="empDept">-</div>
+    <div class="header-band">
+      <div class="header-title">ระบบขออนุมัติลางาน</div>
+      <div class="topbar">
+        <img id="avatar" class="avatar" src="" alt="">
+        <div class="who">
+          <div class="name" id="empName">-</div>
+          <div class="dept" id="empDept">-</div>
+        </div>
       </div>
     </div>
 
-    <div class="section-label">วันลาคงเหลือ</div>
-    <div class="balance-grid" id="balanceGrid"></div>
+    <div class="balance-row" id="balanceGrid"></div>
 
     <div id="formSection">
     <div class="section-label">ยื่นคำขอลางาน</div>
     <div class="card">
       <div class="field">
         <label>ประเภทการลา</label>
-        <div class="leave-type-row" id="leaveTypeRow" style="grid-template-columns: repeat(2, 1fr);">
-          <div class="leave-type-opt" data-type="sick">ลาป่วย</div>
-          <div class="leave-type-opt" data-type="personal">ลากิจ</div>
+        <div class="leave-type-row" id="leaveTypeRow">
+          <div class="leave-type-opt" data-type="sick">🤒 ลาป่วย</div>
+          <div class="leave-type-opt" data-type="personal">📌 ลากิจ</div>
         </div>
       </div>
 
       <div class="field" id="durationTypeField" style="display:none;">
         <label>ระยะเวลาลา</label>
-        <div class="leave-type-row" id="durationTypeRow" style="grid-template-columns: repeat(2, 1fr);">
-          <div class="leave-type-opt active" data-duration="day">เต็มวัน</div>
+        <div class="leave-type-row" id="durationTypeRow">
+          <div class="leave-type-opt active" data-duration="day">🗓️ เต็มวัน</div>
           <div class="leave-type-opt" data-duration="">-</div>
         </div>
       </div>
@@ -183,9 +208,9 @@
         <label>วันที่ลา</label>
         <input type="date" id="halfDayDate">
         <label style="margin-top:12px;">ช่วงเวลา</label>
-        <div class="leave-type-row" id="halfDayPeriodRow" style="grid-template-columns: repeat(2, 1fr);">
-          <div class="leave-type-opt active" data-period="morning">เช้า (08:00-12:00)</div>
-          <div class="leave-type-opt" data-period="afternoon">บ่าย (13:00-17:00)</div>
+        <div class="leave-type-row" id="halfDayPeriodRow">
+          <div class="leave-type-opt active" data-period="morning">🌅 เช้า (08:00-12:00)</div>
+          <div class="leave-type-opt" data-period="afternoon">🌇 บ่าย (13:00-17:00)</div>
         </div>
       </div>
 
@@ -201,47 +226,53 @@
       </div>
 
       <div class="field">
-        <label>เหตุผล <span style="color:var(--danger);">*</span></label>
-        <textarea id="reason" placeholder="ระบุเหตุผลในการลา..." required></textarea>
+        <label>เหตุผล <span style="color:var(--red);">*</span></label>
+        <textarea id="reason" placeholder="ระบุเหตุผลในการลา..." rows="3" required></textarea>
       </div>
 
       <div class="field">
         <label>แนบเอกสาร (ถ้ามี เช่น ใบรับรองแพทย์)</label>
-        <input type="file" id="attachment" accept="image/*,.pdf">
+        <div class="attach-box">
+          <label for="attachment" class="attach-chip">เลือกไฟล์</label>
+          <span class="attach-filename" id="attachmentFileName">ยังไม่ได้เลือกไฟล์</span>
+          <input type="file" id="attachment" accept="image/*,.pdf" style="display:none;">
+        </div>
         <div class="hint" id="attachmentHint">รองรับรูปภาพหรือ PDF ขนาดไม่เกิน 5MB</div>
       </div>
 
       <button class="submit-btn" id="submitBtn">ส่งคำขอลา</button>
-      <div class="hint">คำขอจะถูกส่งไปยังหัวหน้างานของคุณผ่าน LINE ทันทีเพื่อรออนุมัติ</div>
+      <div class="submit-hint">คำขอจะถูกส่งไปยังหัวหน้างานของคุณผ่าน LINE ทันทีเพื่อรออนุมัติ</div>
       <div id="resultBanner"></div>
     </div>
     </div>
 
     <div id="historySection" style="display:none;">
       <div class="section-label">ประวัติและสถานะการขอลา</div>
+      <div style="padding:0 16px;">
       <div id="historyBanner"></div>
       <div id="historyList">
         <div class="history-empty">กำลังโหลดประวัติ...</div>
+      </div>
       </div>
     </div>
   </div>
 </div>
 
-<div id="successModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(23,38,43,0.5); z-index:1000; align-items:center; justify-content:center; padding:20px;">
-  <div style="background:#fff; border-radius:16px; padding:28px 24px; max-width:320px; width:100%; text-align:center; box-shadow:0 12px 40px rgba(0,0,0,0.25);">
+<div id="successModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(43,43,40,0.5); z-index:1000; align-items:center; justify-content:center; padding:20px;">
+  <div style="background:#fff; border-radius:20px; padding:28px 24px; max-width:320px; width:100%; text-align:center; box-shadow:0 12px 40px rgba(0,0,0,0.25);">
     <div style="font-size:36px; line-height:1; margin-bottom:10px;">✅</div>
-    <div id="successModalMessage" style="font-size:15.5px; font-weight:600; color:var(--ink); margin-bottom:20px; line-height:1.5; white-space:pre-line;"></div>
-    <button id="successModalOkBtn" style="width:100%; padding:12px; border:none; border-radius:12px; background:var(--teal); color:#fff; font-size:15px; font-weight:600; font-family:inherit; cursor:pointer;">ตกลง</button>
+    <div id="successModalMessage" style="font-size:15px; font-weight:600; color:var(--ink); margin-bottom:20px; line-height:1.5; white-space:pre-line;"></div>
+    <button id="successModalOkBtn" style="width:100%; padding:12px; border:none; border-radius:12px; background:var(--green-dark); color:#fff; font-size:15px; font-weight:700; font-family:inherit; cursor:pointer;">ตกลง</button>
   </div>
 </div>
 
-<div id="confirmModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(23,38,43,0.5); z-index:1000; align-items:center; justify-content:center; padding:20px;">
-  <div style="background:#fff; border-radius:16px; padding:28px 24px; max-width:320px; width:100%; text-align:center; box-shadow:0 12px 40px rgba(0,0,0,0.25);">
+<div id="confirmModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(43,43,40,0.5); z-index:1000; align-items:center; justify-content:center; padding:20px;">
+  <div style="background:#fff; border-radius:20px; padding:28px 24px; max-width:320px; width:100%; text-align:center; box-shadow:0 12px 40px rgba(0,0,0,0.25);">
     <div style="font-size:36px; line-height:1; margin-bottom:10px;">❓</div>
-    <div id="confirmModalMessage" style="font-size:15.5px; font-weight:600; color:var(--ink); margin-bottom:20px; line-height:1.5; white-space:pre-line;"></div>
+    <div id="confirmModalMessage" style="font-size:15px; font-weight:600; color:var(--ink); margin-bottom:20px; line-height:1.5; white-space:pre-line;"></div>
     <div style="display:flex; gap:10px;">
-      <button id="confirmModalCancelBtn" style="flex:1; padding:12px; border:1px solid #d8dee0; border-radius:12px; background:#fff; color:var(--ink); font-size:15px; font-weight:600; font-family:inherit; cursor:pointer;">ยกเลิก</button>
-      <button id="confirmModalOkBtn" style="flex:1; padding:12px; border:none; border-radius:12px; background:var(--teal); color:#fff; font-size:15px; font-weight:600; font-family:inherit; cursor:pointer;">ยืนยัน</button>
+      <button id="confirmModalCancelBtn" style="flex:1; padding:12px; border:1.5px solid var(--input-border); border-radius:12px; background:#fff; color:var(--ink); font-size:15px; font-weight:700; font-family:inherit; cursor:pointer;">ยกเลิก</button>
+      <button id="confirmModalOkBtn" style="flex:1; padding:12px; border:none; border-radius:12px; background:var(--green-dark); color:#fff; font-size:15px; font-weight:700; font-family:inherit; cursor:pointer;">ยืนยัน</button>
     </div>
   </div>
 </div>
@@ -367,12 +398,12 @@
     container.innerHTML = history.map(function (h) {
       const attachmentLine = h.attachmentUrl
         ? '<div class="history-reason">' + h.attachmentUrl.split(' | ').map(function (url, idx, arr) {
-            return '📎 <a href="' + url + '" target="_blank" style="color:var(--teal-deep);">ดูเอกสารแนบ' + (arr.length > 1 ? (' ' + (idx + 1)) : '') + '</a>';
+            return '📎 <a href="' + url + '" target="_blank" style="color:var(--green-dark);">ดูเอกสารแนบ' + (arr.length > 1 ? (' ' + (idx + 1)) : '') + '</a>';
           }).join('&nbsp;&nbsp;') + '</div>'
         : '';
       const reasonLine = h.reason ? '<div class="history-reason">เหตุผล: ' + h.reason + '</div>' : '';
       const overQuotaLine = h.overQuotaDays > 0
-        ? '<div class="history-reason" style="color:var(--danger);">⚠️ เกินโควตา ' + h.overQuotaDays + ' วัน (หักเงินเดือน)</div>'
+        ? '<div class="history-reason" style="color:var(--red);">⚠️ เกินโควตา ' + h.overQuotaDays + ' วัน (หักเงินเดือน)</div>'
         : '';
       let actionBtn = '';
       if (h.canWithdraw) {
@@ -495,27 +526,32 @@
     grid.innerHTML = '';
     ['sick', 'personal'].forEach(function (key) {
       const b = balances[key];
-      const pct = b.quota > 0 ? Math.max(0, Math.min(100, (b.remaining / b.quota) * 100)) : 0;
       const isOver = b.remaining < 0;
       const card = document.createElement('div');
-      card.className = 'balance-card';
-      card.innerHTML =
-        '<div class="label">' + leaveLabels[key] + '</div>' +
-        '<div class="remaining"' + (isOver ? ' style="color:var(--danger);"' : '') + '>' + (isOver ? 'เกิน ' + Math.abs(b.remaining) : b.remaining) + '</div>' +
-        '<div class="of-total">จาก ' + b.quota + ' วัน' + (isOver ? ' (เกินโควตา)' : '') + '</div>' +
-        '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%' + (isOver ? ';background:var(--danger);' : '') + '"></div></div>';
+      if (isOver) {
+        card.className = 'balance-ring-card over';
+        card.innerHTML =
+          '<div class="ring" style="background:conic-gradient(#c0432a 0deg 360deg,#f6d9cd 360deg);"><div class="ring-inner over">⚠️</div></div>' +
+          '<div class="ring-label over">เกิน ' + Math.abs(b.remaining) + ' วัน</div>';
+      } else {
+        const fillDeg = b.quota > 0 ? Math.max(0, Math.min(360, (b.remaining / b.quota) * 360)) : 0;
+        card.className = 'balance-ring-card';
+        card.innerHTML =
+          '<div class="ring" style="background:conic-gradient(#5c9a76 0deg ' + fillDeg + 'deg,#e7ecdf ' + fillDeg + 'deg 360deg);"><div class="ring-inner">' + b.remaining + '</div></div>' +
+          '<div class="ring-label">' + leaveLabels[key] + ' · จาก ' + b.quota + '</div>';
+      }
       grid.appendChild(card);
     });
   }
 
   const DURATION_OPTIONS = {
     sick: [
-      { value: 'day', label: 'เต็มวัน' },
-      { value: 'halfday', label: 'ครึ่งวัน' }
+      { value: 'day', label: '🗓️ เต็มวัน' },
+      { value: 'halfday', label: '🌗 ครึ่งวัน' }
     ],
     personal: [
-      { value: 'day', label: 'เต็มวัน' },
-      { value: 'hour', label: 'รายชั่วโมง' }
+      { value: 'day', label: '🗓️ เต็มวัน' },
+      { value: 'hour', label: '⏰ รายชั่วโมง' }
     ]
   };
 
@@ -635,19 +671,26 @@
 
   document.getElementById('attachment').addEventListener('change', function (e) {
     const file = e.target.files[0];
+    const nameEl = document.getElementById('attachmentFileName');
     const hint = document.getElementById('attachmentHint');
     if (!file) {
+      nameEl.textContent = 'ยังไม่ได้เลือกไฟล์';
+      nameEl.style.color = '';
       hint.textContent = 'รองรับรูปภาพหรือ PDF ขนาดไม่เกิน 5MB';
+      hint.style.color = '';
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
       hint.textContent = 'ไฟล์ใหญ่เกินไป (เกิน 5MB) กรุณาเลือกไฟล์ใหม่';
-      hint.style.color = 'var(--danger)';
+      hint.style.color = 'var(--red)';
+      nameEl.textContent = 'ยังไม่ได้เลือกไฟล์';
       e.target.value = '';
       return;
     }
     hint.style.color = '';
-    hint.textContent = 'เลือกไฟล์แล้ว: ' + file.name + ' (' + Math.round(file.size / 1024) + ' KB)';
+    hint.textContent = 'รองรับรูปภาพหรือ PDF ขนาดไม่เกิน 5MB';
+    nameEl.style.color = '#3c6b52';
+    nameEl.textContent = file.name + ' (' + Math.round(file.size / 1024) + ' KB)';
   });
 
   function fileToBase64(file) {
