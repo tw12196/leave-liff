@@ -118,6 +118,12 @@
     font-family: inherit; cursor: pointer;
   }
   .cancel-btn:disabled { opacity: 0.5; }
+  .attach-btn {
+    margin-top: 10px; width: 100%; padding: 9px; border: 1.5px solid var(--teal);
+    background: #fff; color: var(--teal-deep); border-radius: 9px; font-size: 13px; font-weight: 600;
+    font-family: inherit; cursor: pointer;
+  }
+  .attach-btn:disabled { opacity: 0.5; }
 </style>
 </head>
 <body>
@@ -213,6 +219,7 @@
 
     <div id="historySection" style="display:none;">
       <div class="section-label">ประวัติและสถานะการขอลา</div>
+      <div id="historyBanner"></div>
       <div id="historyList">
         <div class="history-empty">กำลังโหลดประวัติ...</div>
       </div>
@@ -227,6 +234,8 @@
     <button id="successModalOkBtn" style="width:100%; padding:12px; border:none; border-radius:12px; background:var(--teal); color:#fff; font-size:15px; font-weight:600; font-family:inherit; cursor:pointer;">ตกลง</button>
   </div>
 </div>
+
+<input type="file" id="extraAttachmentInput" accept="image/*,.pdf" style="display:none;">
 
 <script>
   // ===== ค่าที่ต้องตั้ง =====
@@ -346,7 +355,9 @@
     }
     container.innerHTML = history.map(function (h) {
       const attachmentLine = h.attachmentUrl
-        ? '<div class="history-reason">📎 <a href="' + h.attachmentUrl + '" target="_blank" style="color:var(--teal-deep);">ดูเอกสารแนบ</a></div>'
+        ? '<div class="history-reason">' + h.attachmentUrl.split(' | ').map(function (url, idx, arr) {
+            return '📎 <a href="' + url + '" target="_blank" style="color:var(--teal-deep);">ดูเอกสารแนบ' + (arr.length > 1 ? (' ' + (idx + 1)) : '') + '</a>';
+          }).join('&nbsp;&nbsp;') + '</div>'
         : '';
       const reasonLine = h.reason ? '<div class="history-reason">เหตุผล: ' + h.reason + '</div>' : '';
       const overQuotaLine = h.overQuotaDays > 0
@@ -358,6 +369,7 @@
       } else if (h.canCancel) {
         actionBtn = '<button class="cancel-btn" data-rid="' + h.requestId + '" data-mode="cancel">ขอยกเลิกวันลานี้</button>';
       }
+      const attachBtn = '<button class="attach-btn" data-rid="' + h.requestId + '">📎 แนบเอกสารเพิ่มเติม</button>';
       return '' +
         '<div class="history-card">' +
         '  <div class="history-top">' +
@@ -370,12 +382,25 @@
         reasonLine +
         overQuotaLine +
         attachmentLine +
+        attachBtn +
         actionBtn +
         '</div>';
     }).join('');
   }
 
+  let pendingAttachRequestId = null;
+
+  function showHistoryBanner(type, msg) {
+    document.getElementById('historyBanner').innerHTML = '<div class="banner ' + type + '">' + msg + '</div>';
+  }
+
   document.getElementById('historyList').addEventListener('click', function (e) {
+    const attachBtn = e.target.closest('.attach-btn');
+    if (attachBtn) {
+      pendingAttachRequestId = attachBtn.dataset.rid;
+      document.getElementById('extraAttachmentInput').click();
+      return;
+    }
     const btn = e.target.closest('.cancel-btn');
     if (!btn) return;
     const isWithdraw = btn.dataset.mode === 'withdraw';
@@ -398,6 +423,47 @@
         alert('ดำเนินการไม่สำเร็จ: ' + err);
         btn.disabled = false;
         btn.textContent = isWithdraw ? 'ถอนคำขอนี้' : 'ขอยกเลิกวันลานี้';
+      });
+  });
+
+  document.getElementById('extraAttachmentInput').addEventListener('change', function (e) {
+    const file = e.target.files[0];
+    const rid = pendingAttachRequestId;
+    e.target.value = ''; // เคลียร์ค่าไว้ กันเลือกไฟล์เดิมซ้ำแล้ว change event ไม่ยิง
+    if (!file || !rid) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      showHistoryBanner('error', 'ไฟล์ใหญ่เกินไป (เกิน 5MB) กรุณาเลือกไฟล์ใหม่ค่ะ');
+      return;
+    }
+
+    const targetBtn = document.querySelector('.attach-btn[data-rid="' + rid + '"]');
+    if (targetBtn) { targetBtn.disabled = true; targetBtn.textContent = 'กำลังแนบเอกสาร...'; }
+    document.getElementById('historyBanner').innerHTML = '';
+
+    fileToBase64(file).then(function (base64) {
+      return fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'addLeaveAttachment',
+          payload: {
+            lineUserId: profile.userId,
+            requestId: rid,
+            attachmentBase64: base64,
+            attachmentName: file.name,
+            attachmentMimeType: file.type || 'application/octet-stream'
+          }
+        })
+      });
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (res) {
+        showHistoryBanner(res.success ? 'success' : 'error', res.message);
+        loadHistory();
+      })
+      .catch(function (err) {
+        showHistoryBanner('error', 'แนบเอกสารไม่สำเร็จ: ' + err);
+        if (targetBtn) { targetBtn.disabled = false; targetBtn.textContent = '📎 แนบเอกสารเพิ่มเติม'; }
       });
   });
 
