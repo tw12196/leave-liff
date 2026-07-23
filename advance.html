@@ -164,7 +164,7 @@
       <div id="resultBanner"></div>
     </div>
 
-    <div class="section-label">ประวัติกยรเบิกเงินล่วงหน้า</div>
+    <div class="section-label">ประวัติการเบิกเงินล่วงหน้า</div>
     <div id="historyList">
       <div class="history-empty">กำลังโหลดประวัติ...</div>
     </div>
@@ -335,14 +335,14 @@
     const reason = document.getElementById('reason').value.trim();
 
     if (!amount || amount <= 0) return showBanner('error', 'กรุณาระบุจำนวนเงินที่ต้องการเบิก');
-    if (amount > remainingEligible) return showBanner('error', 'ขอเบิกเงินสิทธิ์ที่มีค่ะ เบิกได้สูงสุด ' + remainingEligible.toLocaleString('th-TH') + ' บาท');
-    if (!reason) return showBanner('error', 'กรุณาระบุเหีุผลในการเบิกเงินล่วงหน้า');
+    if (amount > remainingEligible) return showBanner('error', 'ขอเบิกเกินสิทธิ์ที่มีค่ะ เบิกได้สูงสุด ' + remainingEligible.toLocaleString('th-TH') + ' บาท');
+    if (!reason) return showBanner('error', 'กรุณาระบุเหตุผลในการเบิกเงินล่วงหน้า');
 
     submitAdvance(amount, reason, false);
   });
 
   // แยกออกมาเป็นฟังก์ชันเดี่ยว เพื่อให้เรียกซ้ำได้เองเมื่อพนักงานกดยืนยันใน popup ว่าตั้งใจเบิกซ้ำจริง
-  // (กันกดปุ่ม "ส่งคำขอเบิกเงิน" ซ้ำขไม่ตั้งใจ เช่นกดสองครั้งติดกัน เคสพุทธ คำตาที่เบิกซ้ำ 2 รายการ)
+  // (กันกดปุ่ม "ส่งคำขอเบิกเงิน" ซ้ำโดยไม่ตั้งใจ เช่นกดสองครั้งติดกัน เคสพุทธ คำตาที่เบิกซ้ำ 2 รายการ)
   function submitAdvance(amount, reason, confirmed) {
     const btn = document.getElementById('submitBtn');
     btn.disabled = true;
