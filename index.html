@@ -384,8 +384,12 @@
           return;
         }
         renderProfile(data);
-        renderBalances(data.balances);
-        // สลับมุมมอง: ?view=history เปิดหน้าประวัติ+ยกเลิก, ค่าเริ่มต้นเปิดหน้าฟอร์มขอลา
+        // สลับมุมมอง: ?view=history เปิดหน้าประวัติ+สถานะ (โชว์วงกลมอัตรามาสาย/ขาด+ลาแทนโควตา), ค่าเริ่มต้นเปิดหน้าฟอร์มขอลา (โชว์วงกลมโควตาลาคงเหลือ)
+        if (isHistoryView) {
+          loadAttendanceRateStats();
+        } else {
+          renderBalances(data.balances);
+        }
         document.getElementById('formSection').style.display = isHistoryView ? 'none' : '';
         document.getElementById('historySection').style.display = isHistoryView ? '' : 'none';
         showScreen('mainScreen');
@@ -613,6 +617,38 @@
       }
       grid.appendChild(card);
     });
+  }
+
+  // วงกลมอัตรามาสาย / อัตราขาด+ลาป่วย+ลากิจ สำหรับหน้า "ประวัติ+สถานะ" เท่านั้น (?view=history)
+  // นับตั้งแต่วันแรกสุดที่ระบบมีข้อมูลสแกนนิ้วจนถึงวันนี้ ตามที่พี่บุ้งกี๋ยืนยันไว้
+  function loadAttendanceRateStats() {
+    fetch(API_URL + '?action=getAttendanceStats&lineUserId=' + encodeURIComponent(profile.userId))
+      .then(function (res) { return res.json(); })
+      .then(function (stats) {
+        renderAttendanceRateRings(stats);
+      })
+      .catch(function () {
+        document.getElementById('balanceGrid').innerHTML = '<div class="history-empty">โหลดสถิติไม่สำเร็จค่ะ</div>';
+      });
+  }
+
+  function renderAttendanceRateRings(stats) {
+    const grid = document.getElementById('balanceGrid');
+    grid.innerHTML = '';
+    const workingDays = stats.workingDays || 0;
+
+    function buildRing(count, label, colorMain, colorTrack) {
+      const fillDeg = workingDays > 0 ? Math.max(0, Math.min(360, (count / workingDays) * 360)) : 0;
+      const card = document.createElement('div');
+      card.className = 'balance-ring-card' + (count > 0 ? '' : '');
+      card.innerHTML =
+        '<div class="ring" style="background:conic-gradient(' + colorMain + ' 0deg ' + fillDeg + 'deg,' + colorTrack + ' ' + fillDeg + 'deg 360deg);"><div class="ring-inner" style="color:' + colorMain + ';">' + count + '</div></div>' +
+        '<div class="ring-label">' + label + ' ' + count + '/' + workingDays + ' วัน</div>';
+      return card;
+    }
+
+    grid.appendChild(buildRing(stats.lateDays || 0, 'มาสาย', (stats.lateDays > 0 ? '#a85f1b' : '#5c9a76'), (stats.lateDays > 0 ? '#fdf0dc' : '#e7ecdf')));
+    grid.appendChild(buildRing(stats.absentLeaveDays || 0, 'ขาด+ลา', (stats.absentLeaveDays > 0 ? '#c0432a' : '#5c9a76'), (stats.absentLeaveDays > 0 ? '#f6d9cd' : '#e7ecdf')));
   }
 
   const DURATION_OPTIONS = {
