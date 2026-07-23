@@ -110,15 +110,8 @@
   .history-badge.pending { background: var(--amber-tint); color: var(--amber); }
   .history-badge.approved { background: var(--purple-tint); color: var(--purple-deep); }
   .history-badge.rejected { background: var(--danger-tint); color: var(--danger); }
-  .history-badge.withdrawn { background: var(--line); color: var(--ink-soft); }
   .history-reason { font-size: 12.5px; color: var(--ink-soft); margin-top: 8px; }
   .history-empty { text-align: center; color: var(--ink-soft); font-size: 13px; padding: 20px 0; }
-  .withdraw-btn {
-    margin-top: 10px; width: 100%; padding: 8px; border: 1.5px solid var(--line); border-radius: 8px;
-    background: #fff; color: var(--ink-soft); font-size: 12.5px; font-weight: 600; font-family: inherit; cursor: pointer;
-  }
-  .withdraw-btn:active { background: var(--paper); }
-  .withdraw-btn:disabled { opacity: .5; }
 </style>
 </head>
 <body>
@@ -147,6 +140,7 @@
     <div class="eligible-card">
       <div class="label">เบิกได้สูงสุดตอนนี้</div>
       <div class="amount" id="remainingAmount">- <span>บาท</span></div>
+      <div class="sub" id="eligibleDetail">กำลังคำนวณ...</div>
     </div>
 
     <div class="section-label">ยื่นคำขอเบิกเงินล่วงหน้า</div>
@@ -161,37 +155,19 @@
       </div>
 
       <div class="field">
-        <label>เหตุผล</label>
-        <textarea id="reason" placeholder="ระบุเหตุผลในการเบิกเงินล่วงหน้า (ไม่บังคับ)..."></textarea>
+        <label>เหตุผล <span style="color:var(--danger);">*</span></label>
+        <textarea id="reason" placeholder="ระบุเหตุผลในการเบิกเงินล่วงหน้า..." required></textarea>
       </div>
 
       <button class="submit-btn" id="submitBtn">ส่งคำขอเบิกเงิน</button>
-      <div class="hint" id="submitHint">ถ้าไม่เกินสิทธิ์คงเหลือ ระบบจะบันทึกให้ทันที ถ้าเกินสิทธิ์ ระบบจะส่งคำขอเข้ากลุ่มเพื่อขออนุมัติก่อนค่ะ</div>
+      <div class="hint">คำขอจะถูกส่งไปยังคุณพรรณลักษณ์ วีระนิติกุลผ่าน LINE ทันทีเพื่อรออนุมัติ</div>
       <div id="resultBanner"></div>
     </div>
 
-    <div class="section-label">ประวัติการเบิกเงินล่วงหน้า</div>
+    <div class="section-label">ประวัติกยรเบิกเงินล่วงหน้า</div>
     <div id="historyList">
       <div class="history-empty">กำลังโหลดประวัติ...</div>
     </div>
-  </div>
-</div>
-
-<div id="confirmModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(23,38,43,0.5); z-index:1000; align-items:center; justify-content:center; padding:20px;">
-  <div style="background:#fff; border-radius:16px; padding:28px 24px; max-width:320px; width:100%; text-align:center; box-shadow:0 12px 40px rgba(0,0,0,0.25);">
-    <div id="confirmModalMessage" style="font-size:15.5px; font-weight:600; color:var(--ink); margin-bottom:20px; line-height:1.5;"></div>
-    <div style="display:flex; gap:10px;">
-      <button id="confirmModalCancelBtn" style="flex:1; padding:12px; border:1.5px solid var(--line); border-radius:12px; background:#fff; color:var(--ink-soft); font-size:14px; font-weight:600; font-family:inherit; cursor:pointer;">ยกเลิก</button>
-      <button id="confirmModalOkBtn" style="flex:1; padding:12px; border:none; border-radius:12px; background:var(--purple); color:#fff; font-size:14px; font-weight:600; font-family:inherit; cursor:pointer;">ยืนยันถอนคำขอ</button>
-    </div>
-  </div>
-</div>
-
-<div id="infoModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(23,38,43,0.5); z-index:1000; align-items:center; justify-content:center; padding:20px;">
-  <div style="background:#fff; border-radius:16px; padding:28px 24px; max-width:320px; width:100%; text-align:center; box-shadow:0 12px 40px rgba(0,0,0,0.25);">
-    <div style="font-size:36px; line-height:1; margin-bottom:10px;">⏰</div>
-    <div id="infoModalMessage" style="font-size:15.5px; font-weight:600; color:var(--ink); margin-bottom:20px; line-height:1.5;"></div>
-    <button id="infoModalOkBtn" style="width:100%; padding:12px; border:none; border-radius:12px; background:var(--purple); color:#fff; font-size:15px; font-weight:600; font-family:inherit; cursor:pointer;">รับทราบ</button>
   </div>
 </div>
 
@@ -287,7 +263,11 @@
   function renderEligibility(data) {
     remainingEligible = data.remaining;
     document.getElementById('remainingAmount').innerHTML = data.remaining.toLocaleString('th-TH') + ' <span>บาท</span>';
+    document.getElementById('eligibleDetail').innerHTML =
+      'คำนวณจาก ' + data.eligibleDays + ' วัน (วันที่มาทำงาน + วันอาทิตย์) x 300 บาท = ' + data.maxEligibleAmount.toLocaleString('th-TH') + ' บาท' +
+      (data.alreadyAdvanced > 0 ? '<br>หักยอดที่เบิกไปแล้วเดือนนี้ ' + data.alreadyAdvanced.toLocaleString('th-TH') + ' บาท' : '');
     renderQuickAmounts(data.remaining);
+    document.getElementById('amount').max = data.remaining;
   }
 
   function renderQuickAmounts(remaining) {
@@ -323,7 +303,6 @@
   function statusBadgeClass(status) {
     if (status === 'Approved') return 'approved';
     if (status === 'Rejected') return 'rejected';
-    if (status === 'Withdrawn') return 'withdrawn';
     return 'pending';
   }
 
@@ -344,67 +323,9 @@
         '    <span class="history-badge ' + statusBadgeClass(h.status) + '">' + h.statusLabel + '</span>' +
         '  </div>' +
         (h.reason ? '<div class="history-reason">เหตุผล: ' + h.reason + '</div>' : '') +
-        (h.canWithdraw ? '<button class="withdraw-btn" data-request-id="' + h.requestId + '">ถอนคำขอนี้</button>' : '') +
         '</div>';
     }).join('');
   }
-
-  // ป็อปอัปแบบกำหนดเองแทน confirm()/alert() เดิม เพื่อไม่ให้โชว์ชื่อโดเมน "tw12196.github.io" ที่เบราว์เซอร์แปะให้อัตโนมัติ
-  let confirmModalCallback = null;
-  function showConfirmModal(msg, onConfirm) {
-    document.getElementById('confirmModalMessage').textContent = msg;
-    confirmModalCallback = onConfirm;
-    document.getElementById('confirmModalOverlay').style.display = 'flex';
-  }
-  document.getElementById('confirmModalCancelBtn').addEventListener('click', function () {
-    document.getElementById('confirmModalOverlay').style.display = 'none';
-    confirmModalCallback = null;
-  });
-  document.getElementById('confirmModalOkBtn').addEventListener('click', function () {
-    document.getElementById('confirmModalOverlay').style.display = 'none';
-    const cb = confirmModalCallback;
-    confirmModalCallback = null;
-    if (cb) cb();
-  });
-
-  // ป็อปอัปกลางจอ ใช้เฉพาะข้อความแจ้งเตือน "ยื่นเกิน 15:00 น." ให้เห็นชัดกว่าแถบสีแดงด้านบนฟอร์ม
-  function showInfoModal(msg) {
-    document.getElementById('infoModalMessage').textContent = msg;
-    document.getElementById('infoModalOverlay').style.display = 'flex';
-  }
-  document.getElementById('infoModalOkBtn').addEventListener('click', function () {
-    document.getElementById('infoModalOverlay').style.display = 'none';
-  });
-
-  document.getElementById('historyList').addEventListener('click', function (e) {
-    const btn = e.target.closest('.withdraw-btn');
-    if (!btn) return;
-    showConfirmModal('ยืนยันถอนคำขอเบิกเงินล่วงหน้านี้ใช่ไหมคะ', function () {
-      btn.disabled = true;
-      btn.textContent = 'กำลังถอนคำขอ...';
-
-      fetch(API_URL, {
-        method: 'POST',
-        body: JSON.stringify({ action: 'withdrawAdvanceRequest', payload: { lineUserId: profile.userId, requestId: btn.dataset.requestId } })
-      })
-        .then(function (res) { return res.json(); })
-        .then(function (res) {
-          if (res.success) {
-            loadEligibility();
-            loadHistory();
-          } else {
-            btn.disabled = false;
-            btn.textContent = 'ถอนคำขอนี้';
-            showBanner('error', res.message);
-          }
-        })
-        .catch(function (err) {
-          btn.disabled = false;
-          btn.textContent = 'ถอนคำขอนี้';
-          showBanner('error', 'ถอนคำขอไม่สำเร็จ: ' + err);
-        });
-    });
-  });
 
   document.getElementById('submitBtn').addEventListener('click', function () {
     const banner = document.getElementById('resultBanner');
@@ -414,29 +335,39 @@
     const reason = document.getElementById('reason').value.trim();
 
     if (!amount || amount <= 0) return showBanner('error', 'กรุณาระบุจำนวนเงินที่ต้องการเบิก');
-    // หมายเหตุ: ไม่บังคับใส่เหตุผล และไม่บล็อกยอดที่เกินสิทธิ์คงเหลือแล้ว (ยื่นได้เสมอ) เพราะฝั่ง Apps Script
-    // (submitAdvanceRequest) รองรับเคสเกินสิทธิ์อยู่แล้ว โดยจะส่งเข้ากลุ่มขออนุมัติก่อนบันทึกให้เอง
+    if (amount > remainingEligible) return showBanner('error', 'ขอเบิกเงินสิทธิ์ที่มีค่ะ เบิกได้สูงสุด ' + remainingEligible.toLocaleString('th-TH') + ' บาท');
+    if (!reason) return showBanner('error', 'กรุณาระบุเหีุผลในการเบิกเงินล่วงหน้า');
 
+    submitAdvance(amount, reason, false);
+  });
+
+  // แยกออกมาเป็นฟังก์ชันเดี่ยว เพื่อให้เรียกซ้ำได้เองเมื่อพนักงานกดยืนยันใน popup ว่าตั้งใจเบิกซ้ำจริง
+  // (กันกดปุ่ม "ส่งคำขอเบิกเงิน" ซ้ำขไม่ตั้งใจ เช่นกดสองครั้งติดกัน เคสพุทธ คำตาที่เบิกซ้ำ 2 รายการ)
+  function submitAdvance(amount, reason, confirmed) {
     const btn = document.getElementById('submitBtn');
     btn.disabled = true;
     btn.textContent = 'กำลังส่งคำขอ...';
 
     fetch(API_URL, {
       method: 'POST',
-      body: JSON.stringify({ action: 'submitAdvanceRequest', payload: { lineUserId: profile.userId, amount: amount, reason: reason } })
+      body: JSON.stringify({ action: 'submitAdvanceRequest', payload: { lineUserId: profile.userId, amount: amount, reason: reason, confirmed: confirmed } })
     })
       .then(function (res) { return res.json(); })
       .then(function (res) {
         btn.disabled = false;
         btn.textContent = 'ส่งคำขอเบิกเงิน';
+        if (res.needConfirm) {
+          if (confirm(res.message)) {
+            submitAdvance(amount, reason, true);
+          }
+          return;
+        }
         if (res.success) {
-          showBanner(res.isOverLimit ? 'warning' : 'success', res.message);
+          showBanner(res.message.indexOf('⚠️') > -1 ? 'warning' : 'success', res.message);
           document.getElementById('amount').value = '';
           document.getElementById('reason').value = '';
           loadEligibility();
           loadHistory();
-        } else if (res.message && res.message.indexOf('15:00') > -1) {
-          showInfoModal(res.message);
         } else {
           showBanner('error', res.message);
         }
@@ -446,7 +377,7 @@
         btn.textContent = 'ส่งคำขอเบิกเงิน';
         showBanner('error', 'ส่งคำขอไม่สำเร็จ: ' + err);
       });
-  });
+  }
 
   function showBanner(type, msg) {
     document.getElementById('resultBanner').innerHTML = '<div class="banner ' + type + '">' + msg + '</div>';
