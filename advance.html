@@ -111,7 +111,7 @@
   .history-badge.approved { background: var(--purple-tint); color: var(--purple-deep); }
   .history-badge.rejected { background: var(--danger-tint); color: var(--danger); }
   .history-reason { font-size: 12.5px; color: var(--ink-soft); margin-top: 8px; }
-  .history-empty { text-align: center; color: var(--ink-soft); font-size: 13px; padding: 20px 0; }
+  .history-empty { text-align: center; color: var(--ink-soft); font-size: 13px; padding: 20px 0; } .history-badge.withdrawn { background: #eef0f0; color: var(--ink-soft); } .history-withdraw-btn { margin-top: 10px; width: 100%; padding: 9px; border-radius: 8px; border: 1.5px solid var(--danger); background: #fff; color: var(--danger); font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; } .history-withdraw-btn:disabled { opacity: .5; } .modal-overlay { position: fixed; inset: 0; background: rgba(23,38,43,0.45); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 1000; } .modal-box { background: #fff; border-radius: var(--radius); padding: 22px 20px; max-width: 340px; width: 100%; text-align: center; } .modal-box .modal-msg { font-size: 14.5px; color: var(--ink); line-height: 1.6; white-space: pre-line; margin-bottom: 18px; } .modal-actions { display: flex; gap: 10px; } .modal-actions button { flex: 1; padding: 11px; border-radius: 10px; border: none; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; } .modal-btn-cancel { background: var(--paper); color: var(--ink-soft); border: 1.5px solid var(--line) !important; } .modal-btn-confirm { background: var(--purple); color: #fff; }
 </style>
 </head>
 <body>
@@ -171,10 +171,12 @@
   </div>
 </div>
 
-<script>
+<div id="confirmModalOverlay" class="modal-overlay" style="display:none;"><div class="modal-box"><div class="modal-msg" id="confirmModalMsg"></div><div class="modal-actions"><button class="modal-btn-cancel" id="confirmModalCancel">ยกเลิก</button><button class="modal-btn-confirm" id="confirmModalOk">ตกลง</button></div></div></div><script>
   // ===== ค่าที่ต้องตั้ง =====
   const LIFF_ID = '2010663561-4ovJMpxr';
   const API_URL = 'https://script.google.com/macros/s/AKfycby4eYabeQ6xJ-60NtHE9QoRh6LKK6-l0IMf399bgSZ1EYIMRvaarHZqDiJO6KS_Xrla8g/exec';
+  function showConfirmModal(message) { return new Promise(function (resolve) { var overlay = document.getElementById('confirmModalOverlay'); document.getElementById('confirmModalMsg').textContent = message; overlay.style.display = 'flex'; var okBtn = document.getElementById('confirmModalOk'); var cancelBtn = document.getElementById('confirmModalCancel'); function cleanup(result) { overlay.style.display = 'none'; okBtn.removeEventListener('click', onOk); cancelBtn.removeEventListener('click', onCancel); resolve(result); } function onOk() { cleanup(true); } function onCancel() { cleanup(false); } okBtn.addEventListener('click', onOk); cancelBtn.addEventListener('click', onCancel); }); }
+  document.getElementById('historyList').addEventListener('click', function (e) { var btn = e.target.closest('.history-withdraw-btn'); if (!btn) return; var requestId = btn.dataset.requestId; showConfirmModal('ต้องการถอนคำขอเบิกเงินล่วงหน้ารายการนี้ใช่ไหมคะ?').then(function (ok) { if (!ok) return; btn.disabled = true; btn.textContent = 'กำลังถอนคำขอ...'; fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'withdrawAdvanceRequest', payload: { lineUserId: profile.userId, requestId: requestId } }) }).then(function (res) { return res.json(); }).then(function (res) { window.scrollTo({ top: 0, behavior: 'smooth' }); if (res.success) { showBanner('success', res.message || 'ถอนคำขอเรียบร้อยแล้วค่ะ'); loadEligibility(); loadHistory(); } else { btn.disabled = false; btn.textContent = 'ถอนคำขอ'; showBanner('error', res.message); } }).catch(function (err) { btn.disabled = false; btn.textContent = 'ถอนคำขอ'; showBanner('error', 'ถอนคำขอไม่สำเร็จ: ' + err); }); }); });
   // ==========================
 
   window.onerror = function (message) {
@@ -303,7 +305,7 @@
   function statusBadgeClass(status) {
     if (status === 'Approved') return 'approved';
     if (status === 'Rejected') return 'rejected';
-    return 'pending';
+    if (status === 'Withdrawn') return 'withdrawn'; return 'pending';
   }
 
   function renderHistory(history) {
@@ -322,7 +324,7 @@
         '    </div>' +
         '    <span class="history-badge ' + statusBadgeClass(h.status) + '">' + h.statusLabel + '</span>' +
         '  </div>' +
-        (h.reason ? '<div class="history-reason">เหตุผล: ' + h.reason + '</div>' : '') +
+        (h.reason ? '<div class="history-reason">เหตุผล: ' + h.reason + '</div>' : '') + (h.status === 'Pending' || h.status === 'Approved' ? '<button class="history-withdraw-btn" data-request-id="' + h.requestId + '">ถอนคำขอ</button>' : '') +
         '</div>';
     }).join('');
   }
@@ -357,9 +359,7 @@
         btn.disabled = false;
         btn.textContent = 'ส่งคำขอเบิกเงิน';
         if (res.needConfirm) {
-          if (confirm(res.message)) {
-            submitAdvance(amount, reason, true);
-          }
+          showConfirmModal(res.message).then(function (ok) { if (ok) submitAdvance(amount, reason, true); });
           return;
         }
         if (res.success) {
