@@ -16,12 +16,12 @@
     --ink-mid: #8a8a80;
     --ink-mid2: #9a9a8e;
     --ink-light: #a3a398;
-    --green-dark: #2e5aa8;
-    --green-mid: #6f9ad1;
-    --green-fill: #e5edf5;
-    --green-border: #a9c2e0;
-    --ring-green: #4a7ab5;
-    --ring-track: #dfe6ee;
+    --green-dark: #4e7f61; --blue-dark: #2e5aa8;
+    --green-mid: #7bab8a; --blue-mid: #6f9ad1;
+    --green-fill: #e7f0e3; --blue-fill: #e5edf5;
+    --green-border: #a9cdb0; --blue-border: #a9c2e0;
+    --ring-green: #5c9a76;
+    --ring-track: #e7ecdf;
     --red: #c0432a;
     --red-bg: #fff2ee;
     --red-border: #f3c8ba;
@@ -33,6 +33,8 @@
     --page-bg: #f6f3ea;
     --radius: 14px;
   }
+#historySection { --green-dark: var(--blue-dark); --green-mid: var(--blue-mid); --green-fill: var(--blue-fill); --green-border: var(--blue-border); }
+  body.view-history .header-band { background: linear-gradient(160deg, var(--blue-mid), var(--blue-dark)); }
   * { box-sizing: border-box; }
   html, body {
     margin: 0; padding: 0;
@@ -114,7 +116,7 @@
   .submit-hint { font-size: 11.5px; color: var(--ink-light); text-align: center; line-height: 1.5; }
 
   .banner { border-radius: 12px; padding: 13px 14px; font-size: 13.5px; margin-top: 4px; line-height: 1.5; }
-  .banner.success { background: var(--green-fill); color: #3c6b52; white-space: pre-line; }
+  .banner.success { background: var(--green-fill); color: var(--green-dark); white-space: pre-line; }
   .banner.error { background: var(--red-bg); color: var(--red); }
   .banner.warning { background: var(--amber-bg); color: var(--amber); white-space: pre-line; }
 
@@ -134,7 +136,7 @@
   .attendance-date { font-weight: 700; font-size: 13.5px; color: var(--ink); }
   .attendance-time { font-size: 12px; color: var(--ink-mid); margin-top: 2px; }
   .attendance-badge { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
-  .attendance-badge.ontime { background: var(--green-fill); color: #3c6b52; }
+  .attendance-badge.ontime { background: var(--green-fill); color: var(--green-dark); }
   .attendance-badge.late { background: var(--amber-bg); color: var(--amber); }
   .attendance-badge.absent { background: var(--red-bg); color: var(--red); }
 
@@ -149,7 +151,7 @@
     font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 999px; white-space: nowrap;
   }
   .history-badge.pending { background: var(--amber-bg); color: var(--amber); }
-  .history-badge.approved { background: var(--green-fill); color: #3c6b52; }
+  .history-badge.approved { background: var(--green-fill); color: var(--green-dark); }
   .history-badge.rejected { background: var(--red-bg); color: var(--red); }
   .history-reason { font-size: 12.5px; color: var(--ink-mid); margin-top: 8px; }
   .history-empty { text-align: center; color: var(--ink-mid); font-size: 13px; padding: 20px 0; }
@@ -323,6 +325,7 @@
   let selectedType = null;
   let durationType = 'day';
   const isHistoryView = new URLSearchParams(location.search).get('view') === 'history';
+  document.body.classList.toggle('view-history', isHistoryView);
 
   const leaveLabels = { sick: 'ลาป่วย', personal: 'ลากิจ' };
 
@@ -647,8 +650,8 @@
       return card;
     }
 
-    grid.appendChild(buildRing(stats.lateDays || 0, 'มาสาย', (stats.lateDays > 0 ? '#a85f1b' : '#5c9a76'), (stats.lateDays > 0 ? '#fdf0dc' : '#e7ecdf')));
-    grid.appendChild(buildRing(stats.absentLeaveDays || 0, 'ขาด+ลา', (stats.absentLeaveDays > 0 ? '#c0432a' : '#5c9a76'), (stats.absentLeaveDays > 0 ? '#f6d9cd' : '#e7ecdf')));
+    grid.appendChild(buildRing(stats.lateDays || 0, 'มาสาย', (stats.lateDays > 0 ? '#a85f1b' : '#4a7ab5'), (stats.lateDays > 0 ? '#fdf0dc' : '#dfe6ee')));
+    grid.appendChild(buildRing(stats.absentLeaveDays || 0, 'ขาด+ลา', (stats.absentLeaveDays > 0 ? '#c0432a' : '#4a7ab5'), (stats.absentLeaveDays > 0 ? '#f6d9cd' : '#dfe6ee')));
   }
 
   const DURATION_OPTIONS = {
