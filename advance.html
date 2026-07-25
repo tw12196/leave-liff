@@ -160,8 +160,7 @@
       </div>
 
       <button class="submit-btn" id="submitBtn">ส่งคำขอเบิกเงิน</button>
-      <div class="hint">คำขอจะถูกส่งไปยังคุณพรรณลักษณ์ วีระนิติกุลผ่าน LINE ทันทีเพื่อรออนุมัติ</div>
-      <div id="resultBanner"></div>
+            <div id="resultBanner"></div>
     </div>
 
     <div class="section-label">ประวัติการเบิกเงินล่วงหน้า</div>
@@ -265,9 +264,8 @@
   function renderEligibility(data) {
     remainingEligible = data.remaining;
     document.getElementById('remainingAmount').innerHTML = data.remaining.toLocaleString('th-TH') + ' <span>บาท</span>';
-    document.getElementById('eligibleDetail').innerHTML =
-      'คำนวณจาก ' + data.eligibleDays + ' วัน (วันที่มาทำงาน + วันอาทิตย์) x 300 บาท = ' + data.maxEligibleAmount.toLocaleString('th-TH') + ' บาท' +
-      (data.alreadyAdvanced > 0 ? '<br>หักยอดที่เบิกไปแล้วเดือนนี้ ' + data.alreadyAdvanced.toLocaleString('th-TH') + ' บาท' : '');
+          document.getElementById('eligibleDetail').innerHTML =
+                    (data.alreadyAdvanced > 0 ? 'หักยอดที่เบิกไปแล้วเดือนนี้ ' + data.alreadyAdvanced.toLocaleString('th-TH') + ' บาท' : '');
     renderQuickAmounts(data.remaining);
     document.getElementById('amount').max = data.remaining;
   }
