@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>สลิปเงินเดือน</title>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #17262b;
+    --ink-soft: #5b6b70;
+    --line: #e4e9ea;
+    --paper: #f6f8f8;
+    --card: #ffffff;
+    --teal: #2e7d8c;
+    --teal-deep: #1f5964;
+    --teal-tint: #e7f1f2;
+    --danger: #c05656;
+    --danger-tint: #f8e9e9;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Sarabun', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  #app { max-width: 480px; margin: 0 auto; padding: 20px 16px 40px; min-height: 100vh; }
+
+  .state-screen {
+    min-height: 70vh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center; gap: 10px;
+    color: var(--ink-soft);
+  }
+  .spinner {
+    width: 30px; height: 30px; border-radius: 50%;
+    border: 3px solid var(--line); border-top-color: var(--teal);
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .status-text { font-size: 12px; color: var(--ink-soft); margin-top: 6px; }
+
+  .topbar { display: flex; align-items: center; gap: 12px; padding: 4px 2px 18px; }
+  .avatar { width: 46px; height: 46px; border-radius: 50%; background: var(--teal-tint); border: 1px solid var(--line); object-fit: cover; }
+  .who .name { font-weight: 600; font-size: 16px; line-height: 1.2; }
+  .who .dept { font-size: 12.5px; color: var(--ink-soft); }
+
+  .section-label { font-size: 12.5px; font-weight: 600; letter-spacing: .04em; color: var(--ink-soft); margin: 22px 2px 10px; text-transform: uppercase; }
+
+  .payslip-card {
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 16px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .payslip-info .period { font-weight: 600; font-size: 15px; }
+  .payslip-info .file { font-size: 12px; color: var(--ink-soft); margin-top: 3px; }
+  .view-btn {
+    flex-shrink: 0; border: none; border-radius: 10px; background: var(--teal); color: #fff;
+    font-size: 13.5px; font-weight: 600; font-family: inherit; padding: 10px 16px; cursor: pointer;
+  }
+  .view-btn:active { background: var(--teal-deep); }
+  .view-btn:disabled { background: #b7c3c5; }
+
+  .empty-state { text-align: center; color: var(--ink-soft); font-size: 13px; padding: 32px 0; }
+
+  .banner { border-radius: 12px; padding: 13px 14px; font-size: 13.5px; margin-top: 14px; line-height: 1.5; white-space: pre-line; }
+  .banner.error { background: var(--danger-tint); color: var(--danger); }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="loadingScreen" class="state-screen">
+    <div class="spinner"></div>
+    <div>กำลังโหลดข้อมูลค่ะ...</div>
+    <div class="status-text" id="statusText"></div>
+  </div>
+
+  <div id="errorScreen" class="state-screen" style="display:none;">
+    <div style="font-size:28px;">⚠️</div>
+    <div id="errorMessage">เกิดข้อผิดพลาด</div>
+  </div>
+
+  <div id="mainScreen" style="display:none;">
+    <div class="topbar">
+      <img id="avatar" class="avatar" src="" alt="">
+      <div class="who">
+        <div class="name" id="empName">-</div>
+        <div class="dept" id="empDept">สลิปเงินเดือน</div>
+      </div>
+    </div>
+
+    <div class="section-label">รายการสลิปเงินเดือนของคุณ</div>
+    <div id="payslipList">
+      <div class="empty-state">กำลังโหลดรายการสลิป...</div>
+    </div>
+    <div id="resultBanner"></div>
+  </div>
+</div>
+
+<script>
+  // ===== ค่าที่ต้องตั้ง =====
+  const LIFF_ID = '2010663561-4ovJMpxr';
+  const API_URL = 'https://script.google.com/macros/s/AKfycby4eYabeQ6xJ-60NtHE9QoRh6LKK6-l0IMf399bgSZ1EYIMRvaarHZqDiJO6KS_Xrla8g/exec';
+  // ==========================
+
+  window.onerror = function (message) {
+    document.getElementById('loadingScreen').style.display = 'none';
+    document.getElementById('errorScreen').style.display = '';
+    document.getElementById('errorMessage').innerHTML =
+      'พบข้อผิดพลาดในหน้าเว็บ:<br><span style="font-size:12px;word-break:break-all;">' + message + '</span>';
+    return true;
+  };
+
+  let profile = null;
+
+  const THAI_MONTH_NAMES = ['', 'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+    'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+
+  function setStatus(msg) {
+    const el = document.getElementById('statusText');
+    if (el) el.textContent = msg;
+  }
+
+  function showScreen(id) {
+    ['loadingScreen', 'errorScreen', 'mainScreen'].forEach(function (s) {
+      document.getElementById(s).style.display = (s === id) ? '' : 'none';
+    });
+  }
+
+  function showError(msg) {
+    document.getElementById('errorMessage').textContent = msg;
+    showScreen('errorScreen');
+  }
+
+  function init() {
+    setStatus('เช็ก LIFF SDK...');
+    if (typeof liff === 'undefined') {
+      showError('โหลด LINE LIFF SDK ไม่สำเร็จ กรุณาเช็กการเชื่อมต่ออินเทอร์เน็ต แล้วลองเปิดใหม่อีกครั้งค่ะ');
+      return;
+    }
+    setStatus('SDK พร้อม กำลัง liff.init()...');
+    const stallTimer = setTimeout(function () {
+      showError('การเชื่อมต่อกับ LINE ใช้เวลานานผิดปกติ กรุณาลองปิดแล้วเปิดหน้านี้ใหม่อีกครั้งค่ะ');
+    }, 12000);
+
+    liff.init({ liffId: LIFF_ID }).then(function () {
+      clearTimeout(stallTimer);
+      setStatus('init สำเร็จ กำลังเช็กสถานะล็อกอิน...');
+      if (!liff.isLoggedIn()) {
+        setStatus('ยังไม่ได้ล็อกอิน กำลังนำไปหน้า login...');
+        liff.login();
+        return;
+      }
+      setStatus('ล็อกอินแล้ว กำลังดึงโปรไฟล์...');
+      return liff.getProfile();
+    }).then(function (p) {
+      if (!p) return;
+      profile = p;
+      document.getElementById('avatar').src = profile.pictureUrl || '';
+      document.getElementById('empName').textContent = profile.displayName || '-';
+      loadPayslipList();
+    }).catch(function (err) {
+      clearTimeout(stallTimer);
+      showError('เชื่อมต่อ LINE ไม่สำเร็จ: ' + (err && err.message ? err.message : err));
+    });
+  }
+
+  function loadPayslipList() {
+    setStatus('กำลังดึงรายการสลิปเงินเดือน...');
+    fetch(API_URL + '?action=getPayslipList&lineUserId=' + encodeURIComponent(profile.userId))
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (!data.found) {
+          showError(data.message || 'ไม่พบข้อมูลของคุณในระบบ กรุณาติดต่อ HR ค่ะ');
+          return;
+        }
+        renderPayslipList(data.payslips || []);
+        showScreen('mainScreen');
+      })
+      .catch(function (err) {
+        showError('โหลดรายการสลิปไม่สำเร็จ: ' + err);
+      });
+  }
+
+  function periodLabelOf(p) {
+    if (p.periodLabel) return p.periodLabel;
+    var m = Number(p.month), y = Number(p.year);
+    return (THAI_MONTH_NAMES[m] || m) + ' ' + y;
+  }
+
+  function renderPayslipList(payslips) {
+    const container = document.getElementById('payslipList');
+    if (!payslips.length) {
+      container.innerHTML = '<div class="empty-state">ยังไม่มีสลิปเงินเดือนของคุณในระบบค่ะ<br>หากคิดว่าควรมีแล้ว กรุณาติดต่อฝ่ายบุคคลนะคะ</div>';
+      return;
+    }
+    container.innerHTML = payslips.map(function (p, i) {
+      return '' +
+        '<div class="payslip-card">' +
+        '  <div class="payslip-info">' +
+        '    <div class="period">' + periodLabelOf(p) + '</div>' +
+        '    <div class="file">' + (p.fileName || '') + '</div>' +
+        '  </div>' +
+        '  <button class="view-btn" data-idx="' + i + '">ดูสลิป</button>' +
+        '</div>';
+    }).join('');
+    container.querySelectorAll('.view-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const p = payslips[Number(btn.dataset.idx)];
+        viewPayslip(p, btn);
+      });
+    });
+  }
+
+  function base64ToBlob(base64, mimeType) {
+    const byteChars = atob(base64);
+    const byteNumbers = new Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+    const byteArray = new Uint8Array(byteNumbers);
+    return new Blob([byteArray], { type: mimeType || 'application/pdf' });
+  }
+
+  function viewPayslip(p, btn) {
+    const banner = document.getElementById('resultBanner');
+    banner.innerHTML = '';
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'กำลังเปิด...';
+
+    fetch(API_URL + '?action=getPayslipFile&lineUserId=' + encodeURIComponent(profile.userId) + '&driveFileId=' + encodeURIComponent(p.driveFileId))
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        btn.disabled = false;
+        btn.textContent = originalText;
+        if (!data.found) {
+          banner.innerHTML = '<div class="banner error">' + (data.message || 'เปิดไฟล์ไม่สำเร็จค่ะ') + '</div>';
+          return;
+        }
+        const blob = base64ToBlob(data.base64, data.mimeType);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = data.fileName || 'payslip.pdf';
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
+      })
+      .catch(function (err) {
+        btn.disabled = false;
+        btn.textContent = originalText;
+        banner.innerHTML = '<div class="banner error">เปิดไฟล์ไม่สำเร็จ: ' + err + '</div>';
+      });
+  }
+
+  init();
+</script>
+</body>
+</html>
