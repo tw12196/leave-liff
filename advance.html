@@ -205,6 +205,10 @@
     showScreen('errorScreen');
   }
 
+  function isTokenExpiredError(msg) {
+    return /access token/i.test(msg) && /expired/i.test(msg);
+  }
+
   function init() {
     setStatus('เช็ก LIFF SDK...');
     if (typeof liff === 'undefined') {
@@ -233,7 +237,15 @@
       loadEligibility();
     }).catch(function (err) {
       clearTimeout(stallTimer);
-      showError('เชื่อมต่อ LINE ไม่สำเร็จ: ' + (err && err.message ? err.message : err));
+      const msg = err && err.message ? err.message : String(err);
+      if (isTokenExpiredError(msg)) {
+        setStatus('เซสชันหมดอายุ กำลังเข้าสู่ระบบใหม่ให้อัตโนมัติ...');
+        try { liff.login({ redirectUri: window.location.href }); } catch (e2) {
+          showError('เซสชันหมดอายุ กรุณาปิดหน้านี้แล้วเปิดใหม่จากเมนู LINE อีกครั้งค่ะ');
+        }
+        return;
+      }
+      showError('เชื่อมต่อ LINE ไม่สำเร็จ: ' + msg);
     });
   }
 
