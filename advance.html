@@ -240,9 +240,8 @@
       const msg = err && err.message ? err.message : String(err);
       if (isTokenExpiredError(msg)) {
         setStatus('เซสชันหมดอายุ กำลังเข้าสู่ระบบใหม่ให้อัตโนมัติ...');
-        try { liff.login({ redirectUri: window.location.href }); } catch (e2) {
-          showError('เซสชันหมดอายุ กรุณาปิดหน้านี้แล้วเปิดใหม่จากเมนู LINE อีกครั้งค่ะ');
-        }
+        try { liff.logout(); } catch (e2) {}
+        window.location.reload();
         return;
       }
       showError('เชื่อมต่อ LINE ไม่สำเร็จ: ' + msg);
