@@ -38,6 +38,11 @@ font-size: 15px; font-weight: 600; margin-top: 12px; cursor: pointer;
 }
 .btn-full { background: #1a7a4c; color: #fff; }
 .btn-partial { background: #fff; color: #b8560a; border: 2px solid #b8560a; }
+.btn-loc { background: #2b6cb0; color: #fff; font-size: 16px; }
+.change-loc {
+display: inline-block; margin-top: 14px; font-size: 12.5px; color: #999;
+text-decoration: underline; cursor: pointer; background: none; border: none;
+}
 textarea, input[type=text] {
 width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd;
 font-size: 14px; margin-top: 6px; font-family: inherit;
@@ -60,11 +65,11 @@ font-size: 14px; z-index: 30; max-width: 90%;
 
 <script>
 // ==================== ตั้งค่า (แก้ 2 บรรทัดนี้) ====================
-const LIFF_ID = "2010663561-6mmF990p"; // เอามาจาก LINE Developers Console
+const LIFF_ID = "2010663561-6mmF990p"; // เอามากาก LINE Developers Console
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbye5zAWnEGLDgTQpGdmMd1cmfHOEmMsOkqd6mMJogU861PJvQU4Nd9SREEdbGscaWQ2/exec"; // URL หลัง deploy Apps Script
 // ====================================================================
 
-// ป้ายจุดโหลด: แปลงค่า loc จาก QR (ภาษาอังกฤษสั้นๆ) เป็นข้อความไทยแสดงบนการ์ด
+// ป้ายจุดโหลด: แปลงค่า loc (ภาษาอังกฤษั้นๆ) เป็นข้อความไทยแสดงบนการ์ด
 const LOC_LABELS = { store: "หน้าร้าน", warehouse: "โกดัง" };
 
 let currentDocNumber = null;
@@ -90,12 +95,11 @@ liff.login();
 return;
 }
 
-// อ่านค่า doc/loc หลังจาก liff.init() เท่านั้น เพราะตอนล็อกอินครั้งแรก
+// อ่านค่า doc/loc หลังจาก liff.init() เท่านั้น เพราะตอนล็อกอินครั้งแลก
 // LINE จะ redirect ไป-กลับผ่าน access.line.me และค่อยคืนค่า query
 // string เดิม (?doc=...&loc=...) กลับมาให้ตอน liff.init() เสร็จ ถ้าอ่านก่อนหน้านั้น
 // จะได้ค่า null เพราะ URL ตอนนั้นยังเป็นของหน้า OAuth callback อยู่
 currentDocNumber = getDocFromUrl();
-currentLoc = getLocFromUrl();
 if (!currentDocNumber) {
 showMessage("ไม่พบเลขที่เอกสารใน QR นี้ กรุณาสแกนจากใบเบิกสินค้าที่ถูกต้อง");
 return;
@@ -104,13 +108,45 @@ return;
 const profile = await liff.getProfile();
 currentUserId = profile.userId;
 currentDisplayName = profile.displayName;
+
+// ถ้า QR ระบุจุดโหลดมาให้แล้ว (?loc=store / ?loc=warehouse) ข้ามหน้าเลือกไปเลย
+// เพื่อรองรับใบเบิกที่ ERP พิมพ์ QR แยก 2 อันแบบเดิม
+// ถ้า QR ไม่มี loc (ใบเบิกที่ใช้ QR ใบเดียว) ให้พนักงานเลือกจุดโหลดเองหน้านี้
+const urlLoc = getLocFromUrl();
+if (urlLoc) {
+currentLoc = urlLoc;
 await checkStatus();
+} else {
+renderLocPicker();
+}
 } catch (err) {
 showMessage("เปิดระบบไม่สำเร็จ: " + err.message);
 }
 }
 
+function renderLocPicker() {
+const appDiv = document.getElementById("app");
+appDiv.innerHTML = `
+<div class="card">
+<div class="doc-number">${currentDocNumber}</div>
+<div class="hint">กรุณาเลือกจุดที่โหลดสินค้าจริง<br>ก่อนยืนยันการส่ง</div>
+<button class="btn btn-loc" id="btnLocStore">🏬 หน้าร้าน</button>
+<button class="btn btn-loc" id="btnLocWarehouse">🏭 โกดัง</button>
+</div>
+`;
+document.getElementById("btnLocStore").onclick = () => {
+currentLoc = "store";
+checkStatus();
+};
+document.getElementById("btnLocWarehouse").onclick = () => {
+currentLoc = "warehouse";
+checkStatus();
+};
+}
+
 async function checkStatus() {
+const appDiv = document.getElementById("app");
+appDiv.innerHTML = '<div class="loading">กำลังตรวจสอบ...</div>';
 try {
 const res = await fetch(`${APPS_SCRIPT_URL}?action=status&doc=${encodeURIComponent(currentDocNumber)}&loc=${encodeURIComponent(currentLoc)}&lineUserId=${currentUserId}`);
 const data = await res.json();
@@ -128,6 +164,13 @@ function locBadgeHtml() {
 if (!currentLoc) return "";
 const label = LOC_LABELS[currentLoc] || currentLoc;
 return `<div class="loc-badge">จุดโหลด: ${label}</div>`;
+}
+
+// แสดงลิงก์ "เปลี่ยนจุดโหลด" เฉพาะตอนที่พนักงานเลือกเองจากหน้า picker เท่านั้น
+// (ถ้า loc มาจาก QR ที่ ERP กำหนดตายตัว ไม่ควรให้เปลี่ยน เพราะ QR นั้นผูกกับจุดโหลดนั้นอยู่แล้ว)
+function changeLocLinkHtml() {
+if (getLocFromUrl()) return "";
+return `<button class="change-loc" id="btnChangeLoc">เลือกจุดโหลดใหม่</button>`;
 }
 
 function renderConfirmCard(alreadyConfirmed, existing) {
@@ -159,6 +202,7 @@ ${alreadyConfirmed ? "" : `
 <button class="btn btn-partial" id="btnSubmitPartial">ส่งข้อมูล (ส่งไม่ครบ)</button>
 </div>
 `}
+${changeLocLinkHtml()}
 </div>
 `;
 
@@ -176,6 +220,8 @@ if (!reason) { alert("กรุณาระบุเหตุผล"); return; }
 submitConfirmation("ไม่ครบ", qty, reason);
 };
 }
+const changeLocBtn = document.getElementById("btnChangeLoc");
+if (changeLocBtn) changeLocBtn.onclick = () => renderLocPicker();
 }
 
 async function submitConfirmation(status, qtyActual, reason) {
