@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>ยืนยันการส่งสินค้า</title>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", "Noto Sans Thai", sans-serif;
+    margin: 0; padding: 0; background: #f4f5f7; color: #222;
+  }
+  header {
+    background: #1a7a4c; color: #fff; padding: 16px; text-align: center;
+    font-size: 18px; font-weight: 600; position: sticky; top: 0; z-index: 10;
+  }
+  header .loc { font-size: 13px; font-weight: 400; opacity: 0.9; margin-top: 2px; }
+  #app { padding: 12px; max-width: 480px; margin: 0 auto; }
+  .card {
+    background: #fff; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08); cursor: pointer; transition: transform .1s;
+  }
+  .card:active { transform: scale(0.98); }
+  .card .doc { font-weight: 700; font-size: 15px; color: #1a7a4c; }
+  .card .cust { font-size: 14px; margin-top: 4px; }
+  .card .items { font-size: 12.5px; color: #666; margin-top: 4px; white-space: pre-line; }
+  .card .date { font-size: 12px; color: #999; margin-top: 6px; }
+  .empty, .loading { text-align: center; color: #888; padding: 40px 16px; font-size: 14px; }
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+    display: flex; align-items: flex-end; z-index: 20;
+  }
+  .sheet {
+    background: #fff; width: 100%; border-radius: 16px 16px 0 0; padding: 20px;
+    max-height: 85vh; overflow-y: auto;
+  }
+  .sheet h3 { margin: 0 0 4px; font-size: 17px; }
+  .sheet .sub { color: #666; font-size: 13px; margin-bottom: 14px; }
+  .btn {
+    display: block; width: 100%; padding: 14px; border: none; border-radius: 10px;
+    font-size: 15px; font-weight: 600; margin-top: 10px; cursor: pointer;
+  }
+  .btn-full { background: #1a7a4c; color: #fff; }
+  .btn-partial { background: #fff; color: #b8560a; border: 2px solid #b8560a; }
+  .btn-cancel { background: #eee; color: #555; }
+  textarea, input[type=number] {
+    width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd;
+    font-size: 14px; margin-top: 6px; font-family: inherit;
+  }
+  label { font-size: 13px; color: #444; font-weight: 600; }
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: #222; color: #fff; padding: 10px 20px; border-radius: 20px;
+    font-size: 14px; z-index: 30;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  ยืนยันการส่งสินค้า
+  <div class="loc" id="locLabel">กำลังโหลด...</div>
+</header>
+
+<div id="app">
+  <div class="loading" id="loadingMsg">กำลังโหลดรายการ...</div>
+</div>
+
+<script>
+// ==================== ตั้งค่า (แก้ 2 บรรทัดนี้) ====================
+const LIFF_ID = "YOUR_LIFF_ID_HERE"; // เอามาจาก LINE Developers Console
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbye5zAWnEGLDgTQpGdmMd1cmfHOEmMsOkqd6mMJogU861PJvQU4Nd9SREEdbGscaWQ2/exec"; // URL หลัง deploy Apps Script
+// ====================================================================
+
+const LOCATION_NAMES = { store: "คลังหน้าร้าน", factory: "โรงงาน" };
+let currentLocation = null;
+let currentUserId = null;
+let currentDisplayName = null;
+let pendingList = [];
+
+function getLocationFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("loc") || "store";
+}
+
+async function main() {
+  currentLocation = getLocationFromUrl();
+  document.getElementById("locLabel").textContent = LOCATION_NAMES[currentLocation] || currentLocation;
+
+  try {
+    await liff.init({ liffId: LIFF_ID });
+    if (!liff.isLoggedIn()) {
+      liff.login();
+      return;
+    }
+    const profile = await liff.getProfile();
+    currentUserId = profile.userId;
+    currentDisplayName = profile.displayName;
+    await loadPendingList();
+  } catch (err) {
+    showError("เปิดระบบไม่สำเร็จ: " + err.message);
+  }
+}
+
+async function loadPendingList() {
+  const appDiv = document.getElementById("app");
+  appDiv.innerHTML = '<div class="loading">กำลังโหลดรายการ...</div>';
+  try {
+    const res = await fetch(`${APPS_SCRIPT_URL}?action=list&location=${currentLocation}&lineUserId=${currentUserId}`);
+    const data = await res.json();
+    if (!data.ok) {
+      showError(data.message || "ไม่สามารถโหลดรายการได้");
+      return;
+    }
+    pendingList = data.items || [];
+    renderList();
+  } catch (err) {
+    showError("เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่");
+  }
+}
+
+function renderList() {
+  const appDiv = document.getElementById("app");
+  if (pendingList.length === 0) {
+    appDiv.innerHTML = '<div class="empty">ไม่มีรายการรอยืนยัน ณ จุดนี้ 🎉</div>';
+    return;
+  }
+  appDiv.innerHTML = "";
+  pendingList.forEach((item, idx) => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <div class="doc">${item.docNumber}</div>
+      <div class="cust">${item.customerName}</div>
+      <div class="items">${item.itemsSummary}</div>
+      <div class="date">นัดส่ง: ${item.expectedDate || "-"}</div>
+    `;
+    card.onclick = () => openConfirmSheet(item);
+    appDiv.appendChild(card);
+  });
+}
+
+function openConfirmSheet(item) {
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.innerHTML = `
+    <div class="sheet">
+      <h3>${item.docNumber}</h3>
+      <div class="sub">${item.customerName}<br>${item.itemsSummary}</div>
+      <button class="btn btn-full" id="btnFull">✅ ส่งครบถ้วน</button>
+      <button class="btn btn-partial" id="btnPartial">⚠️ ส่งไม่ครบ / มีปัญหา</button>
+      <button class="btn btn-cancel" id="btnCancel">ยกเลิก</button>
+      <div id="partialForm" style="display:none; margin-top:14px;">
+        <label>จำนวนที่ส่งจริง</label>
+        <input type="text" id="qtyActual" placeholder="เช่น 55 แผ่น (จากทั้งหมด 60 แผ่น)">
+        <label style="display:block; margin-top:10px;">เหตุผล</label>
+        <textarea id="reason" rows="3" placeholder="ระบุสาเหตุ เช่น ของไม่พอ / ลูกค้าขอลดจำนวน"></textarea>
+        <button class="btn btn-partial" id="btnSubmitPartial">ส่งข้อมูล (ส่งไม่ครบ)</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  document.getElementById("btnCancel").onclick = () => overlay.remove();
+  document.getElementById("btnFull").onclick = () => submitConfirmation(item, "ครบ", null, null, overlay);
+  document.getElementById("btnPartial").onclick = () => {
+    document.getElementById("partialForm").style.display = "block";
+    document.getElementById("btnFull").style.display = "none";
+    document.getElementById("btnPartial").style.display = "none";
+  };
+  document.getElementById("btnSubmitPartial").onclick = () => {
+    const qty = document.getElementById("qtyActual").value.trim();
+    const reason = document.getElementById("reason").value.trim();
+    if (!reason) { alert("กรุณาระบุเหตุผล"); return; }
+    submitConfirmation(item, "ไม่ครบ", qty, reason, overlay);
+  };
+}
+
+async function submitConfirmation(item, status, qtyActual, reason, overlay) {
+  overlay.querySelector(".sheet").innerHTML = '<div class="loading">กำลังบันทึก...</div>';
+  try {
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({
+        action: "confirm",
+        docNumber: item.docNumber,
+        location: currentLocation,
+        status: status,
+        qtyActual: qtyActual || "",
+        reason: reason || "",
+        lineUserId: currentUserId,
+        lineDisplayName: currentDisplayName
+      })
+    });
+    const data = await res.json();
+    overlay.remove();
+    if (data.ok) {
+      showToast(status === "ครบ" ? "ยืนยันสำเร็จ ✅" : "บันทึกแล้ว แจ้งเตือนพี่บุ้งกี๋แล้ว ⚠️");
+      loadPendingList();
+    } else {
+      showToast("เกิดข้อผิดพลาด: " + (data.message || ""));
+    }
+  } catch (err) {
+    overlay.remove();
+    showToast("เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่");
+  }
+}
+
+function showToast(msg) {
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+function showError(msg) {
+  document.getElementById("app").innerHTML = `<div class="empty">${msg}</div>`;
+}
+
+main();
+</script>
+</body>
+</html>
