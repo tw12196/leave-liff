@@ -13,58 +13,44 @@
   }
   header {
     background: #1a7a4c; color: #fff; padding: 16px; text-align: center;
-    font-size: 18px; font-weight: 600; position: sticky; top: 0; z-index: 10;
+    font-size: 18px; font-weight: 600;
   }
-  header .loc { font-size: 13px; font-weight: 400; opacity: 0.9; margin-top: 2px; }
-  #app { padding: 12px; max-width: 480px; margin: 0 auto; }
+  #app { padding: 16px; max-width: 480px; margin: 0 auto; }
   .card {
-    background: #fff; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08); cursor: pointer; transition: transform .1s;
+    background: #fff; border-radius: 14px; padding: 20px; margin-top: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08); text-align: center;
   }
-  .card:active { transform: scale(0.98); }
-  .card .doc { font-weight: 700; font-size: 15px; color: #1a7a4c; }
-  .card .cust { font-size: 14px; margin-top: 4px; }
-  .card .items { font-size: 12.5px; color: #666; margin-top: 4px; white-space: pre-line; }
-  .card .date { font-size: 12px; color: #999; margin-top: 6px; }
-  .empty, .loading { text-align: center; color: #888; padding: 40px 16px; font-size: 14px; }
-  .overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.45);
-    display: flex; align-items: flex-end; z-index: 20;
+  .doc-number { font-size: 22px; font-weight: 700; color: #1a7a4c; letter-spacing: 0.5px; }
+  .hint { font-size: 13px; color: #888; margin-top: 6px; }
+  .already {
+    background: #fff8e6; border: 1px solid #f0c766; border-radius: 10px;
+    padding: 12px 14px; margin-top: 14px; font-size: 13.5px; text-align: left;
   }
-  .sheet {
-    background: #fff; width: 100%; border-radius: 16px 16px 0 0; padding: 20px;
-    max-height: 85vh; overflow-y: auto;
-  }
-  .sheet h3 { margin: 0 0 4px; font-size: 17px; }
-  .sheet .sub { color: #666; font-size: 13px; margin-bottom: 14px; }
+  .loading, .empty { text-align: center; color: #888; padding: 60px 16px; font-size: 14px; }
   .btn {
-    display: block; width: 100%; padding: 14px; border: none; border-radius: 10px;
-    font-size: 15px; font-weight: 600; margin-top: 10px; cursor: pointer;
+    display: block; width: 100%; padding: 15px; border: none; border-radius: 10px;
+    font-size: 15px; font-weight: 600; margin-top: 12px; cursor: pointer;
   }
   .btn-full { background: #1a7a4c; color: #fff; }
   .btn-partial { background: #fff; color: #b8560a; border: 2px solid #b8560a; }
-  .btn-cancel { background: #eee; color: #555; }
-  textarea, input[type=number] {
+  textarea, input[type=text] {
     width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd;
     font-size: 14px; margin-top: 6px; font-family: inherit;
   }
-  label { font-size: 13px; color: #444; font-weight: 600; }
+  label { font-size: 13px; color: #444; font-weight: 600; display: block; text-align: left; margin-top: 12px; }
   .toast {
     position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
     background: #222; color: #fff; padding: 10px 20px; border-radius: 20px;
-    font-size: 14px; z-index: 30;
+    font-size: 14px; z-index: 30; max-width: 90%;
   }
 </style>
 </head>
 <body>
 
-<header>
-  ยืนยันการส่งสินค้า
-  <div class="loc" id="locLabel">กำลังโหลด...</div>
-</header>
+<header>ยืนยันการส่งสินค้า</header>
 
 <div id="app">
-  <div class="loading" id="loadingMsg">กำลังโหลดรายการ...</div>
+  <div class="loading">กำลังตรวจสอบ...</div>
 </div>
 
 <script>
@@ -73,20 +59,21 @@ const LIFF_ID = "2010663561-6mmF990p"; // เอามาจาก LINE Develope
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbye5zAWnEGLDgTQpGdmMd1cmfHOEmMsOkqd6mMJogU861PJvQU4Nd9SREEdbGscaWQ2/exec"; // URL หลัง deploy Apps Script
 // ====================================================================
 
-const LOCATION_NAMES = { store: "คลังหน้าร้าน", factory: "โรงงาน" };
-let currentLocation = null;
+let currentDocNumber = null;
 let currentUserId = null;
 let currentDisplayName = null;
-let pendingList = [];
 
-function getLocationFromUrl() {
+function getDocFromUrl() {
   const params = new URLSearchParams(window.location.search);
-  return params.get("loc") || "store";
+  return params.get("doc");
 }
 
 async function main() {
-  currentLocation = getLocationFromUrl();
-  document.getElementById("locLabel").textContent = LOCATION_NAMES[currentLocation] || currentLocation;
+  currentDocNumber = getDocFromUrl();
+  if (!currentDocNumber) {
+    showMessage("ไม่พบเลขที่เอกสารใน QR นี้ กรุณาสแกนจากใบเบิกสินค้าที่ถูกต้อง");
+    return;
+  }
 
   try {
     await liff.init({ liffId: LIFF_ID });
@@ -97,96 +84,83 @@ async function main() {
     const profile = await liff.getProfile();
     currentUserId = profile.userId;
     currentDisplayName = profile.displayName;
-    await loadPendingList();
+    await checkStatus();
   } catch (err) {
-    showError("เปิดระบบไม่สำเร็จ: " + err.message);
+    showMessage("เปิดระบบไม่สำเร็จ: " + err.message);
   }
 }
 
-async function loadPendingList() {
-  const appDiv = document.getElementById("app");
-  appDiv.innerHTML = '<div class="loading">กำลังโหลดรายการ...</div>';
+async function checkStatus() {
   try {
-    const res = await fetch(`${APPS_SCRIPT_URL}?action=list&location=${currentLocation}&lineUserId=${currentUserId}`);
+    const res = await fetch(`${APPS_SCRIPT_URL}?action=status&doc=${encodeURIComponent(currentDocNumber)}&lineUserId=${currentUserId}`);
     const data = await res.json();
     if (!data.ok) {
-      showError(data.message || "ไม่สามารถโหลดรายการได้");
+      showMessage(data.message || "ไม่สามารถตรวจสอบได้");
       return;
     }
-    pendingList = data.items || [];
-    renderList();
+    renderConfirmCard(data.alreadyConfirmed, data.existing);
   } catch (err) {
-    showError("เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่");
+    showMessage("เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่");
   }
 }
 
-function renderList() {
+function renderConfirmCard(alreadyConfirmed, existing) {
   const appDiv = document.getElementById("app");
-  if (pendingList.length === 0) {
-    appDiv.innerHTML = '<div class="empty">ไม่มีรายการรอยืนยัน ณ จุดนี้ 🎉</div>';
-    return;
+  let alreadyHtml = "";
+  if (alreadyConfirmed) {
+    alreadyHtml = `
+      <div class="already">
+        ⚠️ ใบนี้ถูกยืนยันไปแล้ว<br>
+        โดย ${existing.confirmedBy} เมื่อ ${existing.confirmedAt}<br>
+        สถานะ: ${existing.status}
+      </div>`;
   }
-  appDiv.innerHTML = "";
-  pendingList.forEach((item, idx) => {
-    const card = document.createElement("div");
-    card.className = "card";
-    card.innerHTML = `
-      <div class="doc">${item.docNumber}</div>
-      <div class="cust">${item.customerName}</div>
-      <div class="items">${item.itemsSummary}</div>
-      <div class="date">นัดส่ง: ${item.expectedDate || "-"}</div>
-    `;
-    card.onclick = () => openConfirmSheet(item);
-    appDiv.appendChild(card);
-  });
-}
 
-function openConfirmSheet(item) {
-  const overlay = document.createElement("div");
-  overlay.className = "overlay";
-  overlay.innerHTML = `
-    <div class="sheet">
-      <h3>${item.docNumber}</h3>
-      <div class="sub">${item.customerName}<br>${item.itemsSummary}</div>
-      <button class="btn btn-full" id="btnFull">✅ ส่งครบถ้วน</button>
-      <button class="btn btn-partial" id="btnPartial">⚠️ ส่งไม่ครบ / มีปัญหา</button>
-      <button class="btn btn-cancel" id="btnCancel">ยกเลิก</button>
-      <div id="partialForm" style="display:none; margin-top:14px;">
-        <label>จำนวนที่ส่งจริง</label>
-        <input type="text" id="qtyActual" placeholder="เช่น 55 แผ่น (จากทั้งหมด 60 แผ่น)">
-        <label style="display:block; margin-top:10px;">เหตุผล</label>
-        <textarea id="reason" rows="3" placeholder="ระบุสาเหตุ เช่น ของไม่พอ / ลูกค้าขอลดจำนวน"></textarea>
-        <button class="btn btn-partial" id="btnSubmitPartial">ส่งข้อมูล (ส่งไม่ครบ)</button>
-      </div>
+  appDiv.innerHTML = `
+    <div class="card">
+      <div class="doc-number">${currentDocNumber}</div>
+      <div class="hint">กรุณาเทียบเลขที่นี้กับใบเบิกสินค้าในมือ<br>ก่อนกดยืนยัน</div>
+      ${alreadyHtml}
+      ${alreadyConfirmed ? "" : `
+        <button class="btn btn-full" id="btnFull">✅ ส่งครบถ้วน</button>
+        <button class="btn btn-partial" id="btnPartial">⚠️ ส่งไม่ครบ / มีปัญหา</button>
+        <div id="partialForm" style="display:none;">
+          <label>จำนวนที่ส่งจริง</label>
+          <input type="text" id="qtyActual" placeholder="เช่น 55 แผ่น (จากทั้งหมด 60 แผ่น)">
+          <label>เหตุผล</label>
+          <textarea id="reason" rows="3" placeholder="ระบุสาเหตุ เช่น ของไม่พอ / ลูกค้าขอลดจำนวน"></textarea>
+          <button class="btn btn-partial" id="btnSubmitPartial">ส่งข้อมูล (ส่งไม่ครบ)</button>
+        </div>
+      `}
     </div>
   `;
-  document.body.appendChild(overlay);
 
-  document.getElementById("btnCancel").onclick = () => overlay.remove();
-  document.getElementById("btnFull").onclick = () => submitConfirmation(item, "ครบ", null, null, overlay);
-  document.getElementById("btnPartial").onclick = () => {
-    document.getElementById("partialForm").style.display = "block";
-    document.getElementById("btnFull").style.display = "none";
-    document.getElementById("btnPartial").style.display = "none";
-  };
-  document.getElementById("btnSubmitPartial").onclick = () => {
-    const qty = document.getElementById("qtyActual").value.trim();
-    const reason = document.getElementById("reason").value.trim();
-    if (!reason) { alert("กรุณาระบุเหตุผล"); return; }
-    submitConfirmation(item, "ไม่ครบ", qty, reason, overlay);
-  };
+  if (!alreadyConfirmed) {
+    document.getElementById("btnFull").onclick = () => submitConfirmation("ครบ", null, null);
+    document.getElementById("btnPartial").onclick = () => {
+      document.getElementById("partialForm").style.display = "block";
+      document.getElementById("btnFull").style.display = "none";
+      document.getElementById("btnPartial").style.display = "none";
+    };
+    document.getElementById("btnSubmitPartial").onclick = () => {
+      const qty = document.getElementById("qtyActual").value.trim();
+      const reason = document.getElementById("reason").value.trim();
+      if (!reason) { alert("กรุณาระบุเหตุผล"); return; }
+      submitConfirmation("ไม่ครบ", qty, reason);
+    };
+  }
 }
 
-async function submitConfirmation(item, status, qtyActual, reason, overlay) {
-  overlay.querySelector(".sheet").innerHTML = '<div class="loading">กำลังบันทึก...</div>';
+async function submitConfirmation(status, qtyActual, reason) {
+  const appDiv = document.getElementById("app");
+  appDiv.innerHTML = '<div class="loading">กำลังบันทึก...</div>';
   try {
     const res = await fetch(APPS_SCRIPT_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify({
         action: "confirm",
-        docNumber: item.docNumber,
-        location: currentLocation,
+        docNumber: currentDocNumber,
         status: status,
         qtyActual: qtyActual || "",
         reason: reason || "",
@@ -195,16 +169,16 @@ async function submitConfirmation(item, status, qtyActual, reason, overlay) {
       })
     });
     const data = await res.json();
-    overlay.remove();
     if (data.ok) {
       showToast(status === "ครบ" ? "ยืนยันสำเร็จ ✅" : "บันทึกแล้ว แจ้งเตือนพี่บุ้งกี๋แล้ว ⚠️");
-      loadPendingList();
+      appDiv.innerHTML = `<div class="card"><div class="doc-number">${currentDocNumber}</div><div class="hint">บันทึกเรียบร้อยแล้ว ปิดหน้านี้ได้เลย</div></div>`;
     } else {
       showToast("เกิดข้อผิดพลาด: " + (data.message || ""));
+      checkStatus();
     }
   } catch (err) {
-    overlay.remove();
     showToast("เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่");
+    checkStatus();
   }
 }
 
@@ -216,7 +190,7 @@ function showToast(msg) {
   setTimeout(() => toast.remove(), 3000);
 }
 
-function showError(msg) {
+function showMessage(msg) {
   document.getElementById("app").innerHTML = `<div class="empty">${msg}</div>`;
 }
 
