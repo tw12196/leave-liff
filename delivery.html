@@ -21,6 +21,11 @@ background: #fff; border-radius: 14px; padding: 20px; margin-top: 12px;
 box-shadow: 0 1px 3px rgba(0,0,0,0.08); text-align: center;
 }
 .doc-number { font-size: 22px; font-weight: 700; color: #1a7a4c; letter-spacing: 0.5px; }
+.loc-badge {
+display: inline-block; background: #eef6f1; color: #1a7a4c;
+font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 20px;
+margin-top: 8px;
+}
 .hint { font-size: 13px; color: #888; margin-top: 6px; }
 .already {
 background: #fff8e6; border: 1px solid #f0c766; border-radius: 10px;
@@ -59,13 +64,22 @@ const LIFF_ID = "2010663561-6mmF990p"; // เอามาจาก LINE Develope
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbye5zAWnEGLDgTQpGdmMd1cmfHOEmMsOkqd6mMJogU861PJvQU4Nd9SREEdbGscaWQ2/exec"; // URL หลัง deploy Apps Script
 // ====================================================================
 
+// ป้ายจุดโหลด: แปลงค่า loc จาก QR (ภาษาอังกฤษสั้นๆ) เป็นข้อความไทยแสดงบนการ์ด
+const LOC_LABELS = { store: "หน้าร้าน", warehouse: "โกดัง" };
+
 let currentDocNumber = null;
+let currentLoc = null;
 let currentUserId = null;
 let currentDisplayName = null;
 
 function getDocFromUrl() {
 const params = new URLSearchParams(window.location.search);
 return params.get("doc");
+}
+
+function getLocFromUrl() {
+const params = new URLSearchParams(window.location.search);
+return (params.get("loc") || "").trim();
 }
 
 async function main() {
@@ -76,11 +90,12 @@ liff.login();
 return;
 }
 
-// อ่านค่า doc หลังจาก liff.init() เท่านั้น เพราะตอนล็อกอินครั้งแรก
+// อ่านค่า doc/loc หลังจาก liff.init() เท่านั้น เพราะตอนล็อกอินครั้งแรก
 // LINE จะ redirect ไป-กลับผ่าน access.line.me และค่อยคืนค่า query
-// string เดิม (?doc=...) กลับมาให้ตอน liff.init() เสร็จ ถ้าอ่านก่อนหน้านั้น
+// string เดิม (?doc=...&loc=...) กลับมาให้ตอน liff.init() เสร็จ ถ้าอ่านก่อนหน้านั้น
 // จะได้ค่า null เพราะ URL ตอนนั้นยังเป็นของหน้า OAuth callback อยู่
 currentDocNumber = getDocFromUrl();
+currentLoc = getLocFromUrl();
 if (!currentDocNumber) {
 showMessage("ไม่พบเลขที่เอกสารใน QR นี้ กรุณาสแกนจากใบเบิกสินค้าที่ถูกต้อง");
 return;
@@ -97,7 +112,7 @@ showMessage("เปิดระบบไม่สำเร็จ: " + err.messag
 
 async function checkStatus() {
 try {
-const res = await fetch(`${APPS_SCRIPT_URL}?action=status&doc=${encodeURIComponent(currentDocNumber)}&lineUserId=${currentUserId}`);
+const res = await fetch(`${APPS_SCRIPT_URL}?action=status&doc=${encodeURIComponent(currentDocNumber)}&loc=${encodeURIComponent(currentLoc)}&lineUserId=${currentUserId}`);
 const data = await res.json();
 if (!data.ok) {
 showMessage(data.message || "ไม่สามารถตรวจสอบได้");
@@ -107,6 +122,12 @@ renderConfirmCard(data.alreadyConfirmed, data.existing);
 } catch (err) {
 showMessage("เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่");
 }
+}
+
+function locBadgeHtml() {
+if (!currentLoc) return "";
+const label = LOC_LABELS[currentLoc] || currentLoc;
+return `<div class="loc-badge">จุดโหลด: ${label}</div>`;
 }
 
 function renderConfirmCard(alreadyConfirmed, existing) {
@@ -124,6 +145,7 @@ alreadyHtml = `
 appDiv.innerHTML = `
 <div class="card">
 <div class="doc-number">${currentDocNumber}</div>
+${locBadgeHtml()}
 <div class="hint">กรุณาเทียบเลขที่นี้กับใบเบิกสินค้าในมือ<br>ก่อนกดยืนยัน</div>
 ${alreadyHtml}
 ${alreadyConfirmed ? "" : `
@@ -166,6 +188,7 @@ headers: { "Content-Type": "text/plain;charset=utf-8" },
 body: JSON.stringify({
 action: "confirm",
 docNumber: currentDocNumber,
+loc: currentLoc,
 status: status,
 qtyActual: qtyActual || "",
 reason: reason || "",
@@ -176,7 +199,7 @@ lineDisplayName: currentDisplayName
 const data = await res.json();
 if (data.ok) {
 showToast(status === "ครบ" ? "ยืนยันสำเร็จ ✅" : "บันทึกแล้ว แจ้งเตือนพี่บุ้งกี๋แล้ว ⚠️");
-appDiv.innerHTML = `<div class="card"><div class="doc-number">${currentDocNumber}</div><div class="hint">บันทึกเรียบร้อยแล้ว ปิดหน้านี้ได้เลย</div></div>`;
+appDiv.innerHTML = `<div class="card"><div class="doc-number">${currentDocNumber}</div>${locBadgeHtml()}<div class="hint">บันทึกเรียบร้อยแล้ว ปิดหน้านี้ได้เลย</div></div>`;
 } else {
 showToast("เกิดข้อผิดพลาด: " + (data.message || ""));
 checkStatus();
