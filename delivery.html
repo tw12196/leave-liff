@@ -83,9 +83,12 @@ const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbye5zAWnEGLDgTQ
 // ป้ายจุดโหลด: แปลงค่า loc (ภาษาอังกฤษั้นๆ) เป็นข้อความไทยแสดงบนการ์ด
 const LOC_LABELS = { store: "หน้าร้าน", warehouse: "โกดัง" };
 
-// ตัวเลือก "วิธีส่งสินค้า" — ลูกค้ารับเอง หรือคนขับ/รถคันไหน (แก้รายชื่อได้ตรงนี้)
-const DELIVERY_METHOD_OPTIONS = [
-"ลูกค้ารับเอง",
+// วิธีการจัดส่ง แบ่งเป็น 2 ชั้น: กล่อง 1 เลือกประเภท (รับเอง / จัดส่ง), กล่อง 2 เลือกรายละเอียดตามประเภทที่เลือก
+const METHOD_TYPE_OPTIONS = ["รับเอง", "จัดส่ง"];
+// ถ้าเลือก "รับเอง" ในกล่อง 1 → กล่อง 2 ให้เลือกว่าใครมารับ
+const PICKUP_SUB_OPTIONS = ["บริษัทขนส่ง", "ลูกค้า"];
+// ถ้าเลือก "จัดส่ง" ในกล่อง 1 → กล่อง 2 ให้เลือกพนักงานขับรถ (แก้รายชื่อได้ตรงนี้)
+const DRIVER_OPTIONS = [
 "อังคาร (นุ)",
 "บุญฤทธิ์ (ฤทธิ์)",
 "สุวรรณ์ (สมชาย)",
@@ -257,9 +260,23 @@ if (!currentAllowedLocs || currentAllowedLocs.length <= 1) return "";
 return `<button class="change-loc" id="btnChangeLoc">เลือกจุดโหลดใหม่</button>`;
 }
 
-function deliveryMethodOptionsHtml() {
-const opts = DELIVERY_METHOD_OPTIONS.map(v => `<option value="${v}">${v}</option>`).join("");
-return `<option value="">-- เลือกวิธีส่งสินค้า --</option>${opts}<option value="${OTHER_METHOD_VALUE}">อื่นๆ (โปรดระบุ)</option>`;
+// กล่อง 1: เลือกประเภทวิธีการจัดส่ง
+function methodTypeOptionsHtml() {
+const opts = METHOD_TYPE_OPTIONS.map(v => `<option value="${v}">${v}</option>`).join("");
+return `<option value="">-- เลือกวิธีการจัดส่ง --</option>${opts}`;
+}
+
+// กล่อง 2: ตัวเลือกจะเปลี่ยนตามค่าที่เลือกในกล่อง 1
+function methodSubOptionsHtml(methodType) {
+if (methodType === "รับเอง") {
+const opts = PICKUP_SUB_OPTIONS.map(v => `<option value="${v}">${v}</option>`).join("");
+return `<option value="">-- เลือกผู้มารับ --</option>${opts}`;
+}
+if (methodType === "จัดส่ง") {
+const opts = DRIVER_OPTIONS.map(v => `<option value="${v}">${v}</option>`).join("");
+return `<option value="">-- เลือกพนักงานขับรถ --</option>${opts}<option value="${OTHER_METHOD_VALUE}">อื่นๆ (โปรดระบุ)</option>`;
+}
+return "";
 }
 
 function renderConfirmCard(alreadyConfirmed, existing) {
@@ -286,14 +303,17 @@ ${locBadgeHtml()}
 ${alreadyHtml}
 ${alreadyConfirmed ? "" : `
 <div class="section-divider">
-<label class="required">วิธีส่งสินค้า</label>
-<select id="deliveryMethod">${deliveryMethodOptionsHtml()}</select>
+<label class="required">วิธีการจัดส่ง</label>
+<select id="methodType">${methodTypeOptionsHtml()}</select>
+
+<label class="required" id="methodSubLabel" style="display:none;">รายละเอียดการจัดส่ง</label>
+<select id="methodSub" style="display:none;"></select>
 <input type="text" id="deliveryMethodOther" placeholder="ระบุคนขับ/วิธีส่ง" style="display:none;">
 
 <label class="required">วันที่ส่งมอบจริง</label>
 <input type="date" id="deliveryDate" value="${todayDateStr()}">
 
-<label class="required">รูปถ่ายหน้างาน</label>
+<label class="required">รูปถ่าย</label>
 <input type="file" accept="image/*" capture="environment" id="photoInput">
 <div class="field-hint">ถ่ายรูปสินค้า/ใบเบิก/จุดส่งเป็นหลักฐานก่อนกดยืนยัน</div>
 <div class="photo-preview-wrap" id="photoPreviewWrap" style="display:none;">
@@ -342,10 +362,30 @@ if (changeLocBtn) changeLocBtn.onclick = () => renderLocPicker();
 }
 
 function wireCommonFieldEvents() {
-const methodSelect = document.getElementById("deliveryMethod");
+const methodTypeSelect = document.getElementById("methodType");
+const methodSubSelect = document.getElementById("methodSub");
+const methodSubLabel = document.getElementById("methodSubLabel");
 const methodOther = document.getElementById("deliveryMethodOther");
-methodSelect.onchange = () => {
-methodOther.style.display = methodSelect.value === OTHER_METHOD_VALUE ? "block" : "none";
+
+// เปลี่ยนกล่อง 1 (ประเภทวิธีจัดส่ง) แล้ว วาดตัวเลือกกล่อง 2 ใหม่ตามประเภทที่เลือก
+methodTypeSelect.onchange = () => {
+const type = methodTypeSelect.value;
+methodOther.style.display = "none";
+methodOther.value = "";
+if (!type) {
+methodSubSelect.style.display = "none";
+methodSubLabel.style.display = "none";
+methodSubSelect.innerHTML = "";
+return;
+}
+methodSubLabel.textContent = type === "รับเอง" ? "ผู้มารับสินค้า" : "พนักงานขับรถ";
+methodSubLabel.style.display = "block";
+methodSubSelect.innerHTML = methodSubOptionsHtml(type);
+methodSubSelect.style.display = "block";
+};
+
+methodSubSelect.onchange = () => {
+methodOther.style.display = methodSubSelect.value === OTHER_METHOD_VALUE ? "block" : "none";
 };
 
 const photoInput = document.getElementById("photoInput");
@@ -400,21 +440,24 @@ reader.readAsDataURL(file);
 }
 
 function getResolvedDeliveryMethod() {
-const select = document.getElementById("deliveryMethod");
+const typeSelect = document.getElementById("methodType");
+const subSelect = document.getElementById("methodSub");
 const other = document.getElementById("deliveryMethodOther");
-if (!select) return "";
-if (select.value === OTHER_METHOD_VALUE) {
-return other.value.trim() ? "อื่นๆ: " + other.value.trim() : "";
+if (!typeSelect || !typeSelect.value) return "";
+const type = typeSelect.value;
+if (!subSelect || !subSelect.value) return "";
+if (subSelect.value === OTHER_METHOD_VALUE) {
+return other.value.trim() ? `${type} - อื่นๆ: ${other.value.trim()}` : "";
 }
-return select.value;
+return `${type} - ${subSelect.value}`;
 }
 
 function validateCommonFields() {
 const method = getResolvedDeliveryMethod();
-if (!method) return "กรุณาเลือก (หรือระบุ) วิธีส่งสินค้าก่อนกดยืนยัน";
+if (!method) return "กรุณาเลือกวิธีการจัดส่งให้ครบทั้ง 2 ช่องก่อนกดยืนยัน";
 const date = document.getElementById("deliveryDate").value;
 if (!date) return "กรุณาระบุวันที่ส่งมอบจริงก่อนกดยืนยัน";
-if (!currentPhotoBase64) return "กรุณาแนบรูปถ่ายหน้างานก่อนกดยืนยัน";
+if (!currentPhotoBase64) return "กรุณาแนบรูปถ่ายก่อนกดยืนยัน";
 return null;
 }
 
@@ -474,4 +517,3 @@ main();
 </script>
 </body>
 </html>
-
