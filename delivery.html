@@ -36,6 +36,7 @@ padding: 12px 14px; margin-top: 14px; font-size: 13.5px; text-align: left;
 display: block; width: 100%; padding: 15px; border: none; border-radius: 10px;
 font-size: 15px; font-weight: 600; margin-top: 12px; cursor: pointer;
 }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-full { background: #1a7a4c; color: #fff; }
 .btn-partial { background: #fff; color: #b8560a; border: 2px solid #b8560a; }
 .btn-loc { background: #2b6cb0; color: #fff; font-size: 16px; }
@@ -43,11 +44,21 @@ font-size: 15px; font-weight: 600; margin-top: 12px; cursor: pointer;
 display: inline-block; margin-top: 14px; font-size: 12.5px; color: #999;
 text-decoration: underline; cursor: pointer; background: none; border: none;
 }
-textarea, input[type=text] {
+textarea, input[type=text], input[type=date], select {
 width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd;
-font-size: 14px; margin-top: 6px; font-family: inherit;
+font-size: 14px; margin-top: 6px; font-family: inherit; background: #fff;
 }
-label { font-size: 13px; color: #444; font-weight: 600; display: block; text-align: left; margin-top: 12px; }
+input[type=file] {
+width: 100%; margin-top: 6px; font-size: 13px; text-align: left;
+}
+label { font-size: 13px; color: #444; font-weight: 600; display: block; text-align: left; margin-top: 14px; }
+.required::after { content: " *"; color: #d9534f; }
+.section-divider { border-top: 1px solid #eee; margin-top: 16px; padding-top: 2px; }
+.photo-preview-wrap { margin-top: 8px; }
+.photo-preview-wrap img {
+width: 100%; border-radius: 10px; border: 1px solid #eee; display: block;
+}
+.field-hint { font-size: 11.5px; color: #999; margin-top: 4px; text-align: left; }
 .toast {
 position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
 background: #222; color: #fff; padding: 10px 20px; border-radius: 20px;
@@ -72,10 +83,27 @@ const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbye5zAWnEGLDgTQ
 // ป้ายจุดโหลด: แปลงค่า loc (ภาษาอังกฤษั้นๆ) เป็นข้อความไทยแสดงบนการ์ด
 const LOC_LABELS = { store: "หน้าร้าน", warehouse: "โกดัง" };
 
+// ตัวเลือก "วิธีส่งสินค้า" — ลูกค้ารับเอง หรือคนขับ/รถคันไหน (แก้รายชื่อได้ตรงนี้)
+const DELIVERY_METHOD_OPTIONS = [
+"ลูกค้ารับเอง",
+"อังคาร (นุ)",
+"บุญฤทธิ์ (ฤทธิ์)",
+"สุวรรณ์ (สมชาย)",
+"สมพงษ์ (เสือ)",
+"มิตร (มิตร ใหม่)",
+"อำนาจ (แอน)",
+];
+const OTHER_METHOD_VALUE = "__other__";
+
 let currentDocNumber = null;
 let currentLoc = null;
 let currentUserId = null;
 let currentDisplayName = null;
+let currentAllowedLocs = null; // [] หรือ null = ยังไม่ทราบ/ไม่จำกัด, มีค่า = จำกัดเฉพาะจุดโหลดในลิสต์นี้
+
+// ข้อมูลรูปที่แนบ (บีบอัดแล้ว) — เก็บไว้รอตอนกดยืนยัน
+let currentPhotoBase64 = null;
+let currentPhotoMime = null;
 
 function getDocFromUrl() {
 const params = new URLSearchParams(window.location.search);
@@ -85,6 +113,14 @@ return params.get("doc");
 function getLocFromUrl() {
 const params = new URLSearchParams(window.location.search);
 return (params.get("loc") || "").trim();
+}
+
+function todayDateStr() {
+const d = new Date();
+const y = d.getFullYear();
+const m = String(d.getMonth() + 1).padStart(2, "0");
+const day = String(d.getDate()).padStart(2, "0");
+return `${y}-${m}-${day}`;
 }
 
 async function main() {
@@ -109,12 +145,25 @@ const profile = await liff.getProfile();
 currentUserId = profile.userId;
 currentDisplayName = profile.displayName;
 
+// เช็คสิทธิ์ก่อนทุกครั้ง: ทั้งเช็คว่ามีสิทธิ์ใช้ระบบไหม และเข้าได้กี่จุดโหลด
+// เพื่อไม่ให้พนักงานเห็น/กดปุ่มจุดโหลดที่ตัวเองไม่มีสิทธิ์ยืนยัน
+const authorized = await checkAuth();
+if (!authorized) return; // checkAuth() แสดงข้อความ error ให้เองถ้าไม่ผ่าน
+
 // ถ้า QR ระบุจุดโหลดมาให้แล้ว (?loc=store / ?loc=warehouse) ข้ามหน้าเลือกไปเลย
 // เพื่อรองรับใบเบิกที่ ERP พิมพ์ QR แยก 2 อันแบบเดิม
 // ถ้า QR ไม่มี loc (ใบเบิกที่ใช้ QR ใบเดียว) ให้พนักงานเลือกจุดโหลดเองหน้านี้
 const urlLoc = getLocFromUrl();
 if (urlLoc) {
+if (!isLocAllowedClient_(urlLoc)) {
+showMessage(`คุณไม่มีสิทธิ์ยืนยันการส่งสินค้าที่จุดโหลด "${LOC_LABELS[urlLoc] || urlLoc}" กรุณาติดต่อฝ่ายบัญชี`);
+return;
+}
 currentLoc = urlLoc;
+await checkStatus();
+} else if (currentAllowedLocs.length === 1) {
+// มีสิทธิ์จุดโหลดเดียว ข้ามหน้าเลือกไปเลย ไม่ต้องให้กดเอง
+currentLoc = currentAllowedLocs[0];
 await checkStatus();
 } else {
 renderLocPicker();
@@ -124,24 +173,57 @@ showMessage("เปิดระบบไม่สำเร็จ: " + err.messag
 }
 }
 
+// เรียกตรวจสิทธิ์การใช้งาน + จุดโหลดที่เข้าได้ ก่อนเข้าสู่ flow หลัก
+// คืนค่า true ถ้าผ่าน (และตั้งค่า currentAllowedLocs ให้แล้ว), false ถ้าไม่ผ่าน (แสดงข้อความ error ให้แล้ว)
+async function checkAuth() {
+try {
+const res = await fetch(`${APPS_SCRIPT_URL}?action=auth&lineUserId=${currentUserId}`);
+const data = await res.json();
+if (!data.ok) {
+showMessage(data.message || "ตรวจสอบสิทธิ์ไม่สำเร็จ");
+return false;
+}
+if (!data.authorized) {
+showMessage("บัญชีนี้ไม่มีสิทธิ์ใช้งานระบบยืนยันการส่งสินค้า กรุณาติดต่อฝ่ายบัญชี");
+return false;
+}
+// allowedLocs ว่าง [] จาก backend แปลว่า "ไม่จำกัด" — แปลงเป็นลิสต์เต็มของจุดโหลดที่มีในระบบ
+currentAllowedLocs = (data.allowedLocs && data.allowedLocs.length > 0) ? data.allowedLocs : Object.keys(LOC_LABELS);
+return true;
+} catch (err) {
+showMessage("ตรวจสอบสิทธิ์ไม่สำเร็จ กรุณาลองใหม่");
+return false;
+}
+}
+
+function isLocAllowedClient_(loc) {
+return !!(currentAllowedLocs && currentAllowedLocs.indexOf(loc) >= 0);
+}
+
+// นิยามปุ่มจุดโหลดทั้งหมดที่ระบบรู้จัก — ถ้าจะเพิ่มจุดโหลดใหม่ในอนาคต เพิ่มที่นี่ที่เดียว
+const LOC_BUTTON_DEFS = [
+{ key: "store", label: "หน้าร้าน", icon: "🏬" },
+{ key: "warehouse", label: "โกดัง", icon: "🏭" },
+];
+
 function renderLocPicker() {
 const appDiv = document.getElementById("app");
+// โชว์เฉพาะปุ่มจุดโหลดที่พนักงานคนนี้มีสิทธิ์เท่านั้น (คำนวณไว้แล้วจาก checkAuth())
+const allowed = (currentAllowedLocs && currentAllowedLocs.length) ? currentAllowedLocs : Object.keys(LOC_LABELS);
+const buttons = LOC_BUTTON_DEFS.filter(b => allowed.indexOf(b.key) >= 0);
 appDiv.innerHTML = `
 <div class="card">
 <div class="doc-number">${currentDocNumber}</div>
 <div class="hint">กรุณาเลือกจุดที่โหลดสินค้าจริง<br>ก่อนยืนยันการส่ง</div>
-<button class="btn btn-loc" id="btnLocStore">🏬 หน้าร้าน</button>
-<button class="btn btn-loc" id="btnLocWarehouse">🏭 โกดัง</button>
+${buttons.map(b => `<button class="btn btn-loc" data-loc="${b.key}">${b.icon} ${b.label}</button>`).join("")}
 </div>
 `;
-document.getElementById("btnLocStore").onclick = () => {
-currentLoc = "store";
+appDiv.querySelectorAll(".btn-loc").forEach(btn => {
+btn.onclick = () => {
+currentLoc = btn.getAttribute("data-loc");
 checkStatus();
 };
-document.getElementById("btnLocWarehouse").onclick = () => {
-currentLoc = "warehouse";
-checkStatus();
-};
+});
 }
 
 async function checkStatus() {
@@ -170,7 +252,14 @@ return `<div class="loc-badge">จุดโหลด: ${label}</div>`;
 // (ถ้า loc มาจาก QR ที่ ERP กำหนดตายตัว ไม่ควรให้เปลี่ยน เพราะ QR นั้นผูกกับจุดโหลดนั้นอยู่แล้ว)
 function changeLocLinkHtml() {
 if (getLocFromUrl()) return "";
+// ไม่ต้องโชว์ปุ่มเปลี่ยนจุดโหลด ถ้าพนักงานคนนี้มีสิทธิ์แค่จุดโหลดเดียวอยู่แล้ว (ไม่มีจุดอื่นให้เปลี่ยน)
+if (!currentAllowedLocs || currentAllowedLocs.length <= 1) return "";
 return `<button class="change-loc" id="btnChangeLoc">เลือกจุดโหลดใหม่</button>`;
+}
+
+function deliveryMethodOptionsHtml() {
+const opts = DELIVERY_METHOD_OPTIONS.map(v => `<option value="${v}">${v}</option>`).join("");
+return `<option value="">-- เลือกวิธีส่งสินค้า --</option>${opts}<option value="${OTHER_METHOD_VALUE}">อื่นๆ (โปรดระบุ)</option>`;
 }
 
 function renderConfirmCard(alreadyConfirmed, existing) {
@@ -185,6 +274,10 @@ alreadyHtml = `
 </div>`;
 }
 
+// รีเซ็ตรูปที่ค้างจากรอบก่อนหน้าทุกครั้งที่วาดการ์ดใหม่
+currentPhotoBase64 = null;
+currentPhotoMime = null;
+
 appDiv.innerHTML = `
 <div class="card">
 <div class="doc-number">${currentDocNumber}</div>
@@ -192,12 +285,28 @@ ${locBadgeHtml()}
 <div class="hint">กรุณาเทียบเลขที่นี้กับใบเบิกสินค้าในมือ<br>ก่อนกดยืนยัน</div>
 ${alreadyHtml}
 ${alreadyConfirmed ? "" : `
+<div class="section-divider">
+<label class="required">วิธีส่งสินค้า</label>
+<select id="deliveryMethod">${deliveryMethodOptionsHtml()}</select>
+<input type="text" id="deliveryMethodOther" placeholder="ระบุคนขับ/วิธีส่ง" style="display:none;">
+
+<label class="required">วันที่ส่งมอบจริง</label>
+<input type="date" id="deliveryDate" value="${todayDateStr()}">
+
+<label class="required">รูปถ่ายหน้างาน</label>
+<input type="file" accept="image/*" capture="environment" id="photoInput">
+<div class="field-hint">ถ่ายรูปสินค้า/ใบเบิก/จุดส่งเป็นหลักฐานก่อนกดยืนยัน</div>
+<div class="photo-preview-wrap" id="photoPreviewWrap" style="display:none;">
+<img id="photoPreview" src="">
+</div>
+</div>
+
 <button class="btn btn-full" id="btnFull">✅ ส่งครบถ้วน</button>
 <button class="btn btn-partial" id="btnPartial">⚠️ ส่งไม่ครบ / มีปัญหา</button>
 <div id="partialForm" style="display:none;">
-<label>จำนวนที่ส่งจริง</label>
+<label class="required">จำนวนที่ส่งจริง</label>
 <input type="text" id="qtyActual" placeholder="เช่น 55 แผ่น (จากทั้งหมด 60 แผ่น)">
-<label>เหตุผล</label>
+<label class="required">เหตุผล</label>
 <textarea id="reason" rows="3" placeholder="ระบุสาเหตุ เช่น ของไม่พอ / ลูกค้าขอลดจำนวน"></textarea>
 <button class="btn btn-partial" id="btnSubmitPartial">ส่งข้อมูล (ส่งไม่ครบ)</button>
 </div>
@@ -207,13 +316,21 @@ ${changeLocLinkHtml()}
 `;
 
 if (!alreadyConfirmed) {
-document.getElementById("btnFull").onclick = () => submitConfirmation("ครบ", null, null);
+wireCommonFieldEvents();
+
+document.getElementById("btnFull").onclick = () => {
+const err = validateCommonFields();
+if (err) { alert(err); return; }
+submitConfirmation("ครบ", null, null);
+};
 document.getElementById("btnPartial").onclick = () => {
 document.getElementById("partialForm").style.display = "block";
 document.getElementById("btnFull").style.display = "none";
 document.getElementById("btnPartial").style.display = "none";
 };
 document.getElementById("btnSubmitPartial").onclick = () => {
+const commonErr = validateCommonFields();
+if (commonErr) { alert(commonErr); return; }
 const qty = document.getElementById("qtyActual").value.trim();
 const reason = document.getElementById("reason").value.trim();
 if (!reason) { alert("กรุณาระบุเหตุผล"); return; }
@@ -224,9 +341,90 @@ const changeLocBtn = document.getElementById("btnChangeLoc");
 if (changeLocBtn) changeLocBtn.onclick = () => renderLocPicker();
 }
 
+function wireCommonFieldEvents() {
+const methodSelect = document.getElementById("deliveryMethod");
+const methodOther = document.getElementById("deliveryMethodOther");
+methodSelect.onchange = () => {
+methodOther.style.display = methodSelect.value === OTHER_METHOD_VALUE ? "block" : "none";
+};
+
+const photoInput = document.getElementById("photoInput");
+photoInput.onchange = async () => {
+const file = photoInput.files && photoInput.files[0];
+if (!file) return;
+try {
+const dataUrl = await compressImage(file, 1280, 0.72);
+const commaIdx = dataUrl.indexOf(",");
+currentPhotoMime = dataUrl.substring(5, dataUrl.indexOf(";"));
+currentPhotoBase64 = dataUrl.substring(commaIdx + 1);
+const preview = document.getElementById("photoPreview");
+preview.src = dataUrl;
+document.getElementById("photoPreviewWrap").style.display = "block";
+} catch (err) {
+alert("แนบรูปไม่สำเร็จ กรุณาลองใหม่: " + err.message);
+photoInput.value = "";
+}
+};
+}
+
+// ย่อขนาด + บีบอัดรูปในเครื่องก่อนอัปโหลด ลดขนาดไฟล์ให้ส่งได้เร็วขึ้นแม้เน็ตช้า
+function compressImage(file, maxDim, quality) {
+return new Promise((resolve, reject) => {
+const reader = new FileReader();
+reader.onload = (e) => {
+const img = new Image();
+img.onload = () => {
+let { width, height } = img;
+if (width > maxDim || height > maxDim) {
+if (width > height) {
+height = Math.round(height * (maxDim / width));
+width = maxDim;
+} else {
+width = Math.round(width * (maxDim / height));
+height = maxDim;
+}
+}
+const canvas = document.createElement("canvas");
+canvas.width = width;
+canvas.height = height;
+const ctx = canvas.getContext("2d");
+ctx.drawImage(img, 0, 0, width, height);
+resolve(canvas.toDataURL("image/jpeg", quality));
+};
+img.onerror = () => reject(new Error("ไม่สามารถอ่านไฟล์รูปได้"));
+img.src = e.target.result;
+};
+reader.onerror = () => reject(new Error("อ่านไฟล์ไม่สำเร็จ"));
+reader.readAsDataURL(file);
+});
+}
+
+function getResolvedDeliveryMethod() {
+const select = document.getElementById("deliveryMethod");
+const other = document.getElementById("deliveryMethodOther");
+if (!select) return "";
+if (select.value === OTHER_METHOD_VALUE) {
+return other.value.trim() ? "อื่นๆ: " + other.value.trim() : "";
+}
+return select.value;
+}
+
+function validateCommonFields() {
+const method = getResolvedDeliveryMethod();
+if (!method) return "กรุณาเลือก (หรือระบุ) วิธีส่งสินค้าก่อนกดยืนยัน";
+const date = document.getElementById("deliveryDate").value;
+if (!date) return "กรุณาระบุวันที่ส่งมอบจริงก่อนกดยืนยัน";
+if (!currentPhotoBase64) return "กรุณาแนบรูปถ่ายหน้างานก่อนกดยืนยัน";
+return null;
+}
+
 async function submitConfirmation(status, qtyActual, reason) {
 const appDiv = document.getElementById("app");
-appDiv.innerHTML = '<div class="loading">กำลังบันทึก...</div>';
+const deliveryMethod = getResolvedDeliveryMethod();
+const deliveryDate = document.getElementById("deliveryDate").value;
+const photoBase64 = currentPhotoBase64;
+const photoMime = currentPhotoMime;
+appDiv.innerHTML = '<div class="loading">กำลังอัปโหลดรูปและบันทึกข้อมูล...</div>';
 try {
 const res = await fetch(APPS_SCRIPT_URL, {
 method: "POST",
@@ -239,7 +437,11 @@ status: status,
 qtyActual: qtyActual || "",
 reason: reason || "",
 lineUserId: currentUserId,
-lineDisplayName: currentDisplayName
+lineDisplayName: currentDisplayName,
+deliveryMethod: deliveryMethod,
+deliveryDate: deliveryDate,
+photoBase64: photoBase64,
+photoMimeType: photoMime,
 })
 });
 const data = await res.json();
