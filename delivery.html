@@ -140,10 +140,46 @@ return;
 // จะได้ค่า null เพราะ URL ตอนนั้นยังเป็นของหน้า OAuth callback อยู่
 currentDocNumber = getDocFromUrl();
 if (!currentDocNumber) {
-showMessage("ไม่พบเลขที่เอกสารใน QR นี้ กรุณาสแกนจากใบเบิกสินค้าที่ถูกต้อง");
+// ไม่พบเลขที่เอกสารจาก QR (เช่น สแกน QR สำรองที่ไม่ผูกเลขเอกสาร หรือ QR บนใบเบิกอ่านไม่ออก)
+// ให้พนักงานกรอกเลขที่เอกสารเองแทน ไม่ปล่อยให้ตันตรงนี้
+renderManualDocEntry();
 return;
 }
 
+await proceedWithDoc();
+} catch (err) {
+showMessage("เปิดระบบไม่สำเร็จ: " + err.message);
+}
+}
+
+// กรอกเลขที่เอกสารเอง กรณีสแกน QR สำรอง (ไม่มี ?doc=) หรือ QR บนใบเบิกอ่านไม่ติด
+function renderManualDocEntry() {
+const appDiv = document.getElementById("app");
+appDiv.innerHTML = `
+<div class="card">
+<div class="hint">ไม่พบเลขที่เอกสารจาก QR นี้<br>กรุณากรอกเลขที่เอกสารจากใบเบิกด้วยตนเอง</div>
+<label class="required">เลขที่เอกสาร</label>
+<input type="text" id="manualDocInput" placeholder="เช่น GI690804-0001">
+<div class="field-hint">พิมพ์เลขที่เอกสารให้ตรงกับใบเบิกสินค้าในมือ</div>
+<button class="btn btn-full" id="btnManualDocSubmit">ยืนยันเลขที่เอกสาร</button>
+</div>
+`;
+document.getElementById("manualDocInput").focus();
+document.getElementById("btnManualDocSubmit").onclick = async () => {
+const val = document.getElementById("manualDocInput").value.trim();
+if (!val) { alert("กรุณากรอกเลขที่เอกสารก่อนกดยืนยัน"); return; }
+currentDocNumber = val;
+appDiv.innerHTML = '<div class="loading">กำลังตรวจสอบ...</div>';
+try {
+await proceedWithDoc();
+} catch (err) {
+showMessage("เปิดระบบไม่สำเร็จ: " + err.message);
+}
+};
+}
+
+// ดำเนินการต่อหลังจากรู้เลขที่เอกสารแล้ว (ไม่ว่าจะมาจาก QR หรือกรอกเอง)
+async function proceedWithDoc() {
 const profile = await liff.getProfile();
 currentUserId = profile.userId;
 currentDisplayName = profile.displayName;
@@ -155,7 +191,7 @@ if (!authorized) return; // checkAuth() แสดงข้อความ error 
 
 // ถ้า QR ระบุจุดโหลดมาให้แล้ว (?loc=store / ?loc=warehouse) ข้ามหน้าเลือกไปเลย
 // เพื่อรองรับใบเบิกที่ ERP พิมพ์ QR แยก 2 อันแบบเดิม
-// ถ้า QR ไม่มี loc (ใบเบิกที่ใช้ QR ใบเดียว) ให้พนักงานเลือกจุดโหลดเองหน้านี้
+// ถ้า QR ไม่มี loc (ใบเบิกที่ใช้ QR ใบเดียว หรือกรอกเลขเอง) ให้พนักงานเลือกจุดโหลดเองหน้านี้
 const urlLoc = getLocFromUrl();
 if (urlLoc) {
 if (!isLocAllowedClient_(urlLoc)) {
@@ -171,45 +207,7 @@ await checkStatus();
 } else {
 renderLocPicker();
 }
-} catch (err) {
-showMessage("เปิดระบบไม่สำเร็จ: " + err.message);
-}
-}
-
-// เรียกตรวจสิทธิ์การใช้งาน + จุดโหลดที่เข้าได้ ก่อนเข้าสู่ flow หลัก
-// คืนค่า true ถ้าผ่าน (และตั้งค่า currentAllowedLocs ให้แล้ว), false ถ้าไม่ผ่าน (แสดงข้อความ error ให้แล้ว)
-async function checkAuth() {
-try {
-const res = await fetch(`${APPS_SCRIPT_URL}?action=auth&lineUserId=${currentUserId}`);
-const data = await res.json();
-if (!data.ok) {
-showMessage(data.message || "ตรวจสอบสิทธิ์ไม่สำเร็จ");
-return false;
-}
-if (!data.authorized) {
-showMessage("บัญชีนี้ไม่มีสิทธิ์ใช้งานระบบยืนยันการส่งสินค้า กรุณาติดต่อฝ่ายบัญชี");
-return false;
-}
-// allowedLocs ว่าง [] จาก backend แปลว่า "ไม่จำกัด" — แปลงเป็นลิสต์เต็มของจุดโหลดที่มีในระบบ
-currentAllowedLocs = (data.allowedLocs && data.allowedLocs.length > 0) ? data.allowedLocs : Object.keys(LOC_LABELS);
-return true;
-} catch (err) {
-showMessage("ตรวจสอบสิทธิ์ไม่สำเร็จ กรุณาลองใหม่");
-return false;
-}
-}
-
-function isLocAllowedClient_(loc) {
-return !!(currentAllowedLocs && currentAllowedLocs.indexOf(loc) >= 0);
-}
-
-// นิยามปุ่มจุดโหลดทั้งหมดที่ระบบรู้จัก — ถ้าจะเพิ่มจุดโหลดใหม่ในอนาคต เพิ่มที่นี่ที่เดียว
-const LOC_BUTTON_DEFS = [
-{ key: "store", label: "หน้าร้าน", icon: "🏬" },
-{ key: "warehouse", label: "โกดัง", icon: "🏭" },
-];
-
-function renderLocPicker() {
+}function renderLocPicker() {
 const appDiv = document.getElementById("app");
 // โชว์เฉพาะปุ่มจุดโหลดที่พนักงานคนนี้มีสิทธิ์เท่านั้น (คำนวณไว้แล้วจาก checkAuth())
 const allowed = (currentAllowedLocs && currentAllowedLocs.length) ? currentAllowedLocs : Object.keys(LOC_LABELS);
