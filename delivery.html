@@ -423,19 +423,42 @@ const photoInput = document.getElementById("photoInput");
 photoInput.onchange = async () => {
 const file = photoInput.files && photoInput.files[0];
 if (!file) return;
+let dataUrl;
 try {
-const dataUrl = await compressImage(file, 1280, 0.72);
+// ลองย่อ/บีบอัดรูปก่อน (เร็ว ไฟล์เล็กลง อัปโหลดได้เร็วขึ้น)
+dataUrl = await compressImage(file, 1280, 0.72);
+} catch (compressErr) {
+// บางเครื่อง/บางฟอร์แมต (เช่น HEIC หรือรูปจาก Google Photos บางกรณี) เบราว์เซอร์เปิดเป็น <img> ไม่ได้
+// แต่ตัวไฟล์ยังอ่านเป็นข้อมูลดิบได้อยู่ ให้ fallback ไปใช้ไฟล์ต้นฉบับตรงๆ แทน ไม่บีบอัด แทนที่จะบล็อกผู้ใช้
+try {
+dataUrl = await fileToRawDataUrl(file);
+} catch (readErr) {
+alert("แนบรูปไม่สำเร็จ กรุณาลองใหม่: " + readErr.message);
+photoInput.value = "";
+return;
+}
+}
 const commaIdx = dataUrl.indexOf(",");
 currentPhotoMime = dataUrl.substring(5, dataUrl.indexOf(";"));
 currentPhotoBase64 = dataUrl.substring(commaIdx + 1);
 const preview = document.getElementById("photoPreview");
+preview.onerror = () => {
+// พรีวิวแสดงไม่ได้ (กรณี fallback ที่เบราว์เซอร์ก็แสดงรูปแบบนี้ไม่ได้) แต่ไฟล์แนบเรียบร้อยแล้ว ไม่ต้องบล็อก
+document.getElementById("photoPreviewWrap").style.display = "none";
+};
 preview.src = dataUrl;
 document.getElementById("photoPreviewWrap").style.display = "block";
-} catch (err) {
-alert("แนบรูปไม่สำเร็จ กรุณาลองใหม่: " + err.message);
-photoInput.value = "";
-}
 };
+}
+
+// อ่านไฟล์เป็น data URL แบบดิบ ไม่ผ่านการย่อ/บีบอัด ใช้เป็นทางสำรองเมื่อ compressImage() เปิดไฟล์ไม่ได้
+function fileToRawDataUrl(file) {
+return new Promise((resolve, reject) => {
+const reader = new FileReader();
+reader.onload = (e) => resolve(e.target.result);
+reader.onerror = () => reject(new Error("อ่านไฟล์ไม่สำเร็จ"));
+reader.readAsDataURL(file);
+});
 }
 
 // ย่อขนาด + บีบอัดรูปในเครื่องก่อนอัปโหลด ลดขนาดไฟล์ให้ส่งได้เร็วขึ้นแม้เน็ตช้า
