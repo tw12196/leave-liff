@@ -54,9 +54,15 @@ width: 100%; margin-top: 6px; font-size: 13px; text-align: left;
 label { font-size: 13px; color: #444; font-weight: 600; display: block; text-align: left; margin-top: 14px; }
 .required::after { content: " *"; color: #d9534f; }
 .section-divider { border-top: 1px solid #eee; margin-top: 16px; padding-top: 2px; }
-.photo-preview-wrap { margin-top: 8px; }
-.photo-preview-wrap img {
-width: 100%; border-radius: 10px; border: 1px solid #eee; display: block;
+.photo-preview-wrap { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px; }
+.photo-thumb { position: relative; width: 72px; height: 72px; }
+.photo-thumb img {
+width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 1px solid #eee; display: block; background: #f4f4f4;
+}
+.photo-thumb .remove-btn {
+position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%;
+background: #d9534f; color: #fff; font-size: 12px; line-height: 18px; text-align: center;
+cursor: pointer; border: none; padding: 0;
 }
 .field-hint { font-size: 11.5px; color: #999; margin-top: 4px; text-align: left; }
 .toast {
@@ -104,9 +110,8 @@ let currentUserId = null;
 let currentDisplayName = null;
 let currentAllowedLocs = null; // [] หรือ null = ยังไม่ทราบ/ไม่จำกัด, มีค่า = จำกัดเฉพาะจุดโหลดในลิสต์นี้
 
-// ข้อมูลรูปที่แนบ (บีบอัดแล้ว) — เก็บไว้รอตอนกดยืนยัน
-let currentPhotoBase64 = null;
-let currentPhotoMime = null;
+// ข้อมูลรูปที่แนบ (บีบอัด/หรือไฟล์ดิบแล้วแต่กรณี) — เก็บเป็นลิสต์เพื่อรองรับหลายรูป รอตอนกดยืนยัน
+let currentPhotoList = []; // [{ base64, mime, dataUrl }, ...]
 
 function getDocFromUrl() {
 const params = new URLSearchParams(window.location.search);
@@ -323,8 +328,7 @@ alreadyHtml = `
 }
 
 // รีเซ็ตรูปที่ค้างจากรอบก่อนหน้าทุกครั้งที่วาดการ์ดใหม่
-currentPhotoBase64 = null;
-currentPhotoMime = null;
+currentPhotoList = [];
 
 appDiv.innerHTML = `
 <div class="card">
@@ -344,12 +348,10 @@ ${alreadyConfirmed ? "" : `
 <label class="required">วันที่ส่งมอบจริง</label>
 <input type="date" id="deliveryDate" value="${todayDateStr()}">
 
-<label class="required">รูปถ่าย</label>
-<input type="file" accept="image/*" id="photoInput">
-<div class="field-hint">ถ่ายรูปสินค้า/ใบเบิก/จุดส่งเป็นหลักฐานก่อนกดยืนยัน</div>
-<div class="photo-preview-wrap" id="photoPreviewWrap" style="display:none;">
-<img id="photoPreview" src="">
-</div>
+<label class="required">รูปถ่าย (แนบได้หลายรูป)</label>
+<input type="file" accept="image/*" multiple id="photoInput">
+<div class="field-hint">ถ่ายรูปสินค้า/ใบเบิก/จุดส่งเป็นหลักฐานก่อนกดยืนยัน เลือกได้ทีละหลายรูป</div>
+<div class="photo-preview-wrap" id="photoPreviewWrap" style="display:none;"></div>
 </div>
 
 <button class="btn btn-full" id="btnFull">✅ ส่งครบถ้วน</button>
@@ -421,8 +423,10 @@ methodOther.style.display = methodSubSelect.value === OTHER_METHOD_VALUE ? "bloc
 
 const photoInput = document.getElementById("photoInput");
 photoInput.onchange = async () => {
-const file = photoInput.files && photoInput.files[0];
-if (!file) return;
+const files = photoInput.files ? Array.from(photoInput.files) : [];
+if (!files.length) return;
+currentPhotoList = [];
+for (const file of files) {
 let dataUrl;
 try {
 // ลองย่อ/บีบอัดรูปก่อน (เร็ว ไฟล์เล็กลง อัปโหลดได้เร็วขึ้น)
@@ -433,22 +437,42 @@ dataUrl = await compressImage(file, 1280, 0.72);
 try {
 dataUrl = await fileToRawDataUrl(file);
 } catch (readErr) {
-alert("แนบรูปไม่สำเร็จ กรุณาลองใหม่: " + readErr.message);
-photoInput.value = "";
-return;
+alert(`แนบรูป "${file.name}" ไม่สำเร็จ ข้ามรูปนี้ไป: ` + readErr.message);
+continue;
 }
 }
 const commaIdx = dataUrl.indexOf(",");
-currentPhotoMime = dataUrl.substring(5, dataUrl.indexOf(";"));
-currentPhotoBase64 = dataUrl.substring(commaIdx + 1);
-const preview = document.getElementById("photoPreview");
-preview.onerror = () => {
-// พรีวิวแสดงไม่ได้ (กรณี fallback ที่เบราว์เซอร์ก็แสดงรูปแบบนี้ไม่ได้) แต่ไฟล์แนบเรียบร้อยแล้ว ไม่ต้องบล็อก
-document.getElementById("photoPreviewWrap").style.display = "none";
+const mime = dataUrl.substring(5, dataUrl.indexOf(";"));
+const base64 = dataUrl.substring(commaIdx + 1);
+currentPhotoList.push({ base64, mime, dataUrl });
+}
+photoInput.value = "";
+renderPhotoPreviews();
 };
-preview.src = dataUrl;
-document.getElementById("photoPreviewWrap").style.display = "block";
+}
+
+// วาดพรีวิวรูปทั้งหมดที่แนบไว้ พร้อมปุ่มลบรายรูป
+function renderPhotoPreviews() {
+const wrap = document.getElementById("photoPreviewWrap");
+if (!currentPhotoList.length) {
+wrap.style.display = "none";
+wrap.innerHTML = "";
+return;
+}
+wrap.style.display = "flex";
+wrap.innerHTML = currentPhotoList.map((p, i) => `
+<div class="photo-thumb" data-idx="${i}">
+<img src="${p.dataUrl}" onerror="this.parentElement.style.opacity='0.4'">
+<button type="button" class="remove-btn" data-idx="${i}">×</button>
+</div>
+`).join("");
+wrap.querySelectorAll(".remove-btn").forEach(btn => {
+btn.onclick = () => {
+const idx = parseInt(btn.getAttribute("data-idx"), 10);
+currentPhotoList.splice(idx, 1);
+renderPhotoPreviews();
 };
+});
 }
 
 // อ่านไฟล์เป็น data URL แบบดิบ ไม่ผ่านการย่อ/บีบอัด ใช้เป็นทางสำรองเมื่อ compressImage() เปิดไฟล์ไม่ได้
@@ -511,7 +535,7 @@ const method = getResolvedDeliveryMethod();
 if (!method) return "กรุณาเลือกวิธีการจัดส่งให้ครบทั้ง 2 ช่องก่อนกดยืนยัน";
 const date = document.getElementById("deliveryDate").value;
 if (!date) return "กรุณาระบุวันที่ส่งมอบจริงก่อนกดยืนยัน";
-if (!currentPhotoBase64) return "กรุณาแนบรูปถ่ายก่อนกดยืนยัน";
+if (!currentPhotoList.length) return "กรุณาแนบรูปถ่ายอย่างน้อย 1 รูปก่อนกดยืนยัน";
 return null;
 }
 
@@ -519,9 +543,8 @@ async function submitConfirmation(status, qtyActual, reason) {
 const appDiv = document.getElementById("app");
 const deliveryMethod = getResolvedDeliveryMethod();
 const deliveryDate = document.getElementById("deliveryDate").value;
-const photoBase64 = currentPhotoBase64;
-const photoMime = currentPhotoMime;
-appDiv.innerHTML = '<div class="loading">กำลังอัปโหลดรูปและบันทึกข้อมูล...</div>';
+const photos = currentPhotoList.map(p => ({ base64: p.base64, mimeType: p.mime }));
+appDiv.innerHTML = `<div class="loading">กำลังอัปโหลดรูป (${photos.length} รูป) และบันทึกข้อมูล...</div>`;
 try {
 const res = await fetch(APPS_SCRIPT_URL, {
 method: "POST",
@@ -537,8 +560,7 @@ lineUserId: currentUserId,
 lineDisplayName: currentDisplayName,
 deliveryMethod: deliveryMethod,
 deliveryDate: deliveryDate,
-photoBase64: photoBase64,
-photoMimeType: photoMime,
+photos: photos,
 })
 });
 const data = await res.json();
