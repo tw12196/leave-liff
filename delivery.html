@@ -218,13 +218,13 @@ renderLocPicker();
 // ยิง fetch ซ้ำอัตโนมัติถ้าเจอปัญหาเชื่อมต่อชั่วคราว (เช่น Apps Script ตอบช้า/หลุดเป็นครั้งคราว)
 // ก่อนจะถือว่าล้มเหลวจริง ลองสูงสุด 3 ครั้ง (รอ 900ms ระหว่างครั้ง)
 async function fetchWithRetry_(url, options, retries) {
-if (retries === undefined) retries = 2;
+if (retries === undefined) retries = 4;
 for (let attempt = 0; attempt <= retries; attempt++) {
 try {
 return await fetch(url, options);
 } catch (err) {
 if (attempt === retries) throw err;
-await new Promise(r => setTimeout(r, 900));
+await new Promise(r => setTimeout(r, 1500));
 }
 }
 }
@@ -245,7 +245,7 @@ return false;
 currentAllowedLocs = (data.allowedLocs && data.allowedLocs.length > 0) ? data.allowedLocs : Object.keys(LOC_LABELS);
 return true;
 } catch (err) {
-showMessage("เชื่อมต่อระบบไม่สำเร็จ (ลองใหม่อัตโนมัติแล้ว) กรุณาปิดแอปแล้วสแกน QR ใหม่อีกครั้งค่ะ");
+showMessage("เชื่อมต่อระบบไม่สำเร็จ กรุณาลองใหม่อีกครั้งค่ะ", checkAuth);
 return false;
 }
 }
@@ -292,7 +292,7 @@ return;
 }
 renderConfirmCard(data.alreadyConfirmed, data.existing);
 } catch (err) {
-showMessage("เชื่อมต่อระบบไม่สำเร็จ (ลองใหม่อัตโนมัติแล้ว) กรุณาปิดแอปแล้วสแกน QR ใหม่อีกครั้งค่ะ");
+showMessage("เชื่อมต่อระบบไม่สำเร็จ กรุณาลองใหม่อีกครั้งค่ะ", checkStatus);
 }
 }
 
@@ -600,8 +600,14 @@ document.body.appendChild(toast);
 setTimeout(() => toast.remove(), 3000);
 }
 
-function showMessage(msg) {
-document.getElementById("app").innerHTML = `<div class="empty">${msg}</div>`;
+let lastRetryFn_ = null;
+function showMessage(msg, retryFn) {
+lastRetryFn_ = retryFn || null;
+const retryBtn = retryFn ? '<button type="button" class="btn btn-full" onclick="retryLastAction_()">ลองใหม่</button>' : "";
+document.getElementById("app").innerHTML = `<div class="empty">${msg}${retryBtn}</div>`;
+}
+function retryLastAction_() {
+if (lastRetryFn_) lastRetryFn_();
 }
 
 main();
