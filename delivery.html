@@ -330,28 +330,20 @@ return `<option value="">-- เลือกพนักงานขับรถ 
 return "";
 }
 
-function renderConfirmCard(alreadyConfirmed, existing) {
-const appDiv = document.getElementById("app");
-let alreadyHtml = "";
-if (alreadyConfirmed) {
-alreadyHtml = `
-<div class="already">
-⚠️ ใบนี้ถูกยืนยันไปแล้ว<br>
-โดย ${existing.confirmedBy} เมื่อ ${existing.confirmedAt}<br>
-สถานะ: ${existing.status}
-</div>`;
+const NEXT_ACTION_OPTIONS = ["รอลูกค้ามารับที่เหลือ", "รอส่งให้ลูกค้า", "ทำใบลดหนี้"];
+function nextActionOptionsHtml_(selected) {
+return '<option value="">-- เลือก --</option>' + NEXT_ACTION_OPTIONS.map(function (o) {
+return '<option value="' + o + '"' + (o === selected ? " selected" : "") + '>' + o + "</option>";
+}).join("");
 }
 
-// รีเซ็ตรูปที่ค้างจากรอบก่อนหน้าทุกครั้งที่วาดการ์ดใหม่
-currentPhotoList = [];
-
-appDiv.innerHTML = `
-<div class="card">
-<div class="doc-number">${currentDocNumber}</div>
-${locBadgeHtml()}
-<div class="hint">กรุณาเทียบเลขที่นี้กับใบเบิกสินค้าในมือ<br>ก่อนกดยืนยัน</div>
-${alreadyHtml}
-${alreadyConfirmed ? "" : `
+function deliveryFormSectionHtml_(prefill) {
+prefill = prefill || {};
+const dateVal = prefill.deliveryDate ? String(prefill.deliveryDate).slice(0, 10) : todayDateStr();
+const photoHint = prefill.photoUrl
+? "มีรูปเดิมแนบอยู่แล้ว ถ้าไม่แนบรูปใหม่ระบบจะเก็บรูปเดิมไว้"
+: "ถ่ายรูปสินค้า/ใบเบิก/จุดส่งเป็นหลักฐานก่อนกดยืนยัน เลือกได้ทีละหลายรูป";
+return `
 <div class="section-divider">
 <label class="required">วิธีการจัดส่ง</label>
 <select id="methodType">${methodTypeOptionsHtml()}</select>
@@ -361,11 +353,11 @@ ${alreadyConfirmed ? "" : `
 <input type="text" id="deliveryMethodOther" placeholder="ระบุคนขับ/วิธีส่ง" style="display:none;">
 
 <label class="required">วันที่ส่งมอบจริง</label>
-<input type="date" id="deliveryDate" value="${todayDateStr()}">
+<input type="date" id="deliveryDate" value="${dateVal}">
 
 <label class="required">รูปถ่าย (แนบได้หลายรูป)</label>
 <input type="file" accept="image/*" multiple id="photoInput">
-<div class="field-hint">ถ่ายรูปสินค้า/ใบเบิก/จุดส่งเป็นหลักฐานก่อนกดยืนยัน เลือกได้ทีละหลายรูป</div>
+<div class="field-hint">${photoHint}</div>
 <div class="photo-preview-wrap" id="photoPreviewWrap" style="display:none;"></div>
 </div>
 
@@ -373,23 +365,60 @@ ${alreadyConfirmed ? "" : `
 <button class="btn btn-partial" id="btnPartial">⚠️ ส่งไม่ครบ / มีปัญหา</button>
 <div id="partialForm" style="display:none;">
 <label class="required">จำนวนที่ส่งจริง</label>
-<input type="text" id="qtyActual" placeholder="เช่น 55 แผ่น (จากทั้งหมด 60 แผ่น)">
+<input type="text" id="qtyActual" placeholder="เช่น 55 แผ่น (จากทั้งหมด 60 แผ่น)" value="${prefill.qtyActual || ''}">
 <label class="required">เหตุผล</label>
-<textarea id="reason" rows="3" placeholder="ระบุสาเหตุ เช่น ของไม่พอ / ลูกค้าขอลดจำนวน"></textarea>
+<textarea id="reason" rows="3" placeholder="ระบุสาเหตุ เช่น ของไม่พอ / ลูกค้าขอลดจำนวน">${prefill.reason || ''}</textarea>
+<label class="required">จะทำอย่างไรต่อไป</label>
+<select id="nextAction">${nextActionOptionsHtml_(prefill.nextAction)}</select>
 <button class="btn btn-partial" id="btnSubmitPartial">ส่งข้อมูล (ส่งไม่ครบ)</button>
 </div>
-`}
+`;
+}
+
+function renderConfirmCard(alreadyConfirmed, existing) {
+const appDiv = document.getElementById("app");
+let alreadyHtml = "";
+if (alreadyConfirmed) {
+const extraLines = existing.statusRaw === "ไม่ครบ"
+? `<br>จำนวนที่ส่งจริง: ${existing.qtyActual || "-"}<br>เหตุผล: ${existing.reason || "-"}<br>จะทำอย่างไรต่อไป: ${existing.nextAction || "-"}`
+: "";
+const photoCount = existing.photoUrl ? existing.photoUrl.split(String.fromCharCode(10)).length : 0;
+const photoHintLine = photoCount ? `<div class="hint" style="margin-top:8px;">มีรูปแนบ ${photoCount} รูป</div>` : "";
+alreadyHtml = `
+<div class="already">
+⚠️ ใบนี้ถูกยืนยันไปแล้ว<br>
+โดย ${existing.confirmedBy} เมื่อ ${existing.confirmedAt}<br>
+สถานะ: ${existing.status}${extraLines}
+${photoHintLine}
+</div>`;
+}
+
+// รีเซ็ตรูปที่ค้างจากรอบก่อนหน้าทุกครั้งที่วาดการ์ดใหม่
+currentPhotoList = [];
+
+const formHtml = alreadyConfirmed
+? `<div id="editFormWrap" style="display:none;">${deliveryFormSectionHtml_(existing)}</div>
+<button class="btn btn-partial" id="btnEditData" style="margin-top:12px;">✏️ แก้ไขข้อมูล</button>`
+: deliveryFormSectionHtml_({});
+
+appDiv.innerHTML = `
+<div class="card">
+<div class="doc-number">${currentDocNumber}</div>
+${locBadgeHtml()}
+<div class="hint">กรุณาเทียบเลขที่นี้กับใบเบิกสินค้าในมือ<br>ก่อนกดยืนยัน</div>
+${alreadyHtml}
+${formHtml}
 ${changeLocLinkHtml()}
 </div>
 `;
 
-if (!alreadyConfirmed) {
 wireCommonFieldEvents();
 
+if (!alreadyConfirmed) {
 document.getElementById("btnFull").onclick = () => {
 const err = validateCommonFields();
 if (err) { alert(err); return; }
-submitConfirmation("ครบ", null, null);
+submitConfirmation("ครบ", null, null, null);
 };
 document.getElementById("btnPartial").onclick = () => {
 document.getElementById("partialForm").style.display = "block";
@@ -401,13 +430,42 @@ const commonErr = validateCommonFields();
 if (commonErr) { alert(commonErr); return; }
 const qty = document.getElementById("qtyActual").value.trim();
 const reason = document.getElementById("reason").value.trim();
+const nextAction = document.getElementById("nextAction").value;
 if (!reason) { alert("กรุณาระบุเหตุผล"); return; }
-submitConfirmation("ไม่ครบ", qty, reason);
+if (!nextAction) { alert("กรุณาเลือกว่าจะทำอย่างไรต่อไป"); return; }
+submitConfirmation("ไม่ครบ", qty, reason, nextAction);
+};
+} else {
+document.getElementById("btnEditData").onclick = () => {
+document.getElementById("editFormWrap").style.display = "block";
+document.getElementById("btnEditData").style.display = "none";
+};
+document.getElementById("btnFull").onclick = () => {
+const err = validateEditFields_(existing);
+if (err) { alert(err); return; }
+submitEdit("ครบ", null, null, null);
+};
+document.getElementById("btnPartial").onclick = () => {
+document.getElementById("partialForm").style.display = "block";
+document.getElementById("btnFull").style.display = "none";
+document.getElementById("btnPartial").style.display = "none";
+};
+document.getElementById("btnSubmitPartial").onclick = () => {
+const commonErr = validateEditFields_(existing);
+if (commonErr) { alert(commonErr); return; }
+const qty = document.getElementById("qtyActual").value.trim();
+const reason = document.getElementById("reason").value.trim();
+const nextAction = document.getElementById("nextAction").value;
+if (!reason) { alert("กรุณาระบุเหตุผล"); return; }
+if (!nextAction) { alert("กรุณาเลือกว่าจะทำอย่างไรต่อไป"); return; }
+submitEdit("ไม่ครบ", qty, reason, nextAction);
 };
 }
+
 const changeLocBtn = document.getElementById("btnChangeLoc");
 if (changeLocBtn) changeLocBtn.onclick = () => renderLocPicker();
 }
+
 
 function wireCommonFieldEvents() {
 const methodTypeSelect = document.getElementById("methodType");
@@ -554,14 +612,14 @@ if (!currentPhotoList.length) return "กรุณาแนบรูปถ่า
 return null;
 }
 
-async function submitConfirmation(status, qtyActual, reason) {
+async function submitConfirmation(status, qtyActual, reason, nextAction) {
 const appDiv = document.getElementById("app");
 const deliveryMethod = getResolvedDeliveryMethod();
 const deliveryDate = document.getElementById("deliveryDate").value;
-const photos = currentPhotoList.map(p => ({ base64: p.base64, mimeType: p.mime }));
+const photos = currentPhotoList.map((p) => ({ base64: p.base64, mimeType: p.mime }));
 appDiv.innerHTML = `<div class="loading">กำลังอัปโหลดรูป (${photos.length} รูป) และบันทึกข้อมูล...</div>`;
 try {
-const res = await fetch(APPS_SCRIPT_URL, {
+const res = await fetchWithRetry_(APPS_SCRIPT_URL, {
 method: "POST",
 headers: { "Content-Type": "text/plain;charset=utf-8" },
 body: JSON.stringify({
@@ -571,12 +629,13 @@ loc: currentLoc,
 status: status,
 qtyActual: qtyActual || "",
 reason: reason || "",
+nextAction: nextAction || "",
 lineUserId: currentUserId,
 lineDisplayName: currentDisplayName,
 deliveryMethod: deliveryMethod,
 deliveryDate: deliveryDate,
 photos: photos,
-})
+}),
 });
 const data = await res.json();
 if (data.ok) {
@@ -592,6 +651,55 @@ checkStatus();
 }
 }
 
+function validateEditFields_(existing) {
+const method = getResolvedDeliveryMethod();
+if (!method) return "กรุณาเลือกวิธีการจัดส่งให้ครบทั้ง 2 ช่องก่อนบันทึกการแก้ไข";
+const date = document.getElementById("deliveryDate").value;
+if (!date) return "กรุณาระบุวันที่ส่งมอบจริงก่อนบันทึกการแก้ไข";
+if (!currentPhotoList.length && !(existing && existing.photoUrl)) {
+return "กรุณาแนบรูปถ่ายอย่างน้อย 1 รูป (ไม่มีรูปเดิมในระบบให้อ้างอิง)";
+}
+return null;
+}
+
+async function submitEdit(status, qtyActual, reason, nextAction) {
+const appDiv = document.getElementById("app");
+const deliveryMethod = getResolvedDeliveryMethod();
+const deliveryDate = document.getElementById("deliveryDate").value;
+const photos = currentPhotoList.map((p) => ({ base64: p.base64, mimeType: p.mime }));
+appDiv.innerHTML = `<div class="loading">กำลังบันทึกการแก้ไข...</div>`;
+try {
+const res = await fetchWithRetry_(APPS_SCRIPT_URL, {
+method: "POST",
+headers: { "Content-Type": "text/plain;charset=utf-8" },
+body: JSON.stringify({
+action: "edit",
+docNumber: currentDocNumber,
+loc: currentLoc,
+status: status,
+qtyActual: qtyActual || "",
+reason: reason || "",
+nextAction: nextAction || "",
+lineUserId: currentUserId,
+lineDisplayName: currentDisplayName,
+deliveryMethod: deliveryMethod,
+deliveryDate: deliveryDate,
+photos: photos,
+}),
+});
+const data = await res.json();
+if (data.ok) {
+showToast("แก้ไขข้อมูลเรียบร้อยแล้ว ✏️");
+checkStatus();
+} else {
+showToast("เกิดข้อผิดพลาด: " + (data.message || ""));
+checkStatus();
+}
+} catch (err) {
+showToast("เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่");
+checkStatus();
+}
+}
 function showToast(msg) {
 const toast = document.createElement("div");
 toast.className = "toast";
