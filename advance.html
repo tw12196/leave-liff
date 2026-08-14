@@ -346,8 +346,7 @@
     const reason = document.getElementById('reason').value.trim();
 
     if (!amount || amount <= 0) return showBanner('error', 'กรุณาระบุจำนวนเงินที่ต้องการเบิก');
-    if (amount > remainingEligible) return showBanner('error', 'ขอเบิกเกินสิทธิ์ที่มีค่ะ เบิกได้สูงสุด ' + remainingEligible.toLocaleString('th-TH') + ' บาท');
-    if (!reason) return showBanner('error', 'กรุณาระบุเหตุผลในการเบิกเงินล่วงหน้า');
+        if (!reason) return showBanner('error', 'กรุณาระบุเหตุผลในการเบิกเงินล่วงหน้า');
 
     submitAdvance(amount, reason, false);
   });
