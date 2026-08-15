@@ -390,6 +390,7 @@ alreadyHtml = `
 โดย ${existing.confirmedBy} เมื่อ ${existing.confirmedAt}<br>
 สถานะ: ${existing.status}${extraLines}
 ${photoHintLine}
+${existing.canEdit ? "" : '<div class="hint" style="margin-top:8px;">หากพบข้อมูลผิดพลาด กรุณาติดต่อฝ่ายบัญชีเพื่อขอแก้ไขค่ะ</div>'}
 </div>`;
 }
 
@@ -397,8 +398,10 @@ ${photoHintLine}
 currentPhotoList = [];
 
 const formHtml = alreadyConfirmed
+? (existing.canEdit
 ? `<div id="editFormWrap" style="display:none;">${deliveryFormSectionHtml_(existing)}</div>
 <button class="btn btn-partial" id="btnEditData" style="margin-top:12px;">✏️ แก้ไขข้อมูล</button>`
+: "")
 : deliveryFormSectionHtml_({});
 
 appDiv.innerHTML = `
@@ -435,7 +438,7 @@ if (!reason) { alert("กรุณาระบุเหตุผล"); return; }
 if (!nextAction) { alert("กรุณาเลือกว่าจะทำอย่างไรต่อไป"); return; }
 submitConfirmation("ไม่ครบ", qty, reason, nextAction);
 };
-} else {
+} else if (existing.canEdit) {
 document.getElementById("btnEditData").onclick = () => {
 document.getElementById("editFormWrap").style.display = "block";
 document.getElementById("btnEditData").style.display = "none";
