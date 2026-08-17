@@ -391,7 +391,7 @@ alreadyHtml = `
 โดย ${existing.confirmedBy} เมื่อ ${existing.confirmedAt}<br>
 สถานะ: ${existing.status}${extraLines}
 ${photoHintLine}
-${existing.canEdit ? "" : '<div class="hint" style="margin-top:8px;">หากพบข้อมูลผิดพลาด กรุณาติดต่อฝ่ายบัญชีเพื่อขอแก้ไขค่ะ</div>'}
+${(existing.canEdit || existing.canTopUp) ? "" : '<div class="hint" style="margin-top:8px;">หากพบข้อมูลผิดพลาด กรุณาติดต่อฝ่ายบัญชีเพื่อขอแก้ไขค่ะ</div>'}
 </div>`;
 }
 
@@ -399,9 +399,10 @@ ${existing.canEdit ? "" : '<div class="hint" style="margin-top:8px;">หาก�
 currentPhotoList = [];
 
 const formHtml = alreadyConfirmed
-? (existing.canEdit
-? `<div id="editFormWrap" style="display:none;">${deliveryFormSectionHtml_(existing)}</div>
-<button class="btn btn-partial" id="btnEditData" style="margin-top:12px;">${existing.isDesignatedEditor ? "✏️ แก้ไขข้อมูล" : "📦 ส่งของเพิ่มเติม"}</button>`
+? ((existing.canEdit || existing.canTopUp)
+? `<div id="editFormWrap" style="display:none;">${deliveryFormSectionHtml_({})}</div>
+${existing.canEdit ? '<button class="btn btn-partial" id="btnEditData" style="margin-top:12px;">✏️ แก้ไขข้อมูล</button>' : ""}
+${existing.canTopUp ? '<button class="btn btn-full" id="btnTopUpData" style="margin-top:8px;">📦 ส่งของ/รับของเพิ่มเติม</button>' : ""}`
 : "")
 : deliveryFormSectionHtml_({});
 
@@ -439,16 +440,46 @@ if (!reason) { alert("กรุณาระบุเหตุผล"); return; }
 if (!nextAction) { alert("กรุณาเลือกว่าจะทำอย่างไรต่อไป"); return; }
 submitConfirmation("ไม่ครบ", qty, reason, nextAction);
 };
-} else if (existing.canEdit) {
-currentIsDesignatedEditor = !!existing.isDesignatedEditor;
-document.getElementById("btnEditData").onclick = () => {
+} else if (existing.canEdit || existing.canTopUp) {
+let currentFormMode = null; // "edit" | "topup"
+const fieldHintEl = document.querySelector("#editFormWrap .field-hint");
+const editBtnEl = document.getElementById("btnEditData");
+const topUpBtnEl = document.getElementById("btnTopUpData");
+
+if (editBtnEl) {
+editBtnEl.onclick = () => {
+currentFormMode = "edit";
+currentIsDesignatedEditor = true;
+document.getElementById("qtyActual").value = existing.qtyActual || "";
+document.getElementById("reason").value = existing.reason || "";
+if (existing.nextAction) document.getElementById("nextAction").value = existing.nextAction;
+if (existing.deliveryDate) document.getElementById("deliveryDate").value = String(existing.deliveryDate).slice(0, 10);
+if (fieldHintEl) fieldHintEl.textContent = existing.photoUrl ? "มีรูปเดิมแนบอยู่แล้ว ถ้าไม่แนบรูปใหม่ระบบจะเก็บรูปเดิมไว้" : "ถ่ายรูปสินค้า/ใบเบิก/จุดส่งเป็นหลักฐานก่อนกดยืนยัน เลือกได้ทีละหลายรูป";
 document.getElementById("editFormWrap").style.display = "block";
-document.getElementById("btnEditData").style.display = "none";
+editBtnEl.style.display = "none";
+if (topUpBtnEl) topUpBtnEl.style.display = "none";
 };
+}
+
+if (topUpBtnEl) {
+topUpBtnEl.onclick = () => {
+currentFormMode = "topup";
+currentIsDesignatedEditor = false;
+document.getElementById("qtyActual").value = "";
+document.getElementById("reason").value = "";
+document.getElementById("nextAction").value = "";
+document.getElementById("deliveryDate").value = todayDateStr();
+if (fieldHintEl) fieldHintEl.textContent = "แนบเฉพาะรูปของรอบนี้ที่ส่ง/รับเพิ่มเติม (ต้องเป็นรูปใหม่ทุกครั้ง ห้ามใช้รูปเดิม)";
+document.getElementById("editFormWrap").style.display = "block";
+topUpBtnEl.style.display = "none";
+if (editBtnEl) editBtnEl.style.display = "none";
+};
+}
+
 document.getElementById("btnFull").onclick = () => {
-const err = validateEditFields_(existing);
+const err = currentFormMode === "topup" ? validateTopUpFields_() : validateEditFields_(existing);
 if (err) { alert(err); return; }
-submitEdit("ครบ", null, null, null);
+if (currentFormMode === "topup") { submitTopUp("ครบ", null, null, null); } else { submitEdit("ครบ", null, null, null); }
 };
 document.getElementById("btnPartial").onclick = () => {
 document.getElementById("partialForm").style.display = "block";
@@ -456,14 +487,14 @@ document.getElementById("btnFull").style.display = "none";
 document.getElementById("btnPartial").style.display = "none";
 };
 document.getElementById("btnSubmitPartial").onclick = () => {
-const commonErr = validateEditFields_(existing);
+const commonErr = currentFormMode === "topup" ? validateTopUpFields_() : validateEditFields_(existing);
 if (commonErr) { alert(commonErr); return; }
 const qty = document.getElementById("qtyActual").value.trim();
 const reason = document.getElementById("reason").value.trim();
 const nextAction = document.getElementById("nextAction").value;
 if (!reason) { alert("กรุณาระบุเหตุผล"); return; }
 if (!nextAction) { alert("กรุณาเลือกว่าจะทำอย่างไรต่อไป"); return; }
-submitEdit("ไม่ครบ", qty, reason, nextAction);
+if (currentFormMode === "topup") { submitTopUp("ไม่ครบ", qty, reason, nextAction); } else { submitEdit("ไม่ครบ", qty, reason, nextAction); }
 };
 }
 
@@ -664,7 +695,16 @@ if (!date) return "กรุณาระบุวันที่ส่งมอ�
 if (!currentPhotoList.length && !(existing && existing.photoUrl)) {
 return "กรุณาแนบรูปถ่ายอย่างน้อย 1 รูป (ไม่มีรูปเดิมในระบบให้อ้างอิง)";
 }
+
+
+function validateTopUpFields_() {
+const method = getResolvedDeliveryMethod();
+if (!method) return "กรุณาเลือกวิธีการจัดส่งให้ครบทั้ง 2 ช่องก่อนบันทึก";
+const date = document.getElementById("deliveryDate").value;
+if (!date) return "กรุณาระบุวันที่ส่งมอบจริงก่อนบันทึก";
+if (!currentPhotoList.length) return "กรุณาแนบรูปถ่ายของที่ส่ง/รับเพิ่มเติมรอบนี้อย่างน้อย 1 รูป (ต้องเป็นรูปใหม่ ห้ามใช้รูปเดิม)";
 return null;
+}return null;
 }
 
 async function submitEdit(status, qtyActual, reason, nextAction) {
@@ -695,6 +735,45 @@ photos: photos,
 const data = await res.json();
 if (data.ok) {
 showToast(currentIsDesignatedEditor ? "แก้ไขข้อมูลเรียบร้อยแล้ว ✏️" : "ส่งของเพิ่มเติมเรียบร้อยแล้ว 📦");
+checkStatus();
+} else {
+showToast("เกิดข้อผิดพลาด: " + (data.message || ""));
+checkStatus();
+}
+} catch (err) {
+showToast("เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่");
+checkStatus();
+}
+}
+
+async function submitTopUp(status, qtyActual, reason, nextAction) {
+const appDiv = document.getElementById("app");
+const deliveryMethod = getResolvedDeliveryMethod();
+const deliveryDate = document.getElementById("deliveryDate").value;
+const photos = currentPhotoList.map((p) => ({ base64: p.base64, mimeType: p.mime }));
+appDiv.innerHTML = `<div class="loading">กำลังบันทึกของที่ส่ง/รับเพิ่มเติม...</div>`;
+try {
+const res = await fetchWithRetry_(APPS_SCRIPT_URL, {
+method: "POST",
+headers: { "Content-Type": "text/plain;charset=utf-8" },
+body: JSON.stringify({
+action: "topup",
+docNumber: currentDocNumber,
+loc: currentLoc,
+status: status,
+qtyActual: qtyActual || "",
+reason: reason || "",
+nextAction: nextAction || "",
+lineUserId: currentUserId,
+lineDisplayName: currentDisplayName,
+deliveryMethod: deliveryMethod,
+deliveryDate: deliveryDate,
+photos: photos,
+}),
+});
+const data = await res.json();
+if (data.ok) {
+showToast("บันทึกของที่ส่ง/รับเพิ่มเติมเรียบร้อยแล้ว 📦");
 checkStatus();
 } else {
 showToast("เกิดข้อผิดพลาด: " + (data.message || ""));
