@@ -357,7 +357,12 @@ return `
 <input type="date" id="deliveryDate" value="${dateVal}">
 
 <label class="required">รูปถ่าย (แนบได้หลายรูป)</label>
-<input type="file" accept="image/*" multiple id="photoInput">
+<div style="display:flex; gap:8px; margin-top:6px;">
+<button type="button" class="btn btn-full" id="btnTakePhoto" style="flex:1; margin-top:0; padding:10px;">📷 ถ่ายรูป</button>
+<button type="button" class="btn btn-partial" id="btnPickPhoto" style="flex:1; margin-top:0; padding:10px;">🖼️ เลือกจากคลังภาพ</button>
+</div>
+<input type="file" accept="image/*" capture="environment" id="photoInputCamera" style="display:none;">
+<input type="file" accept="image/*" multiple id="photoInput" style="display:none;">
 <div class="field-hint">${photoHint}</div>
 <div class="photo-preview-wrap" id="photoPreviewWrap" style="display:none;"></div>
 </div>
@@ -453,7 +458,6 @@ currentIsDesignatedEditor = true;
 document.getElementById("qtyActual").value = existing.qtyActual || "";
 document.getElementById("reason").value = existing.reason || "";
 if (existing.nextAction) document.getElementById("nextAction").value = existing.nextAction;
-if (existing.deliveryDate) document.getElementById("deliveryDate").value = String(existing.deliveryDate).slice(0, 10);
 if (fieldHintEl) fieldHintEl.textContent = existing.photoUrl ? "มีรูปเดิมแนบอยู่แล้ว ถ้าไม่แนบรูปใหม่ระบบจะเก็บรูปเดิมไว้" : "ถ่ายรูปสินค้า/ใบเบิก/จุดส่งเป็นหลักฐานก่อนกดยืนยัน เลือกได้ทีละหลายรูป";
 document.getElementById("editFormWrap").style.display = "block";
 editBtnEl.style.display = "none";
@@ -531,10 +535,15 @@ methodOther.style.display = methodSubSelect.value === OTHER_METHOD_VALUE ? "bloc
 };
 
 const photoInput = document.getElementById("photoInput");
-photoInput.onchange = async () => {
-const files = photoInput.files ? Array.from(photoInput.files) : [];
+const photoInputCamera = document.getElementById("photoInputCamera");
+const btnTakePhoto = document.getElementById("btnTakePhoto");
+const btnPickPhoto = document.getElementById("btnPickPhoto");
+if (btnTakePhoto) btnTakePhoto.onclick = () => photoInputCamera.click();
+if (btnPickPhoto) btnPickPhoto.onclick = () => photoInput.click();
+
+async function handleSelectedPhotoFiles_(fileList) {
+const files = fileList ? Array.from(fileList) : [];
 if (!files.length) return;
-currentPhotoList = [];
 for (const file of files) {
 let dataUrl;
 try {
@@ -555,10 +564,17 @@ const mime = dataUrl.substring(5, dataUrl.indexOf(";"));
 const base64 = dataUrl.substring(commaIdx + 1);
 currentPhotoList.push({ base64, mime, dataUrl });
 }
-photoInput.value = "";
 renderPhotoPreviews();
-};
 }
+
+photoInput.onchange = async () => {
+await handleSelectedPhotoFiles_(photoInput.files);
+photoInput.value = "";
+};
+photoInputCamera.onchange = async () => {
+await handleSelectedPhotoFiles_(photoInputCamera.files);
+photoInputCamera.value = "";
+};}
 
 // วาดพรีวิวรูปทั้งหมดที่แนบไว้ พร้อมปุ่มลบรายรูป
 function renderPhotoPreviews() {
