@@ -188,6 +188,18 @@
     return params.get(name) || '';
   }
 
+  const THAI_MONTH_FULL = ['', 'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+
+  function formatThaiDateDisplay(isoDateStr) {
+    const parts = String(isoDateStr || '').split('-');
+    if (parts.length !== 3) return isoDateStr || '-';
+    const y = Number(parts[0]), m = Number(parts[1]), d = Number(parts[2]);
+    const monthName = THAI_MONTH_FULL[m] || '';
+    if (!monthName) return isoDateStr;
+    const buddhistYear = y + 543;
+    return d + ' ' + monthName + ' ' + buddhistYear;
+  }
+
   function setStatus(msg) {
     const el = document.getElementById('statusText');
     if (el) el.textContent = msg;
@@ -217,7 +229,7 @@
       return;
     }
 
-    document.getElementById('dateDisplay').textContent = dateStr || '-';
+    document.getElementById('dateDisplay').textContent = formatThaiDateDisplay(dateStr);
 
     setStatus('เช็ก LIFF SDK...');
     if (typeof liff === 'undefined') {
