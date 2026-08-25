@@ -161,20 +161,38 @@ showMessage("เปิดระบบไม่สำเร็จ: " + err.messag
 // กรอกเลขที่เอกสารเอง กรณีสแกน QR สำรอง (ไม่มี ?doc=) หรือ QR บนใบเบิกอ่านไม่ติด
 function renderManualDocEntry() {
 const appDiv = document.getElementById("app");
+const prefixOptions = ["GI", "DO", "IS"].map((p) => `<option value="${p}">${p}</option>`).join("");
 appDiv.innerHTML = `
 <div class="card">
 <div class="hint">ไม่พบเลขที่เอกสารจาก QR นี้<br>กรุณากรอกเลขที่เอกสารจากใบเบิกด้วยตนเอง</div>
 <label class="required">เลขที่เอกสาร</label>
-<input type="text" id="manualDocInput" placeholder="เช่น GI690804-0001">
-<div class="field-hint">พิมพ์เลขที่เอกสารให้ตรงกับใบเบิกสินค้าในมือ</div>
-<button class="btn btn-full" id="btnManualDocSubmit">ยืนยันเลขที่เอกสาร</button>
+<div style="display:flex; gap:6px; align-items:center;">
+<select id="manualDocPrefix" style="flex:0 0 auto;">${prefixOptions}</select>
+<input type="text" id="manualDocPart1" inputmode="numeric" maxlength="6" placeholder="690814" style="flex:1; min-width:0;">
+<span>-</span>
+<input type="text" id="manualDocPart2" inputmode="numeric" maxlength="4" placeholder="0051" style="flex:1; min-width:0;">
+</div>
+<div class="field-hint">รูปแบบ: [GI/DO/IS] + เลข 6 หลัก + "-" + เลข 4 หลัก เช่น GI690814-0051</div>
+<button class="btn btn-full" id="btnManualDocSubmit" style="margin-top:12px;">ยืนยันเลขที่เอกสาร</button>
 </div>
 `;
-document.getElementById("manualDocInput").focus();
+const part1El = document.getElementById("manualDocPart1");
+const part2El = document.getElementById("manualDocPart2");
+part1El.focus();
+part1El.oninput = () => {
+part1El.value = part1El.value.replace(/\D/g, "").slice(0, 6);
+if (part1El.value.length === 6) part2El.focus();
+};
+part2El.oninput = () => {
+part2El.value = part2El.value.replace(/\D/g, "").slice(0, 4);
+};
 document.getElementById("btnManualDocSubmit").onclick = async () => {
-const val = document.getElementById("manualDocInput").value.trim();
-if (!val) { alert("กรุณากรอกเลขที่เอกสารก่อนกดยืนยัน"); return; }
-currentDocNumber = val;
+const prefix = document.getElementById("manualDocPrefix").value;
+const part1 = part1El.value.trim();
+const part2 = part2El.value.trim();
+if (part1.length !== 6) { alert("กรุณากรอกเลข 6 หลักแรก (หลังตัวอักษร) ให้ครบ"); return; }
+if (part2.length !== 4) { alert("กรุณากรอกเลข 4 หลักท้าย ให้ครบ"); return; }
+currentDocNumber = prefix + part1 + "-" + part2;
 appDiv.innerHTML = '<div class="loading">กำลังตรวจสอบ...</div>';
 try {
 await proceedWithDoc();
