@@ -198,6 +198,7 @@
 
     <div id="formSection">
     <div class="section-label">ยื่นคำขอลางาน</div>
+    <div id="prefillBanner"></div>
     <div class="card">
       <div class="field">
         <label>ประเภทการลา</label>
@@ -940,6 +941,45 @@
       cancelBtn.addEventListener('click', onCancel);
     });
   }
+
+  // ===== ล็อกประเภทการลา + วันที่ ถ้ามาจากลิงก์ในไลน์ที่ระบุมาให้แล้ว (เช่น จากการ์ดแจ้งปัญหาสแกนนิ้ว) =====
+  // พนักงานไม่ต้องเลือกประเภทการลา/วันที่ซ้ำเอง กันเลือกผิดจากที่คุยกับหัวหน้างานไว้แล้ว
+  function applyPrefillFromQuery() {
+    const params = new URLSearchParams(location.search);
+    const prefLeaveType = params.get('leaveType');
+    const prefDate = params.get('date');
+    const noticeParts = [];
+
+    if (prefLeaveType && leaveLabels[prefLeaveType]) {
+      const opt = document.querySelector('#leaveTypeRow .leave-type-opt[data-type="' + prefLeaveType + '"]');
+      if (opt) {
+        document.querySelectorAll('#leaveTypeRow .leave-type-opt').forEach(function (el) { el.classList.remove('active'); });
+        opt.classList.add('active');
+        selectedType = prefLeaveType;
+        document.getElementById('durationTypeField').style.display = '';
+        renderDurationOptions(selectedType);
+        document.getElementById('leaveTypeRow').style.pointerEvents = 'none';
+        document.getElementById('leaveTypeRow').style.opacity = '0.7';
+        noticeParts.push('ประเภทการลา “' + leaveLabels[prefLeaveType] + '”');
+      }
+    }
+
+    if (prefDate) {
+      ['startDate', 'endDate', 'halfDayDate', 'hourFixedDate'].forEach(function (id) {
+        const el = document.getElementById(id);
+        if (el) { el.value = prefDate; el.disabled = true; }
+      });
+      updateDayPreview();
+      noticeParts.push('วันที่ ' + prefDate);
+    }
+
+    if (noticeParts.length) {
+      document.getElementById('prefillBanner').innerHTML =
+        '<div class="banner success">🔒 ระบบล็อก' + noticeParts.join(' และ ') + ' ตามที่แจ้งไว้ในไลน์ให้แล้วค่ะ ไม่ต้องเลือกซ้ำ กรอกแค่เหตุผลแล้วกดส่งคำขอได้เลย</div>';
+    }
+  }
+  applyPrefillFromQuery();
+  // ================================================================================================
 
   init();
 </script>
