@@ -1,0 +1,787 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>จัดคิวรถ</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: "Sarabun", "Waree", -apple-system, "Segoe UI", sans-serif;
+    background: #F5F4F0; color: #1D3557;
+    margin: 0; padding: 0 0 40px;
+    font-size: 15px; line-height: 1.5;
+  }
+  .wrap { max-width: 480px; margin: 0 auto; padding: 14px; }
+
+  .appbar {
+    background: #1D3557; color: #fff; padding: 12px 14px;
+    display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 20;
+  }
+  .appbar .title { font-size: 16px; font-weight: 700; flex: 1; }
+  .appbar .who { font-size: 11.5px; opacity: .8; }
+  .back {
+    background: rgba(255,255,255,.15); border: none; color: #fff;
+    border-radius: 8px; padding: 6px 10px; font-size: 13px; cursor: pointer; font-family: inherit;
+  }
+
+  .card { background: #fff; border: 1px solid #E4E1D8; border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+  .soft { background: #F8F7F3; border: none; }
+  .label { font-size: 11.5px; color: #6B6B68; margin-bottom: 5px; }
+  .value { font-size: 15px; font-weight: 600; color: #1D3557; word-break: break-word; }
+  .sub { font-size: 12.5px; color: #6B6B68; margin-top: 4px; white-space: pre-wrap; }
+
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 12.5px; color: #6B6B68; margin-bottom: 6px; }
+  input, select, textarea {
+    width: 100%; padding: 11px 10px; border-radius: 8px; border: 1px solid #D8D5CB;
+    font-size: 15px; font-family: inherit; background: #fff; color: #1D3557;
+  }
+  textarea { min-height: 68px; resize: vertical; }
+  select { appearance: none; background-image: linear-gradient(45deg, transparent 50%, #6B6B68 50%), linear-gradient(135deg, #6B6B68 50%, transparent 50%); background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; padding-right: 34px; }
+
+  .btn {
+    width: 100%; padding: 14px; border: none; border-radius: 10px;
+    background: #1D3557; color: #fff; font-size: 15px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+  }
+  .btn:disabled { background: #B7BFC9; }
+  .btn.ghost { background: #fff; color: #1D3557; border: 1px solid #D8D5CB; }
+  .btn.orange { background: #D85A30; }
+  .btn.green { background: #0F6E56; }
+  .btn.sm { width: auto; padding: 9px 14px; font-size: 13px; border-radius: 8px; }
+
+  .chips { display: flex; gap: 7px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 2px; }
+  .chip {
+    border: 1px solid #D8D5CB; background: #fff; color: #6B6B68;
+    padding: 7px 13px; border-radius: 20px; font-size: 13px; white-space: nowrap;
+    cursor: pointer; font-family: inherit;
+  }
+  .chip.on { background: #1D3557; color: #fff; border-color: #1D3557; }
+
+  .badge { font-size: 11px; padding: 3px 9px; border-radius: 7px; font-weight: 600; white-space: nowrap; }
+  .b-wait  { background: #FAECE7; color: #A8391A; }
+  .b-queued{ background: #E5EDF7; color: #1D3557; }
+  .b-ok    { background: #E1F5EE; color: #085041; }
+  .b-partial{ background: #FCF0D8; color: #7A5200; }
+
+  .item {
+    background: #fff; border: 1px solid #E4E1D8; border-radius: 12px;
+    padding: 12px 13px; margin-bottom: 9px; cursor: pointer;
+  }
+  .item:active { background: #F3F1EA; }
+  .item .row1 { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .item .doc { font-size: 14.5px; font-weight: 700; }
+  .item .site { font-size: 13.5px; color: #3A4A5F; margin-top: 5px; }
+  .item .meta { font-size: 11.5px; color: #9A968A; margin-top: 5px; }
+
+  .autofill-tag {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: #085041;
+    background: #E1F5EE; padding: 5px 10px; border-radius: 6px; margin-bottom: 12px;
+  }
+  .warn-box { font-size: 12.5px; color: #7A5200; background: #FCF0D8; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
+
+  .maps-link {
+    display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid #E4E1D8;
+    border-radius: 8px; padding: 10px 12px; font-size: 13.5px; color: #1a73e8;
+    margin-top: 9px; text-decoration: none;
+  }
+  .link-btn { background: none; border: none; color: #D85A30; font-size: 12.5px; padding: 8px 0 0; cursor: pointer; font-family: inherit; }
+
+  .phone-row { display: flex; gap: 8px; }
+  .phone-row input { flex: 1; }
+  .call-btn { width: 52px; border: none; border-radius: 8px; background: #0F6E56; color: #fff; font-size: 20px; cursor: pointer; flex-shrink: 0; }
+  .call-log { font-size: 11.5px; color: #0F6E56; margin-top: 6px; }
+  .call-log.muted { color: #9A968A; }
+
+  .note-row { display: flex; gap: 8px; align-items: flex-start; }
+  .note-row textarea { flex: 1; min-width: 0; min-height: 56px; font-size: 14px; }
+  .note-save-btn {
+    min-width: 74px; padding: 12px 6px; border: none; border-radius: 8px;
+    background: #6B4FA0; color: #fff; font-size: 13px; font-weight: 600;
+    cursor: pointer; font-family: inherit; flex-shrink: 0;
+  }
+
+  .checkbox-row {
+    display: flex; align-items: center; gap: 10px; margin: 14px 0; padding: 13px;
+    background: #FAECE7; border-radius: 9px; border: 1px solid #F1D4C6; cursor: pointer;
+  }
+  .checkbox-row input { width: 20px; height: 20px; flex-shrink: 0; }
+  .checkbox-row span { font-size: 13.5px; color: #712B13; font-weight: 600; }
+
+  .docnum { display: flex; gap: 7px; align-items: center; }
+  .docnum select { width: 78px; flex-shrink: 0; padding-right: 24px; background-position: calc(100% - 13px) 50%, calc(100% - 8px) 50%; }
+  .docnum input { text-align: center; }
+  .docnum .dash { color: #9A968A; }
+
+  .empty { text-align: center; color: #9A968A; font-size: 13.5px; padding: 30px 10px; }
+  .loading { text-align: center; color: #6B6B68; font-size: 13.5px; padding: 24px; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+    background: #1D3557; color: #fff; padding: 11px 18px; border-radius: 10px;
+    font-size: 13.5px; z-index: 99; max-width: 88%; text-align: center; box-shadow: 0 4px 14px rgba(0,0,0,.2);
+  }
+  .toast.err { background: #A8391A; }
+
+  .hide { display: none !important; }
+  .divider { height: 1px; background: #E4E1D8; margin: 16px 0; }
+  .success-icon { font-size: 46px; text-align: center; margin: 18px 0 6px; }
+  .success-title { text-align: center; font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+  .success-sub { text-align: center; font-size: 13px; color: #6B6B68; margin-bottom: 20px; }
+</style>
+</head>
+<body>
+
+<div class="appbar">
+  <button id="backBtn" class="back hide">‹ กลับ</button>
+  <div class="title" id="appTitle">จัดคิวรถ</div>
+  <div class="who" id="whoami"></div>
+</div>
+
+<div class="wrap">
+
+  <!-- ============ กำลังโหลด ============ -->
+  <div id="screenLoading">
+    <div class="loading">กำลังเชื่อมต่อ LINE…</div>
+  </div>
+
+  <!-- ============ หน้ารายการคิว ============ -->
+  <div id="screenQueue" class="hide">
+    <div class="field" style="margin-bottom:10px;">
+      <input id="queueSearch" placeholder="🔍 ค้นหาเลขที่เอกสาร / ชื่อไซต์" />
+    </div>
+    <div class="chips">
+      <button class="chip on" data-filter="pending">รอจัดคิว <span id="cntPending"></span></button>
+      <button class="chip" data-filter="done">จัดคิวแล้ว</button>
+      <button class="chip" data-filter="all">ทั้งหมด</button>
+    </div>
+    <div id="queueList"><div class="loading">กำลังโหลดคิว…</div></div>
+    <div class="divider"></div>
+    <button class="btn ghost" id="manualDocBtn">➕ กรอกเลขที่เอกสารเอง</button>
+    <button class="btn ghost" id="refreshBtn" style="margin-top:9px;">🔄 รีเฟรชคิว</button>
+  </div>
+
+  <!-- ============ หน้ากรอกเลขเอกสารเอง ============ -->
+  <div id="screenManual" class="hide">
+    <div class="card">
+      <div class="field">
+        <label>เลขที่เอกสาร</label>
+        <div class="docnum">
+          <select id="mPrefix">
+            <option>GI</option><option>DO</option><option>IS</option>
+          </select>
+          <input id="mNum6" inputmode="numeric" maxlength="6" placeholder="690814" />
+          <span class="dash">-</span>
+          <input id="mNum4" inputmode="numeric" maxlength="4" placeholder="0051" style="width:78px;flex-shrink:0;" />
+        </div>
+        <div class="sub">ตัวอย่าง GI690814-0051</div>
+      </div>
+      <button class="btn" id="manualGoBtn">เปิดเอกสารนี้</button>
+    </div>
+  </div>
+
+  <!-- ============ หน้ารายละเอียดเอกสาร ============ -->
+  <div id="screenDoc" class="hide">
+    <div class="card" style="display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div class="label">เลขที่เอกสาร</div>
+        <div class="value" id="dDoc" style="font-size:17px;"></div>
+      </div>
+      <div id="dStatus"></div>
+    </div>
+
+    <div id="dAutofill" class="autofill-tag hide">✓ ดึงข้อมูลจากที่เซลล์กรอกไว้แล้ว</div>
+    <div id="dNoStep0" class="warn-box hide">ยังไม่มีใครผูกไซต์ไว้กับเอกสารนี้ — ค้นหาจากไดเรกทอรีเดียวกับที่เซลล์ใช้ได้เลย</div>
+    <div id="dDelivered" class="warn-box hide" style="background:#E1F5EE;color:#085041;"></div>
+
+    <!-- การ์ดไซต์ -->
+    <div class="card soft" id="dSiteCard">
+      <div class="label">ไซต์จัดส่ง</div>
+      <div class="value" id="dSite">—</div>
+      <div class="sub" id="dPlot"></div>
+      <a class="maps-link hide" id="dMaps" target="_blank" rel="noopener">📍 เปิดใน Google Maps</a>
+      <button class="link-btn" id="chooseSiteBtn">แก้ไข / เลือกไซต์อื่น</button>
+    </div>
+
+    <div class="card soft hide" id="dNoteCard">
+      <div class="label">หมายเหตุจากเซลล์</div>
+      <div class="sub" id="dNote"></div>
+    </div>
+
+    <!-- คนขับ -->
+    <div class="field">
+      <label>เลือกคนขับ</label>
+      <select id="dDriver"><option value="">— เลือกคนขับ —</option></select>
+      <div class="sub" id="dPlate"></div>
+    </div>
+
+    <!-- เบอร์ติดต่อ + ปุ่มโทร -->
+    <div class="field">
+      <label>เบอร์ติดต่อหน้างาน</label>
+      <div class="phone-row">
+        <input id="dPhone" inputmode="tel" placeholder="081-234-5678" />
+        <button class="call-btn" id="callBtn" title="โทรเลย">📞</button>
+      </div>
+      <div class="call-log muted" id="dCallLog">ยังไม่ได้กดโทร</div>
+    </div>
+
+    <label class="checkbox-row" for="dConfirmed">
+      <input type="checkbox" id="dConfirmed" />
+      <span>โทรคอนเฟิร์มกับลูกค้าแล้ว</span>
+    </label>
+
+    <!-- หมายเหตุคนจัดเที่ยวรถ -->
+    <div class="field">
+      <label>หมายเหตุคนจัดเที่ยวรถ (บันทึกแยกได้ ไม่ต้องรอปิดงาน)</label>
+      <div class="note-row">
+        <textarea id="dDspNote" placeholder="เช่น โทรแล้ว หน้างานเข้าไม่ได้ ฝนตก รอเช็คพรุ่งนี้"></textarea>
+        <button class="note-save-btn" id="saveNoteBtn">บันทึก</button>
+      </div>
+      <div class="sub" id="dDspNoteHistory"></div>
+    </div>
+
+    <button class="btn" id="saveQueueBtn">บันทึกคิวรถ</button>
+  </div>
+
+  <!-- ============ หน้าเลือกไซต์ ============ -->
+  <div id="screenSite" class="hide">
+    <div class="field">
+      <label>ค้นหาไซต์จัดส่ง (พิมพ์ชื่อไซต์ หรือชื่อลูกค้า)</label>
+      <input id="siteSearch" placeholder="เช่น นิรติ / ภาภัทร" />
+    </div>
+    <div id="siteResults"></div>
+    <div class="divider"></div>
+    <button class="btn ghost" id="newSiteBtn">➕ เพิ่มไซต์ใหม่เข้าไดเรกทอรี</button>
+
+    <div class="card hide" id="newSiteForm" style="margin-top:12px;">
+      <div class="field">
+        <label>ชื่อลูกค้า</label>
+        <input id="nsCustomer" list="customerList" placeholder="พิมพ์หรือเลือกชื่อลูกค้า" />
+        <datalist id="customerList"></datalist>
+      </div>
+      <div class="field">
+        <label>ชื่อไซต์ *</label>
+        <input id="nsName" placeholder="เช่น หมู่บ้านนิรติ - แปลง 5" />
+      </div>
+      <div class="field">
+        <label>ลิงก์ Google Maps</label>
+        <input id="nsMaps" placeholder="วางลิงก์ที่ลูกค้าส่งมา" />
+      </div>
+      <div class="field">
+        <label>ชื่อผู้ติดต่อหน้างาน</label>
+        <input id="nsContact" placeholder="เช่น ช่างเอ" />
+      </div>
+      <div class="field">
+        <label>เบอร์ติดต่อหน้างาน</label>
+        <input id="nsPhone" inputmode="tel" placeholder="08x-xxx-xxxx" />
+      </div>
+      <div class="field">
+        <label>หมายเหตุ</label>
+        <textarea id="nsNote" placeholder="เช่น เข้าซอยด้านหลัง ติดต่อ รปภ. ก่อนเข้า"></textarea>
+      </div>
+      <button class="btn orange" id="saveSiteBtn">บันทึกไซต์ใหม่ + ผูกกับเอกสารนี้</button>
+    </div>
+  </div>
+
+  <!-- ============ หน้าบันทึกสำเร็จ ============ -->
+  <div id="screenDone" class="hide">
+    <div class="success-icon">✅</div>
+    <div class="success-title">บันทึกคิวรถเรียบร้อย</div>
+    <div class="success-sub" id="doneSummary"></div>
+    <div class="card soft" id="donePush" style="font-size:12.5px;color:#6B6B68;"></div>
+    <button class="btn green" id="goDeliveryBtn">➡️ ไปหน้ายืนยันจ่ายของต่อ</button>
+    <button class="btn ghost" id="backToQueueBtn" style="margin-top:9px;">กลับหน้าคิว</button>
+  </div>
+
+</div>
+
+<script>
+/* =========================================================
+   ตั้งค่า — ต้องแก้ 2 ค่านี้ก่อนใช้งานจริง
+   ========================================================= */
+
+// LIFF ID ของ "แอปจัดคิวรถ" (สร้างใหม่ใน LINE Developers Console
+// ภายใต้ LINE Login Channel เดิม 2010663561)
+var LIFF_ID = '2010663561-XXXXXXXX';   // <<<< แก้ตรงนี้
+
+// URL เว็บแอปของโปรเจกต์ Sales WebApp (ลงท้ายด้วย /exec)
+var API_URL = 'https://script.google.com/macros/s/AKfycbw1wv9CjOJlLuvn4CO7RXZU2rLgtu3zYThZ5viU3-pOefZwdp15vu8oBdTRMeKXCCpfuQ/exec';
+
+// LIFF ของระบบยืนยันส่งของเดิม (delivery.html) — ใช้ตอนกดไปต่อ
+var DELIVERY_LIFF_URL = 'https://liff.line.me/2010663561-6mmF990p';
+
+/* ========================================================= */
+
+var state = {
+  profile: { userId: '', displayName: '' },
+  queue:   { pending: [], done: [] },
+  filter:  'pending',
+  drivers: [],
+  doc:     null,       // ข้อมูลเอกสารที่กำลังเปิดอยู่
+  screen:  'loading'
+};
+
+/* ---------- ตัวช่วย ---------- */
+
+function $(id) { return document.getElementById(id); }
+
+function toast(msg, isErr) {
+  var t = document.createElement('div');
+  t.className = 'toast' + (isErr ? ' err' : '');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function () { t.remove(); }, isErr ? 4200 : 2400);
+}
+
+function show(screen) {
+  var all = ['Loading', 'Queue', 'Manual', 'Doc', 'Site', 'Done'];
+  for (var i = 0; i < all.length; i++) {
+    $('screen' + all[i]).classList.toggle('hide', all[i].toLowerCase() !== screen);
+  }
+  state.screen = screen;
+  $('backBtn').classList.toggle('hide', screen === 'queue' || screen === 'loading');
+  var titles = {
+    loading: 'จัดคิวรถ', queue: 'คิวรอจัดส่ง', manual: 'กรอกเลขที่เอกสาร',
+    doc: 'จัดคิวรถ', site: 'เลือกไซต์จัดส่ง', done: 'บันทึกสำเร็จ'
+  };
+  $('appTitle').textContent = titles[screen] || 'จัดคิวรถ';
+  window.scrollTo(0, 0);
+}
+
+function api(action, payload) {
+  var url = API_URL + '?action=' + encodeURIComponent(action) + '&t=' + Date.now();
+  if (payload) url += '&payload=' + encodeURIComponent(JSON.stringify(payload));
+  return fetch(url, { method: 'GET', redirect: 'follow' })
+    .then(function (r) { return r.json(); })
+    .then(function (j) {
+      if (!j || j.ok !== true) throw new Error((j && j.error) || 'เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
+      return j.data;
+    });
+}
+
+function badgeHtml(status) {
+  var cls = { 'รอจัดคิว': 'b-wait', 'จัดคิวแล้ว': 'b-queued', 'ส่งสำเร็จ': 'b-ok', 'ส่งไม่ครบ': 'b-partial' }[status] || 'b-queued';
+  return '<span class="badge ' + cls + '">' + status + '</span>';
+}
+
+function esc(s) {
+  return String(s === null || s === undefined ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/* ---------- เริ่มต้น ---------- */
+
+function boot() {
+  liff.init({ liffId: LIFF_ID })
+    .then(function () {
+      if (!liff.isLoggedIn()) { liff.login(); return null; }
+      return liff.getProfile();
+    })
+    .then(function (p) {
+      if (!p) return;
+      state.profile = { userId: p.userId || '', displayName: p.displayName || '' };
+      $('whoami').textContent = state.profile.displayName;
+      return Promise.all([loadDrivers(), loadQueue()]);
+    })
+    .then(function () {
+      if (!state.profile.userId) return;
+      // ถ้าเปิดมาพร้อม ?doc=... ให้เข้าหน้าเอกสารนั้นเลย
+      var qDoc = (new URLSearchParams(window.location.search)).get('doc');
+      if (qDoc) { openDoc(qDoc.toUpperCase()); }
+      else { show('queue'); }
+    })
+    .catch(function (err) {
+      $('screenLoading').innerHTML = '<div class="card"><div class="value">เปิดแอปไม่สำเร็จ</div>' +
+        '<div class="sub">' + esc(err && err.message ? err.message : err) + '</div></div>';
+    });
+}
+
+function loadDrivers() {
+  return api('dsp_drivers').then(function (list) {
+    state.drivers = list || [];
+    var sel = $('dDriver');
+    sel.innerHTML = '<option value="">— เลือกคนขับ —</option>';
+    for (var i = 0; i < state.drivers.length; i++) {
+      var d = state.drivers[i];
+      var opt = document.createElement('option');
+      opt.value = d.name;
+      opt.textContent = d.name + (d.plate ? ('  ·  ' + d.plate) : '');
+      sel.appendChild(opt);
+    }
+    if (!state.drivers.length) {
+      toast('ยังไม่มีรายชื่อในชีต "คนขับ" — เพิ่มชื่อในชีตก่อนนะคะ', true);
+    }
+  }).catch(function (e) { toast(e.message, true); });
+}
+
+/* ---------- หน้าคิว ---------- */
+
+function loadQueue() {
+  return api('dsp_queue', {}).then(function (d) {
+    state.queue = { pending: (d && d.pending) || [], done: (d && d.done) || [] };
+    $('cntPending').textContent = '(' + state.queue.pending.length + ')';
+    renderQueue();
+  }).catch(function (e) {
+    $('queueList').innerHTML = '<div class="empty">โหลดคิวไม่สำเร็จ<br>' + esc(e.message) + '</div>';
+  });
+}
+
+function renderQueue() {
+  var q = ($('queueSearch').value || '').trim().toLowerCase();
+  var list;
+  if (state.filter === 'pending')   list = state.queue.pending;
+  else if (state.filter === 'done') list = state.queue.done;
+  else                              list = state.queue.pending.concat(state.queue.done);
+
+  if (q) {
+    list = list.filter(function (o) {
+      return (o.doc || '').toLowerCase().indexOf(q) >= 0 ||
+             (o.site || '').toLowerCase().indexOf(q) >= 0;
+    });
+  }
+
+  if (!list.length) {
+    $('queueList').innerHTML = '<div class="empty">' +
+      (state.filter === 'pending' ? 'ไม่มีเอกสารรอจัดคิวค่ะ 🎉' : 'ไม่พบรายการ') + '</div>';
+    return;
+  }
+
+  var html = '';
+  for (var i = 0; i < list.length; i++) {
+    var o = list[i];
+    var meta = [];
+    if (o.driver) meta.push('🚚 ' + o.driver);
+    if (o.callCount) meta.push('📞 ' + o.callCount + ' ครั้ง');
+    if (o.confirmed) meta.push('✔ คอนเฟิร์มแล้ว');
+    if (o.savedAt && !o.driver) meta.push('บันทึก ' + o.savedAt);
+    html += '<div class="item" data-doc="' + esc(o.doc) + '">' +
+              '<div class="row1"><div class="doc">' + esc(o.doc) + '</div>' + badgeHtml(o.status) + '</div>' +
+              '<div class="site">' + esc(o.site || '— ยังไม่ได้ผูกไซต์ —') + '</div>' +
+              (meta.length ? '<div class="meta">' + esc(meta.join('  ·  ')) + '</div>' : '') +
+            '</div>';
+  }
+  $('queueList').innerHTML = html;
+
+  var items = $('queueList').querySelectorAll('.item');
+  for (var k = 0; k < items.length; k++) {
+    items[k].addEventListener('click', function () { openDoc(this.getAttribute('data-doc')); });
+  }
+}
+
+/* ---------- หน้าเอกสาร ---------- */
+
+function openDoc(doc) {
+  show('doc');
+  $('dDoc').textContent = doc;
+  $('dStatus').innerHTML = '';
+  api('dsp_doc', { doc: doc })
+    .then(function (d) { state.doc = d || { doc: doc, found: false }; renderDoc(); })
+    .catch(function (e) { toast(e.message, true); goBack(); });
+}
+
+function renderDoc() {
+  var d = state.doc;
+  $('dDoc').textContent = d.doc;
+  $('dStatus').innerHTML = d.found ? badgeHtml(d.status) : badgeHtml('รอจัดคิว');
+
+  var hasSite = !!(d.site && d.site.trim());
+  $('dAutofill').classList.toggle('hide', !(d.found && hasSite && d.savedBy));
+  $('dNoStep0').classList.toggle('hide', hasSite);
+
+  $('dSite').textContent = hasSite ? d.site : '— ยังไม่ได้เลือกไซต์ —';
+  $('dPlot').textContent = d.plot ? ('แปลงเพิ่มเติม: ' + d.plot) : '';
+
+  if (d.mapsLink) { $('dMaps').href = d.mapsLink; $('dMaps').classList.remove('hide'); }
+  else { $('dMaps').classList.add('hide'); }
+
+  if (d.note) { $('dNote').textContent = d.note; $('dNoteCard').classList.remove('hide'); }
+  else { $('dNoteCard').classList.add('hide'); }
+
+  if (d.confirmStatus) {
+    $('dDelivered').textContent = 'เอกสารนี้ยืนยันจ่ายของแล้ว (สถานะ: ' + d.confirmStatus + ')';
+    $('dDelivered').classList.remove('hide');
+  } else {
+    $('dDelivered').classList.add('hide');
+  }
+
+  $('dDriver').value = d.driver || '';
+  updatePlateHint();
+  $('dPhone').value = d.phone || '';
+  $('dConfirmed').checked = !!d.confirmed;
+  $('dDspNote').value = '';
+  $('dDspNoteHistory').textContent = d.dispatchNote || '';
+
+  renderCallLog(d.callCount, d.callLast);
+  $('saveQueueBtn').textContent = d.driver ? 'อัปเดตคิวรถ' : 'บันทึกคิวรถ';
+  $('saveQueueBtn').disabled = false;
+}
+
+function renderCallLog(count, last) {
+  var el = $('dCallLog');
+  if (count && Number(count) > 0) {
+    el.className = 'call-log';
+    el.textContent = '📞 กดโทรแล้ว ' + count + ' ครั้ง' + (last ? ('  ·  ล่าสุด ' + last) : '');
+  } else {
+    el.className = 'call-log muted';
+    el.textContent = 'ยังไม่ได้กดโทร';
+  }
+}
+
+function updatePlateHint() {
+  var name = $('dDriver').value;
+  var hint = '';
+  for (var i = 0; i < state.drivers.length; i++) {
+    if (state.drivers[i].name === name) {
+      var d = state.drivers[i];
+      hint = (d.plate ? ('ทะเบียน ' + d.plate) : '') +
+             (d.lineId ? '' : (d.plate ? '  ·  ' : '') + 'ยังไม่มี LINE User ID ในชีตคนขับ');
+      break;
+    }
+  }
+  $('dPlate').textContent = hint;
+}
+
+function currentPlate() {
+  var name = $('dDriver').value;
+  for (var i = 0; i < state.drivers.length; i++) {
+    if (state.drivers[i].name === name) return state.drivers[i].plate || '';
+  }
+  return '';
+}
+
+/* ---------- หน้าเลือกไซต์ ---------- */
+
+var siteTimer = null;
+
+function openSiteScreen() {
+  show('site');
+  $('siteSearch').value = '';
+  $('siteResults').innerHTML = '<div class="empty">พิมพ์เพื่อค้นหาไซต์ในไดเรกทอรี</div>';
+  $('newSiteForm').classList.add('hide');
+  api('dsp_customers').then(function (names) {
+    var dl = $('customerList');
+    dl.innerHTML = '';
+    (names || []).forEach(function (n) {
+      var o = document.createElement('option'); o.value = n; dl.appendChild(o);
+    });
+  }).catch(function () {});
+}
+
+function searchSites() {
+  var q = ($('siteSearch').value || '').trim();
+  if (q.length < 1) {
+    $('siteResults').innerHTML = '<div class="empty">พิมพ์เพื่อค้นหาไซต์ในไดเรกทอรี</div>';
+    return;
+  }
+  $('siteResults').innerHTML = '<div class="loading">กำลังค้นหา…</div>';
+  api('dsp_sites', { q: q }).then(function (list) {
+    list = list || [];
+    if (!list.length) {
+      $('siteResults').innerHTML = '<div class="empty">ไม่พบไซต์ที่ตรงกับ "' + esc(q) + '"<br>กด "เพิ่มไซต์ใหม่" ด้านล่างได้เลยค่ะ</div>';
+      return;
+    }
+    var html = '';
+    for (var i = 0; i < list.length; i++) {
+      var s = list[i];
+      html += '<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:10px;">' +
+                '<div style="min-width:0;">' +
+                  '<div class="value" style="font-size:14.5px;">' + esc(s.name) + '</div>' +
+                  '<div class="sub">' + esc([s.customerName, s.phone].filter(Boolean).join('  ·  ')) + '</div>' +
+                '</div>' +
+                '<button class="btn orange sm" data-idx="' + i + '">เลือก</button>' +
+              '</div>';
+    }
+    $('siteResults').innerHTML = html;
+    var btns = $('siteResults').querySelectorAll('button[data-idx]');
+    for (var k = 0; k < btns.length; k++) {
+      (function (site) {
+        btns[k].addEventListener('click', function () {
+          bindSite(site).catch(function (e) { toast(e.message, true); });
+        });
+      })(list[Number(btns[k].getAttribute('data-idx'))]);
+    }
+  }).catch(function (e) {
+    $('siteResults').innerHTML = '<div class="empty">' + esc(e.message) + '</div>';
+  });
+}
+
+function bindSite(site) {
+  toast('กำลังผูกไซต์…');
+  return api('dsp_bindsite', {
+    doc: state.doc.doc,
+    site: site.name,
+    mapsLink: site.mapsLink,
+    contactName: site.contactName,
+    phone: site.phone,
+    note: site.note,
+    by: state.profile.displayName
+  }).then(function (d) {
+    state.doc = d;
+    show('doc');
+    renderDoc();
+    toast('ผูกไซต์ "' + site.name + '" แล้วค่ะ');
+  });
+  // ผู้เรียกเป็นคนจัดการ error เอง (จะได้ไม่ toast ซ้ำสองรอบ)
+}
+
+/* ---------- แอ็คชัน ---------- */
+
+function goBack() {
+  if (state.screen === 'site' && state.doc) { show('doc'); return; }
+  loadQueue();
+  show('queue');
+}
+
+function onCall() {
+  var phone = ($('dPhone').value || '').trim();
+  if (!phone) { toast('ยังไม่มีเบอร์ติดต่อหน้างานค่ะ', true); return; }
+  api('dsp_call', { doc: state.doc.doc })
+    .then(function (r) { renderCallLog(r.callCount, r.callLast); })
+    .catch(function () { /* นับพลาดไม่ควรบล็อกการโทร */ });
+  window.location.href = 'tel:' + phone.replace(/[^0-9+]/g, '');
+}
+
+function onSaveNote() {
+  var note = ($('dDspNote').value || '').trim();
+  if (!note) { toast('กรุณาพิมพ์หมายเหตุก่อนค่ะ', true); return; }
+  var btn = $('saveNoteBtn');
+  btn.disabled = true; btn.textContent = '…';
+  api('dsp_note', { doc: state.doc.doc, note: note, by: state.profile.displayName })
+    .then(function (r) {
+      $('dDspNote').value = '';
+      $('dDspNoteHistory').textContent = r.dispatchNote || '';
+      state.doc.dispatchNote = r.dispatchNote;
+      toast('บันทึกหมายเหตุแล้วค่ะ');
+    })
+    .catch(function (e) { toast(e.message, true); })
+    .then(function () { btn.disabled = false; btn.textContent = 'บันทึก'; });
+}
+
+function onSaveQueue() {
+  var d = state.doc;
+  if (!d.site || !d.site.trim()) { toast('กรุณาเลือกไซต์จัดส่งก่อนค่ะ', true); return; }
+  var driver = $('dDriver').value;
+  if (!driver) { toast('กรุณาเลือกคนขับก่อนค่ะ', true); return; }
+
+  var btn = $('saveQueueBtn');
+  btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
+
+  api('dsp_save', {
+    doc: d.doc,
+    driver: driver,
+    plate: currentPlate(),
+    phone: ($('dPhone').value || '').trim(),
+    confirmed: $('dConfirmed').checked,
+    note: ($('dDspNote').value || '').trim(),
+    by: state.profile.displayName,
+    lineUserId: state.profile.userId
+  }).then(function (res) {
+    state.doc = res;
+    $('doneSummary').innerHTML = esc(res.doc) + '<br>' + esc(res.site) + '<br>🚚 ' + esc(res.driver) +
+      (res.plate ? ('  ·  ' + esc(res.plate)) : '');
+    $('donePush').textContent = (res.pushResult && res.pushResult.sent)
+      ? '✅ แจ้ง LINE คนขับแล้ว'
+      : 'ℹ️ ยังไม่ได้เปิดใช้การแจ้ง LINE คนขับอัตโนมัติ (' + ((res.pushResult && res.pushResult.message) || '-') + ')';
+    show('done');
+  }).catch(function (e) {
+    toast(e.message, true);
+  }).then(function () {
+    btn.disabled = false; btn.textContent = 'บันทึกคิวรถ';
+  });
+}
+
+function goDelivery() {
+  var d = state.doc;
+  var method = 'จัดส่ง - ' + (d.driver || '');
+  var url = DELIVERY_LIFF_URL + '?doc=' + encodeURIComponent(d.doc) +
+            '&method=' + encodeURIComponent(method);
+  window.location.href = url;
+}
+
+function onSaveNewSite() {
+  var name = ($('nsName').value || '').trim();
+  if (!name) { toast('กรุณากรอกชื่อไซต์ค่ะ', true); return; }
+  var btn = $('saveSiteBtn');
+  btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
+
+  var site = {
+    customerName: ($('nsCustomer').value || '').trim(),
+    name: name,
+    mapsLink: ($('nsMaps').value || '').trim(),
+    contactName: ($('nsContact').value || '').trim(),
+    phone: ($('nsPhone').value || '').trim(),
+    note: ($('nsNote').value || '').trim(),
+    by: state.profile.displayName
+  };
+
+  api('dsp_savesite', site)
+    .then(function () { return bindSite(site); })
+    .catch(function (e) { toast(e.message, true); })
+    .then(function () { btn.disabled = false; btn.textContent = 'บันทึกไซต์ใหม่ + ผูกกับเอกสารนี้'; });
+}
+
+function onManualGo() {
+  var p = $('mPrefix').value;
+  var a = ($('mNum6').value || '').trim();
+  var b = ($('mNum4').value || '').trim();
+  if (a.length !== 6 || b.length !== 4) {
+    toast('กรอกเลข 6 หลัก และ 4 หลักให้ครบก่อนค่ะ', true); return;
+  }
+  openDoc(p + a + '-' + b);
+}
+
+/* ---------- ผูก event ---------- */
+
+document.addEventListener('DOMContentLoaded', function () {
+  $('backBtn').addEventListener('click', goBack);
+  $('refreshBtn').addEventListener('click', function () { loadQueue(); toast('รีเฟรชแล้วค่ะ'); });
+  $('queueSearch').addEventListener('input', renderQueue);
+
+  var chips = document.querySelectorAll('.chip');
+  for (var i = 0; i < chips.length; i++) {
+    chips[i].addEventListener('click', function () {
+      for (var k = 0; k < chips.length; k++) chips[k].classList.remove('on');
+      this.classList.add('on');
+      state.filter = this.getAttribute('data-filter');
+      renderQueue();
+    });
+  }
+
+  $('manualDocBtn').addEventListener('click', function () { show('manual'); });
+  $('manualGoBtn').addEventListener('click', onManualGo);
+  $('mNum6').addEventListener('input', function () {
+    this.value = this.value.replace(/\D/g, '');
+    if (this.value.length === 6) $('mNum4').focus();
+  });
+  $('mNum4').addEventListener('input', function () { this.value = this.value.replace(/\D/g, ''); });
+
+  $('chooseSiteBtn').addEventListener('click', openSiteScreen);
+  $('dDriver').addEventListener('change', updatePlateHint);
+  $('callBtn').addEventListener('click', onCall);
+  $('saveNoteBtn').addEventListener('click', onSaveNote);
+  $('saveQueueBtn').addEventListener('click', onSaveQueue);
+
+  $('siteSearch').addEventListener('input', function () {
+    clearTimeout(siteTimer);
+    siteTimer = setTimeout(searchSites, 320);
+  });
+  $('newSiteBtn').addEventListener('click', function () {
+    $('newSiteForm').classList.toggle('hide');
+    if (!$('newSiteForm').classList.contains('hide')) {
+      $('nsName').value = ($('siteSearch').value || '').trim();
+      $('nsName').focus();
+    }
+  });
+  $('saveSiteBtn').addEventListener('click', onSaveNewSite);
+
+  $('goDeliveryBtn').addEventListener('click', goDelivery);
+  $('backToQueueBtn').addEventListener('click', function () { loadQueue(); show('queue'); });
+
+  boot();
+});
+</script>
+</body>
+</html>
