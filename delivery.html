@@ -236,16 +236,30 @@ renderLocPicker();
 
 // ยิง fetch ซ้ำอัตโนมัติถ้าเจอปัญหาเชื่อมต่อชั่วคราว (เช่น Apps Script ตอบช้า/หลุดเป็นครั้งคราว)
 // ก่อนจะถือว่าล้มเหลวจริง ลองสูงสุด 3 ครั้ง (รอ 900ms ระหว่างครั้ง)
+async function fetchWithTimeout_(url, options, timeoutMs) {
+const controller = new AbortController();
+const timer = setTimeout(() => controller.abort(), timeoutMs);
+try {
+return await fetch(url, Object.assign({}, options, { signal: controller.signal }));
+} finally {
+clearTimeout(timer);
+}
+}
+
 async function fetchWithRetry_(url, options, retries) {
 if (retries === undefined) retries = 4;
-for (let attempt = 0; attempt <= retries; attempt++) {
+let lastErr;
+for (let attempt = 0; attempt < retries; attempt++) {
 try {
-return await fetch(url, options);
+return await fetchWithTimeout_(url, options, 20000);
 } catch (err) {
-if (attempt === retries) throw err;
-await new Promise(r => setTimeout(r, 1500));
+lastErr = err;
+if (attempt < retries - 1) {
+await new Promise((r) => setTimeout(r, 1500));
 }
 }
+}
+throw lastErr;
 }
 
 async function checkAuth() {
@@ -682,17 +696,36 @@ if (!currentPhotoList.length) return "กรุณาแนบรูปถ่า
 return null;
 }
 
-async function submitConfirmation(status, qtyActual, reason, nextAction) {
+async function attemptSubmitConfirmation_(payload) {
 const appDiv = document.getElementById("app");
-const deliveryMethod = getResolvedDeliveryMethod();
-const deliveryDate = document.getElementById("deliveryDate").value;
-const photos = currentPhotoList.map((p) => ({ base64: p.base64, mimeType: p.mime }));
-appDiv.innerHTML = `<div class="loading">กำลังอัปโหลดรูป (${photos.length} รูป) และบันทึกข้อมูล...</div>`;
+appDiv.innerHTML = `<div class = "loading">กำลังอัปโหลดรูป (${payload.photos.length} รูป) และบันทึกข้อมูล...</div>`;
 try {
 const res = await fetchWithRetry_(APPS_SCRIPT_URL, {
 method: "POST",
-headers: { "Content-Type": "text/plain;charset=utf-8" },
-body: JSON.stringify({
+headers: { "Content-Type": "text/plain;charset = utf-8" },
+body: JSON.stringify(payload),
+});
+const data = await res.json();
+if (data.ok) {
+showToast(payload.status === "ครบ" ? "ยืนยันสำเร็จ ✅" : "บันทึกแล้ว แจ้งเตือนพี่บุ้งกี๋แล้ว ⚠️");
+appDiv.innerHTML = `<div class = "card"><div class = "doc-number">${currentDocNumber}</div>${locBadgeHtml()}<div class = "hint">บันทึกเรียบร้อยแล้ว ปิดหน้านี้ได้เลย</div></div>`;
+} else {
+const errMsg = "เกิดข้อผิดพลาด: " + (data.message || "กรุณาลองใหม่อีกครั้ง");
+alert(errMsg);
+showMessage(errMsg, () => attemptSubmitConfirmation_(payload));
+}
+} catch (err) {
+const errMsg = (err && err.name === "AbortError") ? "เชื่อมต่อช้าเกินไป กรุณาลองใหม่อีกครั้ง" : "เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่อีกครั้ง";
+alert(errMsg);
+showMessage(errMsg, () => attemptSubmitConfirmation_(payload));
+}
+}
+
+async function submitConfirmation(status, qtyActual, reason, nextAction) {
+const deliveryMethod = getResolvedDeliveryMethod();
+const deliveryDate = document.getElementById("deliveryDate").value;
+const photos = currentPhotoList.map((p) => ({ base64: p.base64, mimeType: p.mime }));
+const payload = {
 action: "confirm",
 docNumber: currentDocNumber,
 loc: currentLoc,
@@ -705,20 +738,8 @@ lineDisplayName: currentDisplayName,
 deliveryMethod: deliveryMethod,
 deliveryDate: deliveryDate,
 photos: photos,
-}),
-});
-const data = await res.json();
-if (data.ok) {
-showToast(status === "ครบ" ? "ยืนยันสำเร็จ ✅" : "บันทึกแล้ว แจ้งเตือนพี่บุ้งกี๋แล้ว ⚠️");
-appDiv.innerHTML = `<div class="card"><div class="doc-number">${currentDocNumber}</div>${locBadgeHtml()}<div class="hint">บันทึกเรียบร้อยแล้ว ปิดหน้านี้ได้เลย</div></div>`;
-} else {
-showToast("เกิดข้อผิดพลาด: " + (data.message || ""));
-checkStatus();
-}
-} catch (err) {
-showToast("เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่");
-checkStatus();
-}
+};
+attemptSubmitConfirmation_(payload);
 }
 
 function validateEditFields_(existing) {
@@ -741,17 +762,36 @@ return null;
 }return null;
 }
 
-async function submitEdit(status, qtyActual, reason, nextAction) {
+async function attemptSubmitEdit_(payload) {
 const appDiv = document.getElementById("app");
-const deliveryMethod = getResolvedDeliveryMethod();
-const deliveryDate = document.getElementById("deliveryDate").value;
-const photos = currentPhotoList.map((p) => ({ base64: p.base64, mimeType: p.mime }));
-appDiv.innerHTML = `<div class="loading">กำลังบันทึกการแก้ไข...</div>`;
+appDiv.innerHTML = `<div class = "loading">กำลังบันทึกการแก้ไข...</div>`;
 try {
 const res = await fetchWithRetry_(APPS_SCRIPT_URL, {
 method: "POST",
-headers: { "Content-Type": "text/plain;charset=utf-8" },
-body: JSON.stringify({
+headers: { "Content-Type": "text/plain;charset = utf-8" },
+body: JSON.stringify(payload),
+});
+const data = await res.json();
+if (data.ok) {
+showToast(currentIsDesignatedEditor ? "แก้ไขข้อมูลเรียบร้อยแล้ว ✏️" : "ส่งของเพิ่มเติมเรียบร้อยแล้ว 📦");
+checkStatus();
+} else {
+const errMsg = "เกิดข้อผิดพลาด: " + (data.message || "กรุณาลองใหม่อีกครั้ง");
+alert(errMsg);
+showMessage(errMsg, () => attemptSubmitEdit_(payload));
+}
+} catch (err) {
+const errMsg = (err && err.name === "AbortError") ? "เชื่อมต่อช้าเกินไป กรุณาลองใหม่อีกครั้ง" : "เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่อีกครั้ง";
+alert(errMsg);
+showMessage(errMsg, () => attemptSubmitEdit_(payload));
+}
+}
+
+async function submitEdit(status, qtyActual, reason, nextAction) {
+const deliveryMethod = getResolvedDeliveryMethod();
+const deliveryDate = document.getElementById("deliveryDate").value;
+const photos = currentPhotoList.map((p) => ({ base64: p.base64, mimeType: p.mime }));
+const payload = {
 action: "edit",
 docNumber: currentDocNumber,
 loc: currentLoc,
@@ -764,33 +804,40 @@ lineDisplayName: currentDisplayName,
 deliveryMethod: deliveryMethod,
 deliveryDate: deliveryDate,
 photos: photos,
-}),
+};
+attemptSubmitEdit_(payload);
+}
+
+async function attemptSubmitTopUp_(payload) {
+const appDiv = document.getElementById("app");
+appDiv.innerHTML = `<div class = "loading">กำลังบันทึกของที่ส่ง/รับเพิ่มเติม...</div>`;
+try {
+const res = await fetchWithRetry_(APPS_SCRIPT_URL, {
+method: "POST",
+headers: { "Content-Type": "text/plain;charset = utf-8" },
+body: JSON.stringify(payload),
 });
 const data = await res.json();
 if (data.ok) {
-showToast(currentIsDesignatedEditor ? "แก้ไขข้อมูลเรียบร้อยแล้ว ✏️" : "ส่งของเพิ่มเติมเรียบร้อยแล้ว 📦");
+showToast("บันทึกของที่ส่ง/รับเพิ่มเติมเรียบร้อยแล้ว 📦");
 checkStatus();
 } else {
-showToast("เกิดข้อผิดพลาด: " + (data.message || ""));
-checkStatus();
+const errMsg = "เกิดข้อผิดพลาด: " + (data.message || "กรุณาลองใหม่อีกครั้ง");
+alert(errMsg);
+showMessage(errMsg, () => attemptSubmitTopUp_(payload));
 }
 } catch (err) {
-showToast("เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่");
-checkStatus();
+const errMsg = (err && err.name === "AbortError") ? "เชื่อมต่อช้าเกินไป กรุณาลองใหม่อีกครั้ง" : "เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่อีกครั้ง";
+alert(errMsg);
+showMessage(errMsg, () => attemptSubmitTopUp_(payload));
 }
 }
 
 async function submitTopUp(status, qtyActual, reason, nextAction) {
-const appDiv = document.getElementById("app");
 const deliveryMethod = getResolvedDeliveryMethod();
 const deliveryDate = document.getElementById("deliveryDate").value;
 const photos = currentPhotoList.map((p) => ({ base64: p.base64, mimeType: p.mime }));
-appDiv.innerHTML = `<div class="loading">กำลังบันทึกของที่ส่ง/รับเพิ่มเติม...</div>`;
-try {
-const res = await fetchWithRetry_(APPS_SCRIPT_URL, {
-method: "POST",
-headers: { "Content-Type": "text/plain;charset=utf-8" },
-body: JSON.stringify({
+const payload = {
 action: "topup",
 docNumber: currentDocNumber,
 loc: currentLoc,
@@ -803,20 +850,8 @@ lineDisplayName: currentDisplayName,
 deliveryMethod: deliveryMethod,
 deliveryDate: deliveryDate,
 photos: photos,
-}),
-});
-const data = await res.json();
-if (data.ok) {
-showToast("บันทึกของที่ส่ง/รับเพิ่มเติมเรียบร้อยแล้ว 📦");
-checkStatus();
-} else {
-showToast("เกิดข้อผิดพลาด: " + (data.message || ""));
-checkStatus();
-}
-} catch (err) {
-showToast("เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่");
-checkStatus();
-}
+};
+attemptSubmitTopUp_(payload);
 }
 function showToast(msg) {
 const toast = document.createElement("div");
