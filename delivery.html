@@ -190,8 +190,8 @@ document.getElementById("btnManualDocSubmit").onclick = async () => {
 const prefix = document.getElementById("manualDocPrefix").value;
 const part1 = part1El.value.trim();
 const part2 = part2El.value.trim();
-if (part1.length !== 6) { alert("กรุณากรอกเลข 6 หลักแรก (หลังตัวอักษร) ให้ครบ"); return; }
-if (part2.length !== 4) { alert("กรุณากรอกเลข 4 หลักท้าย ให้ครบ"); return; }
+if (part1.length !== 6) { notifyError_("กรุณากรอกเลข 6 หลักแรก (หลังตัวอักษร) ให้ครบ"); return; }
+if (part2.length !== 4) { notifyError_("กรุณากรอกเลข 4 หลักท้าย ให้ครบ"); return; }
 currentDocNumber = prefix + part1 + "-" + part2;
 appDiv.innerHTML = '<div class="loading">กำลังตรวจสอบ...</div>';
 try {
@@ -473,7 +473,7 @@ wireCommonFieldEvents();
 if (!alreadyConfirmed) {
 document.getElementById("btnFull").onclick = () => {
 const err = validateCommonFields();
-if (err) { alert(err); return; }
+if (err) { notifyError_(err); return; }
 submitConfirmation("ครบ", null, null, null);
 };
 document.getElementById("btnPartial").onclick = () => {
@@ -483,12 +483,12 @@ document.getElementById("btnPartial").style.display = "none";
 };
 document.getElementById("btnSubmitPartial").onclick = () => {
 const commonErr = validateCommonFields();
-if (commonErr) { alert(commonErr); return; }
+if (commonErr) { notifyError_(commonErr); return; }
 const qty = document.getElementById("qtyActual").value.trim();
 const reason = document.getElementById("reason").value.trim();
 const nextAction = document.getElementById("nextAction").value;
-if (!reason) { alert("กรุณาระบุเหตุผล"); return; }
-if (!nextAction) { alert("กรุณาเลือกว่าจะทำอย่างไรต่อไป"); return; }
+if (!reason) { notifyError_("กรุณาระบุเหตุผล"); return; }
+if (!nextAction) { notifyError_("กรุณาเลือกว่าจะทำอย่างไรต่อไป"); return; }
 submitConfirmation("ไม่ครบ", qty, reason, nextAction);
 };
 } else if (existing.canEdit || existing.canTopUp) {
@@ -528,7 +528,7 @@ if (editBtnEl) editBtnEl.style.display = "none";
 
 document.getElementById("btnFull").onclick = () => {
 const err = currentFormMode === "topup" ? validateTopUpFields_() : validateEditFields_(existing);
-if (err) { alert(err); return; }
+if (err) { notifyError_(err); return; }
 if (currentFormMode === "topup") { submitTopUp("ครบ", null, null, null); } else { submitEdit("ครบ", null, null, null); }
 };
 document.getElementById("btnPartial").onclick = () => {
@@ -538,12 +538,12 @@ document.getElementById("btnPartial").style.display = "none";
 };
 document.getElementById("btnSubmitPartial").onclick = () => {
 const commonErr = currentFormMode === "topup" ? validateTopUpFields_() : validateEditFields_(existing);
-if (commonErr) { alert(commonErr); return; }
+if (commonErr) { notifyError_(commonErr); return; }
 const qty = document.getElementById("qtyActual").value.trim();
 const reason = document.getElementById("reason").value.trim();
 const nextAction = document.getElementById("nextAction").value;
-if (!reason) { alert("กรุณาระบุเหตุผล"); return; }
-if (!nextAction) { alert("กรุณาเลือกว่าจะทำอย่างไรต่อไป"); return; }
+if (!reason) { notifyError_("กรุณาระบุเหตุผล"); return; }
+if (!nextAction) { notifyError_("กรุณาเลือกว่าจะทำอย่างไรต่อไป"); return; }
 if (currentFormMode === "topup") { submitTopUp("ไม่ครบ", qty, reason, nextAction); } else { submitEdit("ไม่ครบ", qty, reason, nextAction); }
 };
 }
@@ -601,7 +601,7 @@ dataUrl = await compressImage(file, 1280, 0.72);
 try {
 dataUrl = await fileToRawDataUrl(file);
 } catch (readErr) {
-alert(`แนบรูป "${file.name}" ไม่สำเร็จ ข้ามรูปนี้ไป: ` + readErr.message);
+notifyError_(`แนบรูป "${file.name}" ไม่สำเร็จ ข้ามรูปนี้ไป: ` + readErr.message);
 continue;
 }
 }
@@ -725,12 +725,12 @@ showToast(payload.status === "ครบ" ? "ยืนยันสำเร็จ
 appDiv.innerHTML = `<div class = "card"><div class = "doc-number">${currentDocNumber}</div>${locBadgeHtml()}<div class = "hint">บันทึกเรียบร้อยแล้ว ปิดหน้านี้ได้เลย</div></div>`;
 } else {
 const errMsg = "เกิดข้อผิดพลาด: " + (data.message || "กรุณาลองใหม่อีกครั้ง");
-alert(errMsg);
+notifyError_(errMsg);
 showMessage(errMsg, () => attemptSubmitConfirmation_(payload));
 }
 } catch (err) {
 const errMsg = ((err.name === "TimeoutError" || err.name === "AbortError")) ? "เชื่อมต่อช้าเกินไป กรุณาลองใหม่อีกครั้ง" : "เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่อีกครั้ง";
-alert(errMsg);
+notifyError_(errMsg);
 showMessage(errMsg, () => attemptSubmitConfirmation_(payload));
 }
 }
@@ -791,12 +791,12 @@ showToast(currentIsDesignatedEditor ? "แก้ไขข้อมูลเร�
 checkStatus();
 } else {
 const errMsg = "เกิดข้อผิดพลาด: " + (data.message || "กรุณาลองใหม่อีกครั้ง");
-alert(errMsg);
+notifyError_(errMsg);
 showMessage(errMsg, () => attemptSubmitEdit_(payload));
 }
 } catch (err) {
 const errMsg = ((err.name === "TimeoutError" || err.name === "AbortError")) ? "เชื่อมต่อช้าเกินไป กรุณาลองใหม่อีกครั้ง" : "เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่อีกครั้ง";
-alert(errMsg);
+notifyError_(errMsg);
 showMessage(errMsg, () => attemptSubmitEdit_(payload));
 }
 }
@@ -837,12 +837,12 @@ showToast("บันทึกของที่ส่ง/รับเพิ่�
 checkStatus();
 } else {
 const errMsg = "เกิดข้อผิดพลาด: " + (data.message || "กรุณาลองใหม่อีกครั้ง");
-alert(errMsg);
+notifyError_(errMsg);
 showMessage(errMsg, () => attemptSubmitTopUp_(payload));
 }
 } catch (err) {
 const errMsg = ((err.name === "TimeoutError" || err.name === "AbortError")) ? "เชื่อมต่อช้าเกินไป กรุณาลองใหม่อีกครั้ง" : "เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่อีกครั้ง";
-alert(errMsg);
+notifyError_(errMsg);
 showMessage(errMsg, () => attemptSubmitTopUp_(payload));
 }
 }
@@ -867,6 +867,22 @@ photos: photos,
 };
 attemptSubmitTopUp_(payload);
 }
+function notifyError_(msg) {
+try { alert(msg); } catch (e) {}
+let banner = document.getElementById("notifyBanner_");
+if (!banner) {
+banner = document.createElement("div");
+banner.id = "notifyBanner_";
+banner.style.cssText = "position:fixed;left:12px;right:12px;bottom:16px;background:#c0392b;color:#fff;padding:14px 16px;border-radius:10px;font-size:14px;line-height:1.5;box-shadow:0 4px 14px rgba(0,0,0,0.3);z-index:99999;white-space:pre-wrap;";
+banner.onclick = () => { banner.style.display = "none"; };
+document.body.appendChild(banner);
+}
+banner.textContent = msg + " (แตะเพื่อปิด)";
+banner.style.display = "block";
+clearTimeout(banner._hideTimer);
+banner._hideTimer = setTimeout(() => { banner.style.display = "none"; }, 8000);
+}
+
 function showToast(msg) {
 const toast = document.createElement("div");
 toast.className = "toast";
