@@ -159,7 +159,8 @@
     </div>
     <div id="queueList"><div class="loading">กำลังโหลดคิว…</div></div>
     <div class="divider"></div>
-    <button class="btn ghost" id="manualDocBtn">➕ กรอกเลขที่เอกสารเอง</button>
+    <button class="btn" id="scanQrBtn">📷 สแกน QR ใบเบิก</button>
+    <button class="btn ghost" id="manualDocBtn" style="margin-top:9px;">➕ กรอกเลขที่เอกสารเอง</button>
     <button class="btn ghost" id="refreshBtn" style="margin-top:9px;">🔄 รีเฟรชคิว</button>
   </div>
 
@@ -723,6 +724,42 @@ function onSaveNewSite() {
     .then(function () { btn.disabled = false; btn.textContent = 'บันทึกไซต์ใหม่ + ผูกกับเอกสารนี้'; });
 }
 
+/* ---------- สแกน QR ใบเบิก ---------- */
+
+/* ดึงเลขที่เอกสารจากสิ่งที่สแกนได้ — รองรับทั้ง QR ที่เป็นเลขเปล่า
+   และ QR ของระบบเดิมที่เป็นลิงก์ LIFF พร้อม ?doc=GI690814-0051&loc=store */
+function parseDocFromScan(value) {
+  var v = String(value || '');
+  try { v = decodeURIComponent(v); } catch (e) { /* ถ้า decode ไม่ได้ ใช้ค่าเดิม */ }
+  v = v.toUpperCase().replace(/\s+/g, '');
+  var m = v.match(/(GI|DO|IS)\d{6}-\d{4}/);
+  return m ? m[0] : '';
+}
+
+function onScanQr() {
+  if (typeof liff === 'undefined' || !liff.isInClient || !liff.isInClient()) {
+    toast('สแกน QR ใช้ได้เฉพาะตอนเปิดจากแอป LINE ค่ะ — กรอกเลขเองได้เลย', true);
+    show('manual');
+    return;
+  }
+  if (typeof liff.isApiAvailable === 'function' && !liff.isApiAvailable('scanCodeV2')) {
+    toast('LINE เวอร์ชันนี้ยังสแกน QR ไม่ได้ค่ะ — กรอกเลขเองแทนได้', true);
+    show('manual');
+    return;
+  }
+  liff.scanCodeV2().then(function (res) {
+    if (!res || !res.value) { toast('ไม่ได้ค่าจากการสแกนค่ะ ลองใหม่อีกครั้ง', true); return; }
+    var doc = parseDocFromScan(res.value);
+    if (!doc) {
+      toast('QR นี้ไม่มีเลขที่เอกสารรูปแบบ GI/DO/IS ค่ะ', true);
+      return;
+    }
+    openDoc(doc);
+  }).catch(function (e) {
+    toast('สแกนไม่สำเร็จ: ' + (e && e.message ? e.message : e), true);
+  });
+}
+
 function onManualGo() {
   var p = $('mPrefix').value;
   var a = ($('mNum6').value || '').trim();
@@ -750,6 +787,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  $('scanQrBtn').addEventListener('click', onScanQr);
   $('manualDocBtn').addEventListener('click', function () { show('manual'); });
   $('manualGoBtn').addEventListener('click', onManualGo);
   $('mNum6').addEventListener('input', function () {
