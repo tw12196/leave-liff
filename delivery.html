@@ -236,14 +236,28 @@ renderLocPicker();
 
 // ยิง fetch ซ้ำอัตโนมัติถ้าเจอปัญหาเชื่อมต่อชั่วคราว (เช่น Apps Script ตอบช้า/หลุดเป็นครั้งคราว)
 // ก่อนจะถือว่าล้มเหลวจริง ลองสูงสุด 3 ครั้ง (รอ 900ms ระหว่างครั้ง)
-async function fetchWithTimeout_(url, options, timeoutMs) {
-const controller = new AbortController();
-const timer = setTimeout(() => controller.abort(), timeoutMs);
-try {
-return await fetch(url, Object.assign({}, options, { signal: controller.signal }));
-} finally {
+function fetchWithTimeout_(url, options, timeoutMs) {
+return new Promise((resolve, reject) => {
+let settled = false;
+const timer = setTimeout(() => {
+if (settled) return;
+settled = true;
+const err = new Error("หมดเวลาเชื่อมต่อ (เกิน " + Math.round(timeoutMs / 1000) + " วินาที)");
+err.name = "TimeoutError";
+reject(err);
+}, timeoutMs);
+fetch(url, options).then((res) => {
+if (settled) return;
+settled = true;
 clearTimeout(timer);
-}
+resolve(res);
+}).catch((err) => {
+if (settled) return;
+settled = true;
+clearTimeout(timer);
+reject(err);
+});
+});
 }
 
 async function fetchWithRetry_(url, options, retries) {
@@ -715,7 +729,7 @@ alert(errMsg);
 showMessage(errMsg, () => attemptSubmitConfirmation_(payload));
 }
 } catch (err) {
-const errMsg = (err && err.name === "AbortError") ? "เชื่อมต่อช้าเกินไป กรุณาลองใหม่อีกครั้ง" : "เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่อีกครั้ง";
+const errMsg = ((err.name === "TimeoutError" || err.name === "AbortError")) ? "เชื่อมต่อช้าเกินไป กรุณาลองใหม่อีกครั้ง" : "เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่อีกครั้ง";
 alert(errMsg);
 showMessage(errMsg, () => attemptSubmitConfirmation_(payload));
 }
@@ -781,7 +795,7 @@ alert(errMsg);
 showMessage(errMsg, () => attemptSubmitEdit_(payload));
 }
 } catch (err) {
-const errMsg = (err && err.name === "AbortError") ? "เชื่อมต่อช้าเกินไป กรุณาลองใหม่อีกครั้ง" : "เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่อีกครั้ง";
+const errMsg = ((err.name === "TimeoutError" || err.name === "AbortError")) ? "เชื่อมต่อช้าเกินไป กรุณาลองใหม่อีกครั้ง" : "เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่อีกครั้ง";
 alert(errMsg);
 showMessage(errMsg, () => attemptSubmitEdit_(payload));
 }
@@ -827,7 +841,7 @@ alert(errMsg);
 showMessage(errMsg, () => attemptSubmitTopUp_(payload));
 }
 } catch (err) {
-const errMsg = (err && err.name === "AbortError") ? "เชื่อมต่อช้าเกินไป กรุณาลองใหม่อีกครั้ง" : "เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่อีกครั้ง";
+const errMsg = ((err.name === "TimeoutError" || err.name === "AbortError")) ? "เชื่อมต่อช้าเกินไป กรุณาลองใหม่อีกครั้ง" : "เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่อีกครั้ง";
 alert(errMsg);
 showMessage(errMsg, () => attemptSubmitTopUp_(payload));
 }
