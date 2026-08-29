@@ -765,6 +765,914 @@ if (!date) return "กรุณาระบุวันที่ส่งมอ�
 if (!currentPhotoList.length && !(existing && existing.photoUrl)) {
 return "กรุณาแนบรูปถ่ายอย่างน้อย 1 รูป (ไม่มีรูปเดิมในระบบให้อ้างอิง)";
 }
+return null;
+}
+
+function validateTopUpFields_() {
+const method = getResolvedDeliveryMethod();
+if (!method) return "กรุณาเลือกวิธีการจัดส่งให้ครบทั้ง 2 ช่องก่อนบันทึก";
+const date = document.getElementById("deliveryDate").value;
+if (!date) return "กรุณาระบุวันที่ส่งมอบจริงก่อนบันทึก";
+if (!currentPhotoList.length) return "กรุณาแนบรูปถ่ายของที่ส่ง/รับเพิ่มเติมรอบนี้อย่างน้อย 1 รูป (ต้องเป็นรูปใหม่ ห้ามใช้รูปเดิม)";
+return null;
+}
+
+async function attemptSubmitEdit_(payload) {
+const appDiv = document.getElementById("app");
+appDiv.innerHTML = `<div class = "loading">กำลังบันทึกการแก้ไข...</div>`;
+try {
+const res = await fetchWithRetry_(APPS_SCRIPT_URL, {
+method: "POST",
+headers: { "Content-Type": "text/plain;charset = utf-8" },
+body: JSON.stringify(payload),
+});
+const data = await res.json();
+if (data.ok) {
+showToast(currentIsDesignatedEditor ? "แก้ไขข้อมูลเรียบร้อยแล้ว ✏️" : "ส่งของเพิ่มเติมเรียบร้อยแล้ว 📦");
+checkStatus();
+} else {
+const errMsg = "เกิดข้อผิดพลาด: " + (data.message || "กรุณาลองใหม่อีกครั้ง");
+notifyError_(errMsg);
+showMessage(errMsg, () => attemptSubmitEdit_(payload));
+}
+} catch (err) {
+const errMsg = ((err.name === "TimeoutError" || err.name === "AbortError")) ? "เชื่อมต่อช้าเกินไป กรุณาลองใหม่อีกครั้ง" : "เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่อีกครั้ง";
+notifyError_(errMsg);
+showMessage(errMsg, () => attemptSubmitEdit_(payload));
+}
+}
+
+async function submitEdit(status, qtyActual, reason, nextAction) {
+const deliveryMethod = getResolvedDeliveryMethod();
+const deliveryDate = document.getElementById("deliveryDate").value;
+const photos = currentPhotoList.map((p) => ({ base64: p.base64, mimeType: p.mime }));
+const payload = {
+action: "edit",
+docNumber: currentDocNumber,
+loc: currentLoc,
+status: status,
+qtyActual: qtyActual || "",
+reason: reason || "",
+nextAction: nextAction || "",
+lineUserId: currentUserId,
+lineDisplayName: currentDisplayName,
+deliveryMethod: deliveryMethod,
+deliveryDate: deliveryDate,
+photos: photos,
+};
+attemptSubmitEdit_(payload);
+}
+
+async function attemptSubmitTopUp_(payload) {
+const appDiv = document.getElementById("app");
+appDiv.innerHTML = `<div class = "loading">กำลังบันทึกของที่ส่ง/รับเพิ่มเติม...</div>`;
+try {
+const res = await fetchWithRetry_(APPS_SCRIPT_URL, {
+method: "POST",
+headers: { "Content-Type": "text/plain;charset = utf-8" },
+body: JSON.stringify(payload),
+});
+const data = await res.json();
+if (data.ok) {
+showToast("บันทึกของที่ส่ง/รับเพิ่มเติมเรียบร้อยแล้ว 📦");
+checkStatus();
+} else {
+const errMsg = "เกิดข้อผิดพลาด: " + (data.message || "กรุณาลองใหม่อีกครั้ง");
+notifyError_(errMsg);
+showMessage(errMsg, () => attemptSubmitTopUp_(payload));
+}
+} catch (err) {
+const errMsg = ((err.name === "TimeoutError" || err.name === "AbortError")) ? "เชื่อมต่อช้าเกินไป กรุณาลองใหม่อีกครั้ง" : "เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่อีกครั้ง";
+notifyError_(errMsg);
+showMessage(errMsg, () => attemptSubmitTopUp_(payload));
+}
+}
+
+async function submitTopUp(status, qtyActual, reason, nextAction) {
+const deliveryMethod = getResolvedDeliveryMethod();
+const deliveryDate = document.getElementById("deliveryDate").value;
+const photos = currentPhotoList.map((p) => ({ base64: p.base64, mimeType: p.mime }));
+const payload = {
+action: "topup",
+docNumber: currentDocNumber,
+loc: currentLoc,
+status: status,
+qtyActual: qtyActual || "",
+reason: reason || "",
+nextAction: nextAction || "",
+lineUserId: currentUserId,
+lineDisplayName: currentDisplayName,
+deliveryMethod: deliveryMethod,
+deliveryDate: deliveryDate,
+photos: photos,
+};
+attemptSubmitTopUp_(payload);
+}
+function notifyError_(msg) {
+try { alert(msg); } catch (e) {}
+let banner = document.getElementById("notifyBanner_");
+if (!banner) {
+banner = document.createElement("div");
+banner.id = "notifyBanner_";
+banner.style.cssText = "position:fixed;left:12px;right:12px;bottom:16px;background:#c0392b;color:#fff;padding:14px 16px;border-radius:10px;font-size:14px;line-height:1.5;box-shadow:0 4px 14px rgba(0,0,0,0.3);z-index:99999;white-space:pre-wrap;";
+banner.onclick = () => { banner.style.display = "none"; };
+document.body.appendChild(banner);
+}
+banner.textContent = msg + " (แตะเพื่อปิด)";
+banner.style.display = "block";
+clearTimeout(banner._hideTimer);
+banner._hideTimer = setTimeout(() => { banner.style.display = "none"; }, 8000);
+}
+
+function showToast(msg) {
+const toast = document.createElement("div");
+toast.className = "toast";
+toast.textContent = msg;
+document.body.appendChild(toast);
+setTimeout(() => toast.remove(), 3000);
+}
+
+let lastRetryFn_ = null;
+function showMessage(msg, retryFn) {
+lastRetryFn_ = retryFn || null;
+const retryBtn = retryFn ? '<button type="button" class="btn btn-full" onclick="retryLastAction_()">ลองใหม่</button>' : "";
+document.getElementById("app").innerHTML = `<div class="empty">${msg}${retryBtn}</div>`;
+}
+function retryLastAction_() {
+if (lastRetryFn_) lastRetryFn_();
+}
+
+main();
+</script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>ยืนยันการส่งสินค้า</title>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+* { box-sizing: border-box; }
+body {
+font-family: -apple-system, "Segoe UI", "Noto Sans Thai", sans-serif;
+margin: 0; padding: 0; background: #f4f5f7; color: #222;
+}
+header {
+background: #1a7a4c; color: #fff; padding: 16px; text-align: center;
+font-size: 18px; font-weight: 600;
+}
+#app { padding: 16px; max-width: 480px; margin: 0 auto; }
+.card {
+background: #fff; border-radius: 14px; padding: 20px; margin-top: 12px;
+box-shadow: 0 1px 3px rgba(0,0,0,0.08); text-align: center;
+}
+.doc-number { font-size: 22px; font-weight: 700; color: #1a7a4c; letter-spacing: 0.5px; }
+.loc-badge {
+display: inline-block; background: #eef6f1; color: #1a7a4c;
+font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 20px;
+margin-top: 8px;
+}
+.hint { font-size: 13px; color: #888; margin-top: 6px; }
+.already {
+background: #fff8e6; border: 1px solid #f0c766; border-radius: 10px;
+padding: 12px 14px; margin-top: 14px; font-size: 13.5px; text-align: left;
+}
+.loading, .empty { text-align: center; color: #888; padding: 60px 16px; font-size: 14px; }
+.btn {
+display: block; width: 100%; padding: 15px; border: none; border-radius: 10px;
+font-size: 15px; font-weight: 600; margin-top: 12px; cursor: pointer;
+-webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation;
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-full { background: #1a7a4c; color: #fff; }
+.btn-partial { background: #fff; color: #b8560a; border: 2px solid #b8560a; }
+.btn-loc { background: #2b6cb0; color: #fff; font-size: 16px; }
+.change-loc {
+display: inline-block; margin-top: 14px; font-size: 12.5px; color: #999;
+text-decoration: underline; cursor: pointer; background: none; border: none;
+}
+textarea, input[type=text], input[type=date], select {
+width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd;
+font-size: 14px; margin-top: 6px; font-family: inherit; background: #fff;
+}
+input[type=file] {
+width: 100%; margin-top: 6px; font-size: 13px; text-align: left;
+}
+label { font-size: 13px; color: #444; font-weight: 600; display: block; text-align: left; margin-top: 14px; }
+.required::after { content: " *"; color: #d9534f; }
+.section-divider { border-top: 1px solid #eee; margin-top: 16px; padding-top: 2px; }
+.photo-preview-wrap { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px; }
+.photo-thumb { position: relative; width: 72px; height: 72px; }
+.photo-thumb img {
+width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 1px solid #eee; display: block; background: #f4f4f4;
+}
+.photo-thumb .remove-btn {
+position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%;
+background: #d9534f; color: #fff; font-size: 12px; line-height: 18px; text-align: center;
+cursor: pointer; border: none; padding: 0;
+}
+.field-hint { font-size: 11.5px; color: #999; margin-top: 4px; text-align: left; }
+.toast {
+position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+background: #222; color: #fff; padding: 10px 20px; border-radius: 20px;
+font-size: 14px; z-index: 30; max-width: 90%;
+}
+</style>
+</head>
+<body>
+
+<header>ยืนยันการส่งสินค้า</header>
+
+<div id="app">
+<div class="loading">กำลังตรวจสอบ...</div>
+</div>
+
+<script>
+// ==================== ตั้งค่า (แก้ 2 บรรทัดนี้) ====================
+const LIFF_ID = "2010663561-6mmF990p"; // เอามากาก LINE Developers Console
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbye5zAWnEGLDgTQpGdmMd1cmfHOEmMsOkqd6mMJogU861PJvQU4Nd9SREEdbGscaWQ2/exec"; // URL หลัง deploy Apps Script
+// ====================================================================
+
+// ป้ายจุดโหลด: แปลงค่า loc (ภาษาอังกฤษั้นๆ) เป็นข้อความไทยแสดงบนการ์ด
+const LOC_LABELS = { store: "หน้าร้าน", warehouse: "โกดัง" };
+
+// วิธีการจัดส่ง แบ่งเป็น 2 ชั้น: กล่อง 1 เลือกประเภท (รับเอง / จัดส่ง), กล่อง 2 เลือกรายละเอียดตามประเภทที่เลือก
+const METHOD_TYPE_OPTIONS = ["รับเอง", "จัดส่ง"];
+// ถ้าเลือก "รับเอง" ในกล่อง 1 → กล่อง 2 ให้เลือกว่าใครมารับ
+const PICKUP_SUB_OPTIONS = ["บริษัทขนส่ง", "ลูกค้า"];
+// ถ้าเลือก "จัดส่ง" ในกล่อง 1 → กล่อง 2 ให้เลือกพนักงานขับรถ (แก้รายชื่อได้ตรงนี้)
+const DRIVER_OPTIONS = [
+"อังคาร (นุ)",
+"บุญฤทธิ์ (ฤทธิ์)",
+"สุวรรณ์ (สมชาย)",
+"สมพงษ์ (เสือ)",
+"มิตร (มิตร ใหม่)",
+"อำนาจ (แอน)",
+];
+const OTHER_METHOD_VALUE = "__other__";
+
+let currentDocNumber = null;
+let currentLoc = null;
+let currentUserId = null;
+let currentDisplayName = null;
+let currentAllowedLocs = null; // [] หรือ null = ยังไม่ทราบ/ไม่จำกัด, มีค่า = จำกัดเฉพาะจุดโหลดในลิสต์นี้
+
+// ข้อมูลรูปที่แนบ (บีบอัด/หรือไฟล์ดิบแล้วแต่กรณี) — เก็บเป็นลิสต์เพื่อรองรับหลายรูป รอตอนกดยืนยัน
+let currentPhotoList = []; // [{ base64, mime, dataUrl }, ...]
+let currentIsDesignatedEditor = true; // ผู้ใช้ปัจจุบันเป็น 1 ใน 5 คนที่มีสิทธิ์แก้ไขข้อมูล หรือแค่กดส่งของเพิ่มเติม (top-up)
+
+function getDocFromUrl() {
+const params = new URLSearchParams(window.location.search);
+return params.get("doc");
+}
+
+function getLocFromUrl() {
+const params = new URLSearchParams(window.location.search);
+return (params.get("loc") || "").trim();
+}
+
+function todayDateStr() {
+const d = new Date();
+const y = d.getFullYear();
+const m = String(d.getMonth() + 1).padStart(2, "0");
+const day = String(d.getDate()).padStart(2, "0");
+return `${y}-${m}-${day}`;
+}
+
+async function main() {
+try {
+await liff.init({ liffId: LIFF_ID });
+if (!liff.isLoggedIn()) {
+liff.login();
+return;
+}
+
+// อ่านค่า doc/loc หลังจาก liff.init() เท่านั้น เพราะตอนล็อกอินครั้งแลก
+// LINE จะ redirect ไป-กลับผ่าน access.line.me และค่อยคืนค่า query
+// string เดิม (?doc=...&loc=...) กลับมาให้ตอน liff.init() เสร็จ ถ้าอ่านก่อนหน้านั้น
+// จะได้ค่า null เพราะ URL ตอนนั้นยังเป็นของหน้า OAuth callback อยู่
+currentDocNumber = getDocFromUrl();
+if (!currentDocNumber) {
+// ไม่พบเลขที่เอกสารจาก QR (เช่น สแกน QR สำรองที่ไม่ผูกเลขเอกสาร หรือ QR บนใบเบิกอ่านไม่ออก)
+// ให้พนักงานกรอกเลขที่เอกสารเองแทน ไม่ปล่อยให้ตันตรงนี้
+renderManualDocEntry();
+return;
+}
+
+await proceedWithDoc();
+} catch (err) {
+showMessage("เปิดระบบไม่สำเร็จ: " + err.message);
+}
+}
+
+// กรอกเลขที่เอกสารเอง กรณีสแกน QR สำรอง (ไม่มี ?doc=) หรือ QR บนใบเบิกอ่านไม่ติด
+function renderManualDocEntry() {
+const appDiv = document.getElementById("app");
+const prefixOptions = ["GI", "DO", "IS"].map((p) => `<option value="${p}">${p}</option>`).join("");
+appDiv.innerHTML = `
+<div class="card">
+<div class="hint">ไม่พบเลขที่เอกสารจาก QR นี้<br>กรุณากรอกเลขที่เอกสารจากใบเบิกด้วยตนเอง</div>
+<label class="required">เลขที่เอกสาร</label>
+<div style="display:flex; gap:6px; align-items:center;">
+<select id="manualDocPrefix" style="flex:0 0 68px; width:68px; padding:8px 4px;">${prefixOptions}</select>
+<input type="text" id="manualDocPart1" inputmode="numeric" maxlength="6" placeholder="690814" style="flex:1; min-width:0;">
+<span>-</span>
+<input type="text" id="manualDocPart2" inputmode="numeric" maxlength="4" placeholder="0051" style="flex:1; min-width:0;">
+</div>
+<div class="field-hint">รูปแบบ: [GI/DO/IS] + เลข 6 หลัก + "-" + เลข 4 หลัก เช่น GI690814-0051</div>
+<button class="btn btn-full" id="btnManualDocSubmit" style="margin-top:12px;">ยืนยันเลขที่เอกสาร</button>
+</div>
+`;
+const part1El = document.getElementById("manualDocPart1");
+const part2El = document.getElementById("manualDocPart2");
+part1El.focus();
+part1El.oninput = () => {
+part1El.value = part1El.value.replace(/\D/g, "").slice(0, 6);
+if (part1El.value.length === 6) part2El.focus();
+};
+part2El.oninput = () => {
+part2El.value = part2El.value.replace(/\D/g, "").slice(0, 4);
+};
+document.getElementById("btnManualDocSubmit").onclick = async () => {
+const prefix = document.getElementById("manualDocPrefix").value;
+const part1 = part1El.value.trim();
+const part2 = part2El.value.trim();
+if (part1.length !== 6) { notifyError_("กรุณากรอกเลข 6 หลักแรก (หลังตัวอักษร) ให้ครบ"); return; }
+if (part2.length !== 4) { notifyError_("กรุณากรอกเลข 4 หลักท้าย ให้ครบ"); return; }
+currentDocNumber = prefix + part1 + "-" + part2;
+appDiv.innerHTML = '<div class="loading">กำลังตรวจสอบ...</div>';
+try {
+await proceedWithDoc();
+} catch (err) {
+showMessage("เปิดระบบไม่สำเร็จ: " + err.message);
+}
+};
+}
+
+// ดำเนินการต่อหลังจากรู้เลขที่เอกสารแล้ว (ไม่ว่าจะมาจาก QR หรือกรอกเอง)
+async function proceedWithDoc() {
+const profile = await liff.getProfile();
+currentUserId = profile.userId;
+currentDisplayName = profile.displayName;
+
+// เช็คสิทธิ์ก่อนทุกครั้ง: ทั้งเช็คว่ามีสิทธิ์ใช้ระบบไหม และเข้าได้กี่จุดโหลด
+// เพื่อไม่ให้พนักงานเห็น/กดปุ่มจุดโหลดที่ตัวเองไม่มีสิทธิ์ยืนยัน
+const authorized = await checkAuth();
+if (!authorized) return; // checkAuth() แสดงข้อความ error ให้เองถ้าไม่ผ่าน
+
+// ถ้า QR ระบุจุดโหลดมาให้แล้ว (?loc=store / ?loc=warehouse) ข้ามหน้าเลือกไปเลย
+// เพื่อรองรับใบเบิกที่ ERP พิมพ์ QR แยก 2 อันแบบเดิม
+// ถ้า QR ไม่มี loc (ใบเบิกที่ใช้ QR ใบเดียว หรือกรอกเลขเอง) ให้พนักงานเลือกจุดโหลดเองหน้านี้
+const urlLoc = getLocFromUrl();
+if (urlLoc) {
+if (!isLocAllowedClient_(urlLoc)) {
+showMessage(`คุณไม่มีสิทธิ์ยืนยันการส่งสินค้าที่จุดโหลด "${LOC_LABELS[urlLoc] || urlLoc}" กรุณาติดต่อฝ่ายบัญชี`);
+return;
+}
+currentLoc = urlLoc;
+await checkStatus();
+} else if (currentAllowedLocs.length === 1) {
+// มีสิทธิ์จุดโหลดเดียว ข้ามหน้าเลือกไปเลย ไม่ต้องให้กดเอง
+currentLoc = currentAllowedLocs[0];
+await checkStatus();
+} else {
+renderLocPicker();
+}
+}// เรียกตรวจสิทธิ์การใช้งาน + จุดโหลดที่เข้าได้ ก่อนเข้าสู่ flow หลัก
+// คืนค่า true ถ้าผ่าน (และตั้งค่า currentAllowedLocs ให้แล้ว), false ถ้าไม่ผ่าน (แสดงข้อความ error ให้แล้ว)
+
+// ยิง fetch ซ้ำอัตโนมัติถ้าเจอปัญหาเชื่อมต่อชั่วคราว (เช่น Apps Script ตอบช้า/หลุดเป็นครั้งคราว)
+// ก่อนจะถือว่าล้มเหลวจริง ลองสูงสุด 3 ครั้ง (รอ 900ms ระหว่างครั้ง)
+function fetchWithTimeout_(url, options, timeoutMs) {
+return new Promise((resolve, reject) => {
+let settled = false;
+const timer = setTimeout(() => {
+if (settled) return;
+settled = true;
+const err = new Error("หมดเวลาเชื่อมต่อ (เกิน " + Math.round(timeoutMs / 1000) + " วินาที)");
+err.name = "TimeoutError";
+reject(err);
+}, timeoutMs);
+fetch(url, options).then((res) => {
+if (settled) return;
+settled = true;
+clearTimeout(timer);
+resolve(res);
+}).catch((err) => {
+if (settled) return;
+settled = true;
+clearTimeout(timer);
+reject(err);
+});
+});
+}
+
+async function fetchWithRetry_(url, options, retries) {
+if (retries === undefined) retries = 4;
+let lastErr;
+for (let attempt = 0; attempt < retries; attempt++) {
+try {
+return await fetchWithTimeout_(url, options, 20000);
+} catch (err) {
+lastErr = err;
+if (attempt < retries - 1) {
+await new Promise((r) => setTimeout(r, 1500));
+}
+}
+}
+throw lastErr;
+}
+
+async function checkAuth() {
+try {
+const res = await fetchWithRetry_(`${APPS_SCRIPT_URL}?action=auth&lineUserId=${currentUserId}`);
+const data = await res.json();
+if (!data.ok) {
+showMessage(data.message || "ตรวจสอบสิทธิ์ไม่สำเร็จ");
+return false;
+}
+if (!data.authorized) {
+showMessage("บัญชีนี้ไม่มีสิทธิ์ใช้งานระบบยืนยันการส่งสินค้า กรุณาติดต่อฝ่ายบัญชี");
+return false;
+}
+// allowedLocs ว่าง [] จาก backend แปลว่า "ไม่จำกัด" — แปลงเป็นลิสต์เต็มของจุดโหลดที่มีในระบบ
+currentAllowedLocs = (data.allowedLocs && data.allowedLocs.length > 0) ? data.allowedLocs : Object.keys(LOC_LABELS);
+return true;
+} catch (err) {
+showMessage("เชื่อมต่อระบบไม่สำเร็จ กรุณาลองใหม่อีกครั้งค่ะ", checkAuth);
+return false;
+}
+}
+
+function isLocAllowedClient_(loc) {
+return !!(currentAllowedLocs && currentAllowedLocs.indexOf(loc) >= 0);
+}
+
+// นิยามปุ่มจุดโหลดทั้งหมดที่ระบบรู้จัก — ถ้าจะเพิ่มจุดโหลดใหม่ในอนาคต เพิ่มที่นี่ที่เดียว
+const LOC_BUTTON_DEFS = [
+{ key: "store", label: "หน้าร้าน", icon: "🏬" },
+{ key: "warehouse", label: "โกดัง", icon: "🏭" },
+];
+
+function renderLocPicker() {
+const appDiv = document.getElementById("app");
+// โชว์เฉพาะปุ่มจุดโหลดที่พนักงานคนนี้มีสิทธิ์เท่านั้น (คำนวณไว้แล้วจาก checkAuth())
+const allowed = (currentAllowedLocs && currentAllowedLocs.length) ? currentAllowedLocs : Object.keys(LOC_LABELS);
+const buttons = LOC_BUTTON_DEFS.filter(b => allowed.indexOf(b.key) >= 0);
+appDiv.innerHTML = `
+<div class="card">
+<div class="doc-number">${currentDocNumber}</div>
+<div class="hint">กรุณาเลือกจุดที่โหลดสินค้าจริง<br>ก่อนยืนยันการส่ง</div>
+${buttons.map(b => `<button class="btn btn-loc" data-loc="${b.key}">${b.icon} ${b.label}</button>`).join("")}
+</div>
+`;
+appDiv.querySelectorAll(".btn-loc").forEach(btn => {
+btn.onclick = () => {
+currentLoc = btn.getAttribute("data-loc");
+checkStatus();
+};
+});
+}
+
+async function checkStatus() {
+const appDiv = document.getElementById("app");
+appDiv.innerHTML = '<div class="loading">กำลังตรวจสอบ...</div>';
+try {
+const res = await fetchWithRetry_(`${APPS_SCRIPT_URL}?action=status&doc=${encodeURIComponent(currentDocNumber)}&loc=${encodeURIComponent(currentLoc)}&lineUserId=${currentUserId}`);
+const data = await res.json();
+if (!data.ok) {
+showMessage(data.message || "ไม่สามารถตรวจสอบได้");
+return;
+}
+renderConfirmCard(data.alreadyConfirmed, data.existing);
+} catch (err) {
+showMessage("เชื่อมต่อระบบไม่สำเร็จ กรุณาลองใหม่อีกครั้งค่ะ", checkStatus);
+}
+}
+
+function locBadgeHtml() {
+if (!currentLoc) return "";
+const label = LOC_LABELS[currentLoc] || currentLoc;
+return `<div class="loc-badge">จุดโหลด: ${label}</div>`;
+}
+
+// แสดงลิงก์ "เปลี่ยนจุดโหลด" เฉพาะตอนที่พนักงานเลือกเองจากหน้า picker เท่านั้น
+// (ถ้า loc มาจาก QR ที่ ERP กำหนดตายตัว ไม่ควรให้เปลี่ยน เพราะ QR นั้นผูกกับจุดโหลดนั้นอยู่แล้ว)
+function changeLocLinkHtml() {
+if (getLocFromUrl()) return "";
+// ไม่ต้องโชว์ปุ่มเปลี่ยนจุดโหลด ถ้าพนักงานคนนี้มีสิทธิ์แค่จุดโหลดเดียวอยู่แล้ว (ไม่มีจุดอื่นให้เปลี่ยน)
+if (!currentAllowedLocs || currentAllowedLocs.length <= 1) return "";
+return `<button class="change-loc" id="btnChangeLoc">เลือกจุดโหลดใหม่</button>`;
+}
+
+// กล่อง 1: เลือกประเภทวิธีการจัดส่ง
+function methodTypeOptionsHtml() {
+const opts = METHOD_TYPE_OPTIONS.map(v => `<option value="${v}">${v}</option>`).join("");
+return `<option value="">-- เลือกวิธีการจัดส่ง --</option>${opts}`;
+}
+
+// กล่อง 2: ตัวเลือกจะเปลี่ยนตามค่าที่เลือกในกล่อง 1
+function methodSubOptionsHtml(methodType) {
+if (methodType === "รับเอง") {
+const opts = PICKUP_SUB_OPTIONS.map(v => `<option value="${v}">${v}</option>`).join("");
+return `<option value="">-- เลือกผู้มารับ --</option>${opts}`;
+}
+if (methodType === "จัดส่ง") {
+const opts = DRIVER_OPTIONS.map(v => `<option value="${v}">${v}</option>`).join("");
+return `<option value="">-- เลือกพนักงานขับรถ --</option>${opts}<option value="${OTHER_METHOD_VALUE}">อื่นๆ (โปรดระบุ)</option>`;
+}
+return "";
+}
+
+const NEXT_ACTION_OPTIONS = ["รอลูกค้ามารับที่เหลือ", "รอส่งให้ลูกค้า", "ทำใบลดหนี้"];
+function nextActionOptionsHtml_(selected) {
+return '<option value="">-- เลือก --</option>' + NEXT_ACTION_OPTIONS.map(function (o) {
+return '<option value="' + o + '"' + (o === selected ? " selected" : "") + '>' + o + "</option>";
+}).join("");
+}
+
+function deliveryFormSectionHtml_(prefill) {
+prefill = prefill || {};
+const dateVal = prefill.deliveryDate ? String(prefill.deliveryDate).slice(0, 10) : todayDateStr();
+const photoHint = prefill.photoUrl
+? "มีรูปเดิมแนบอยู่แล้ว ถ้าไม่แนบรูปใหม่ระบบจะเก็บรูปเดิมไว้"
+: "ถ่ายรูปสินค้า/ใบเบิก/จุดส่งเป็นหลักฐานก่อนกดยืนยัน เลือกได้ทีละหลายรูป";
+return `
+<div class="section-divider">
+<label class="required">วิธีการจัดส่ง</label>
+<select id="methodType">${methodTypeOptionsHtml()}</select>
+
+<label class="required" id="methodSubLabel" style="display:none;">รายละเอียดการจัดส่ง</label>
+<select id="methodSub" style="display:none;"></select>
+<input type="text" id="deliveryMethodOther" placeholder="ระบุคนขับ/วิธีส่ง" style="display:none;">
+
+<label class="required">วันที่ส่งมอบจริง</label>
+<input type="date" id="deliveryDate" value="${dateVal}">
+
+<label class="required">รูปถ่าย (แนบได้หลายรูป)</label>
+<div style="display:flex; gap:8px; margin-top:6px;">
+<button type="button" class="btn btn-full" id="btnTakePhoto" style="flex:1; margin-top:0; padding:10px;">📷 ถ่ายรูป</button>
+<button type="button" class="btn btn-partial" id="btnPickPhoto" style="flex:1; margin-top:0; padding:10px;">🖼️ เลือกจากคลังภาพ</button>
+</div>
+<input type="file" accept="image/*" capture="environment" id="photoInputCamera" style="display:none;">
+<input type="file" accept="image/*" multiple id="photoInput" style="display:none;">
+<div class="field-hint">${photoHint}</div>
+<div class="photo-preview-wrap" id="photoPreviewWrap" style="display:none;"></div>
+</div>
+
+<button class="btn btn-full" id="btnFull">✅ ส่งครบถ้วน</button>
+<button class="btn btn-partial" id="btnPartial">⚠️ ส่งไม่ครบ / มีปัญหา</button>
+<div id="partialForm" style="display:none;">
+<label class="required">จำนวนที่ส่งจริง</label>
+<input type="text" id="qtyActual" placeholder="เช่น 55 แผ่น (จากทั้งหมด 60 แผ่น)" value="${prefill.qtyActual || ''}">
+<label class="required">เหตุผล</label>
+<textarea id="reason" rows="3" placeholder="ระบุสาเหตุ เช่น ของไม่พอ / ลูกค้าขอลดจำนวน">${prefill.reason || ''}</textarea>
+<label class="required">จะทำอย่างไรต่อไป</label>
+<select id="nextAction">${nextActionOptionsHtml_(prefill.nextAction)}</select>
+<button class="btn btn-partial" id="btnSubmitPartial">ส่งข้อมูล (ส่งไม่ครบ)</button>
+</div>
+`;
+}
+
+function renderConfirmCard(alreadyConfirmed, existing) {
+const appDiv = document.getElementById("app");
+let alreadyHtml = "";
+if (alreadyConfirmed) {
+const extraLines = existing.statusRaw === "ไม่ครบ"
+? `<br>จำนวนที่ส่งจริง: ${existing.qtyActual || "-"}<br>เหตุผล: ${existing.reason || "-"}<br>จะทำอย่างไรต่อไป: ${existing.nextAction || "-"}`
+: "";
+const photoCount = existing.photoUrl ? existing.photoUrl.split(String.fromCharCode(10)).length : 0;
+const photoHintLine = photoCount ? `<div class="hint" style="margin-top:8px;">มีรูปแนบ ${photoCount} รูป</div>` : "";
+alreadyHtml = `
+<div class="already">
+⚠️ ใบนี้ถูกยืนยันไปแล้ว<br>
+โดย ${existing.confirmedBy} เมื่อ ${existing.confirmedAt}<br>
+สถานะ: ${existing.status}${extraLines}
+${photoHintLine}
+${(existing.canEdit || existing.canTopUp) ? "" : '<div class="hint" style="margin-top:8px;">หากพบข้อมูลผิดพลาด กรุณาติดต่อฝ่ายบัญชีเพื่อขอแก้ไขค่ะ</div>'}
+</div>`;
+}
+
+// รีเซ็ตรูปที่ค้างจากรอบก่อนหน้าทุกครั้งที่วาดการ์ดใหม่
+currentPhotoList = [];
+
+const formHtml = alreadyConfirmed
+? ((existing.canEdit || existing.canTopUp)
+? `<div id="editFormWrap" style="display:none;">${deliveryFormSectionHtml_({})}</div>
+${existing.canEdit ? '<button class="btn btn-partial" id="btnEditData" style="margin-top:12px;">✏️ แก้ไขข้อมูล</button>' : ""}
+${existing.canTopUp ? '<button class="btn btn-full" id="btnTopUpData" style="margin-top:8px;">📦 ส่งของ/รับของเพิ่มเติม</button>' : ""}`
+: "")
+: deliveryFormSectionHtml_({});
+
+appDiv.innerHTML = `
+<div class="card">
+<div class="doc-number">${currentDocNumber}</div>
+${locBadgeHtml()}
+<div class="hint">กรุณาเทียบเลขที่นี้กับใบเบิกสินค้าในมือ<br>ก่อนกดยืนยัน</div>
+${alreadyHtml}
+${formHtml}
+${changeLocLinkHtml()}
+</div>
+`;
+
+wireCommonFieldEvents();
+
+if (!alreadyConfirmed) {
+document.getElementById("btnFull").onclick = () => {
+const err = validateCommonFields();
+if (err) { notifyError_(err); return; }
+submitConfirmation("ครบ", null, null, null);
+};
+document.getElementById("btnPartial").onclick = () => {
+document.getElementById("partialForm").style.display = "block";
+document.getElementById("btnFull").style.display = "none";
+document.getElementById("btnPartial").style.display = "none";
+};
+document.getElementById("btnSubmitPartial").onclick = () => {
+const commonErr = validateCommonFields();
+if (commonErr) { notifyError_(commonErr); return; }
+const qty = document.getElementById("qtyActual").value.trim();
+const reason = document.getElementById("reason").value.trim();
+const nextAction = document.getElementById("nextAction").value;
+if (!reason) { notifyError_("กรุณาระบุเหตุผล"); return; }
+if (!nextAction) { notifyError_("กรุณาเลือกว่าจะทำอย่างไรต่อไป"); return; }
+submitConfirmation("ไม่ครบ", qty, reason, nextAction);
+};
+} else if (existing.canEdit || existing.canTopUp) {
+let currentFormMode = null; // "edit" | "topup"
+const fieldHintEl = document.querySelector("#editFormWrap .field-hint");
+const editBtnEl = document.getElementById("btnEditData");
+const topUpBtnEl = document.getElementById("btnTopUpData");
+
+if (editBtnEl) {
+editBtnEl.onclick = () => {
+currentFormMode = "edit";
+currentIsDesignatedEditor = true;
+document.getElementById("qtyActual").value = existing.qtyActual || "";
+document.getElementById("reason").value = existing.reason || "";
+if (existing.nextAction) document.getElementById("nextAction").value = existing.nextAction;
+if (fieldHintEl) fieldHintEl.textContent = existing.photoUrl ? "มีรูปเดิมแนบอยู่แล้ว ถ้าไม่แนบรูปใหม่ระบบจะเก็บรูปเดิมไว้" : "ถ่ายรูปสินค้า/ใบเบิก/จุดส่งเป็นหลักฐานก่อนกดยืนยัน เลือกได้ทีละหลายรูป";
+document.getElementById("editFormWrap").style.display = "block";
+editBtnEl.style.display = "none";
+if (topUpBtnEl) topUpBtnEl.style.display = "none";
+};
+}
+
+if (topUpBtnEl) {
+topUpBtnEl.onclick = () => {
+currentFormMode = "topup";
+currentIsDesignatedEditor = false;
+document.getElementById("qtyActual").value = "";
+document.getElementById("reason").value = "";
+document.getElementById("nextAction").value = "";
+document.getElementById("deliveryDate").value = todayDateStr();
+if (fieldHintEl) fieldHintEl.textContent = "แนบเฉพาะรูปของรอบนี้ที่ส่ง/รับเพิ่มเติม (ต้องเป็นรูปใหม่ทุกครั้ง ห้ามใช้รูปเดิม)";
+document.getElementById("editFormWrap").style.display = "block";
+topUpBtnEl.style.display = "none";
+if (editBtnEl) editBtnEl.style.display = "none";
+};
+}
+
+document.getElementById("btnFull").onclick = () => {
+const err = currentFormMode === "topup" ? validateTopUpFields_() : validateEditFields_(existing);
+if (err) { notifyError_(err); return; }
+if (currentFormMode === "topup") { submitTopUp("ครบ", null, null, null); } else { submitEdit("ครบ", null, null, null); }
+};
+document.getElementById("btnPartial").onclick = () => {
+document.getElementById("partialForm").style.display = "block";
+document.getElementById("btnFull").style.display = "none";
+document.getElementById("btnPartial").style.display = "none";
+};
+document.getElementById("btnSubmitPartial").onclick = () => {
+const commonErr = currentFormMode === "topup" ? validateTopUpFields_() : validateEditFields_(existing);
+if (commonErr) { notifyError_(commonErr); return; }
+const qty = document.getElementById("qtyActual").value.trim();
+const reason = document.getElementById("reason").value.trim();
+const nextAction = document.getElementById("nextAction").value;
+if (!reason) { notifyError_("กรุณาระบุเหตุผล"); return; }
+if (!nextAction) { notifyError_("กรุณาเลือกว่าจะทำอย่างไรต่อไป"); return; }
+if (currentFormMode === "topup") { submitTopUp("ไม่ครบ", qty, reason, nextAction); } else { submitEdit("ไม่ครบ", qty, reason, nextAction); }
+};
+}
+
+const changeLocBtn = document.getElementById("btnChangeLoc");
+if (changeLocBtn) changeLocBtn.onclick = () => renderLocPicker();
+}
+
+
+function wireCommonFieldEvents() {
+const methodTypeSelect = document.getElementById("methodType");
+const methodSubSelect = document.getElementById("methodSub");
+const methodSubLabel = document.getElementById("methodSubLabel");
+const methodOther = document.getElementById("deliveryMethodOther");
+
+// เปลี่ยนกล่อง 1 (ประเภทวิธีจัดส่ง) แล้ว วาดตัวเลือกกล่อง 2 ใหม่ตามประเภทที่เลือก
+methodTypeSelect.onchange = () => {
+const type = methodTypeSelect.value;
+methodOther.style.display = "none";
+methodOther.value = "";
+if (!type) {
+methodSubSelect.style.display = "none";
+methodSubLabel.style.display = "none";
+methodSubSelect.innerHTML = "";
+return;
+}
+methodSubLabel.textContent = type === "รับเอง" ? "ผู้มารับสินค้า" : "พนักงานขับรถ";
+methodSubLabel.style.display = "block";
+methodSubSelect.innerHTML = methodSubOptionsHtml(type);
+methodSubSelect.style.display = "block";
+};
+
+methodSubSelect.onchange = () => {
+methodOther.style.display = methodSubSelect.value === OTHER_METHOD_VALUE ? "block" : "none";
+};
+
+const photoInput = document.getElementById("photoInput");
+const photoInputCamera = document.getElementById("photoInputCamera");
+const btnTakePhoto = document.getElementById("btnTakePhoto");
+const btnPickPhoto = document.getElementById("btnPickPhoto");
+if (btnTakePhoto) btnTakePhoto.onclick = () => photoInputCamera.click();
+if (btnPickPhoto) btnPickPhoto.onclick = () => photoInput.click();
+
+async function handleSelectedPhotoFiles_(fileList) {
+const files = fileList ? Array.from(fileList) : [];
+if (!files.length) return;
+for (const file of files) {
+let dataUrl;
+try {
+// ลองย่อ/บีบอัดรูปก่อน (เร็ว ไฟล์เล็กลง อัปโหลดได้เร็วขึ้น)
+dataUrl = await compressImage(file, 1280, 0.72);
+} catch (compressErr) {
+// บางเครื่อง/บางฟอร์แมต (เช่น HEIC หรือรูปจาก Google Photos บางกรณี) เบราว์เซอร์เปิดเป็น <img> ไม่ได้
+// แต่ตัวไฟล์ยังอ่านเป็นข้อมูลดิบได้อยู่ ให้ fallback ไปใช้ไฟล์ต้นฉบับตรงๆ แทน ไม่บีบอัด แทนที่จะบล็อกผู้ใช้
+try {
+dataUrl = await fileToRawDataUrl(file);
+} catch (readErr) {
+notifyError_(`แนบรูป "${file.name}" ไม่สำเร็จ ข้ามรูปนี้ไป: ` + readErr.message);
+continue;
+}
+}
+const commaIdx = dataUrl.indexOf(",");
+const mime = dataUrl.substring(5, dataUrl.indexOf(";"));
+const base64 = dataUrl.substring(commaIdx + 1);
+currentPhotoList.push({ base64, mime, dataUrl });
+}
+renderPhotoPreviews();
+}
+
+photoInput.onchange = async () => {
+await handleSelectedPhotoFiles_(photoInput.files);
+photoInput.value = "";
+};
+photoInputCamera.onchange = async () => {
+await handleSelectedPhotoFiles_(photoInputCamera.files);
+photoInputCamera.value = "";
+};}
+
+// วาดพรีวิวรูปทั้งหมดที่แนบไว้ พร้อมปุ่มลบรายรูป
+function renderPhotoPreviews() {
+const wrap = document.getElementById("photoPreviewWrap");
+if (!currentPhotoList.length) {
+wrap.style.display = "none";
+wrap.innerHTML = "";
+return;
+}
+wrap.style.display = "flex";
+wrap.innerHTML = currentPhotoList.map((p, i) => `
+<div class="photo-thumb" data-idx="${i}">
+<img src="${p.dataUrl}" onerror="this.parentElement.style.opacity='0.4'">
+<button type="button" class="remove-btn" data-idx="${i}">×</button>
+</div>
+`).join("");
+wrap.querySelectorAll(".remove-btn").forEach(btn => {
+btn.onclick = () => {
+const idx = parseInt(btn.getAttribute("data-idx"), 10);
+currentPhotoList.splice(idx, 1);
+renderPhotoPreviews();
+};
+});
+}
+
+// อ่านไฟล์เป็น data URL แบบดิบ ไม่ผ่านการย่อ/บีบอัด ใช้เป็นทางสำรองเมื่อ compressImage() เปิดไฟล์ไม่ได้
+function fileToRawDataUrl(file) {
+return new Promise((resolve, reject) => {
+const reader = new FileReader();
+reader.onload = (e) => resolve(e.target.result);
+reader.onerror = () => reject(new Error("อ่านไฟล์ไม่สำเร็จ"));
+reader.readAsDataURL(file);
+});
+}
+
+// ย่อขนาด + บีบอัดรูปในเครื่องก่อนอัปโหลด ลดขนาดไฟล์ให้ส่งได้เร็วขึ้นแม้เน็ตช้า
+function compressImage(file, maxDim, quality) {
+return new Promise((resolve, reject) => {
+const reader = new FileReader();
+reader.onload = (e) => {
+const img = new Image();
+img.onload = () => {
+let { width, height } = img;
+if (width > maxDim || height > maxDim) {
+if (width > height) {
+height = Math.round(height * (maxDim / width));
+width = maxDim;
+} else {
+width = Math.round(width * (maxDim / height));
+height = maxDim;
+}
+}
+const canvas = document.createElement("canvas");
+canvas.width = width;
+canvas.height = height;
+const ctx = canvas.getContext("2d");
+ctx.drawImage(img, 0, 0, width, height);
+resolve(canvas.toDataURL("image/jpeg", quality));
+};
+img.onerror = () => reject(new Error("ไม่สามารถอ่านไฟล์รูปได้"));
+img.src = e.target.result;
+};
+reader.onerror = () => reject(new Error("อ่านไฟล์ไม่สำเร็จ"));
+reader.readAsDataURL(file);
+});
+}
+
+function getResolvedDeliveryMethod() {
+const typeSelect = document.getElementById("methodType");
+const subSelect = document.getElementById("methodSub");
+const other = document.getElementById("deliveryMethodOther");
+if (!typeSelect || !typeSelect.value) return "";
+const type = typeSelect.value;
+if (!subSelect || !subSelect.value) return "";
+if (subSelect.value === OTHER_METHOD_VALUE) {
+return other.value.trim() ? `${type} - อื่นๆ: ${other.value.trim()}` : "";
+}
+return `${type} - ${subSelect.value}`;
+}
+
+function validateCommonFields() {
+const method = getResolvedDeliveryMethod();
+if (!method) return "กรุณาเลือกวิธีการจัดส่งให้ครบทั้ง 2 ช่องก่อนกดยืนยัน";
+const date = document.getElementById("deliveryDate").value;
+if (!date) return "กรุณาระบุวันที่ส่งมอบจริงก่อนกดยืนยัน";
+if (!currentPhotoList.length) return "กรุณาแนบรูปถ่ายอย่างน้อย 1 รูปก่อนกดยืนยัน";
+return null;
+}
+
+async function attemptSubmitConfirmation_(payload) {
+const appDiv = document.getElementById("app");
+appDiv.innerHTML = `<div class = "loading">กำลังอัปโหลดรูป (${payload.photos.length} รูป) และบันทึกข้อมูล...</div>`;
+try {
+const res = await fetchWithRetry_(APPS_SCRIPT_URL, {
+method: "POST",
+headers: { "Content-Type": "text/plain;charset = utf-8" },
+body: JSON.stringify(payload),
+});
+const data = await res.json();
+if (data.ok) {
+showToast(payload.status === "ครบ" ? "ยืนยันสำเร็จ ✅" : "บันทึกแล้ว แจ้งเตือนพี่บุ้งกี๋แล้ว ⚠️");
+appDiv.innerHTML = `<div class = "card"><div class = "doc-number">${currentDocNumber}</div>${locBadgeHtml()}<div class = "hint">บันทึกเรียบร้อยแล้ว ปิดหน้านี้ได้เลย</div></div>`;
+} else {
+const errMsg = "เกิดข้อผิดพลาด: " + (data.message || "กรุณาลองใหม่อีกครั้ง");
+notifyError_(errMsg);
+showMessage(errMsg, () => attemptSubmitConfirmation_(payload));
+}
+} catch (err) {
+const errMsg = ((err.name === "TimeoutError" || err.name === "AbortError")) ? "เชื่อมต่อช้าเกินไป กรุณาลองใหม่อีกครั้ง" : "เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่อีกครั้ง";
+notifyError_(errMsg);
+showMessage(errMsg, () => attemptSubmitConfirmation_(payload));
+}
+}
+
+async function submitConfirmation(status, qtyActual, reason, nextAction) {
+const deliveryMethod = getResolvedDeliveryMethod();
+const deliveryDate = document.getElementById("deliveryDate").value;
+const photos = currentPhotoList.map((p) => ({ base64: p.base64, mimeType: p.mime }));
+const payload = {
+action: "confirm",
+docNumber: currentDocNumber,
+loc: currentLoc,
+status: status,
+qtyActual: qtyActual || "",
+reason: reason || "",
+nextAction: nextAction || "",
+lineUserId: currentUserId,
+lineDisplayName: currentDisplayName,
+deliveryMethod: deliveryMethod,
+deliveryDate: deliveryDate,
+photos: photos,
+};
+attemptSubmitConfirmation_(payload);
+}
+
+function validateEditFields_(existing) {
+const method = getResolvedDeliveryMethod();
+if (!method) return "กรุณาเลือกวิธีการจัดส่งให้ครบทั้ง 2 ช่องก่อนบันทึกการแก้ไข";
+const date = document.getElementById("deliveryDate").value;
+if (!date) return "กรุณาระบุวันที่ส่งมอบจริงก่อนบันทึกการแก้ไข";
+if (!currentPhotoList.length && !(existing && existing.photoUrl)) {
+return "กรุณาแนบรูปถ่ายอย่างน้อย 1 รูป (ไม่มีรูปเดิมในระบบให้อ้างอิง)";
+}
 
 
 function validateTopUpFields_() {
