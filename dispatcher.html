@@ -86,6 +86,8 @@
   .card.danger { background: #FDECEA; border: 1px solid #F0B4AC; }
   .card.danger .label { color: #A8321F; font-weight: 600; }
   .card.danger .sub { color: #C0271B; font-weight: 600; }
+  .card.danger .value { color: #C0271B; }
+  .reqtime.overdue { color: #C0271B; background: #FDECEA; }
 
   .maps-link {
     display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid #E4E1D8;
@@ -382,6 +384,11 @@ function reqWhen(o) {
   return parts.join('  ·  ');
 }
 
+/* เลยกำหนดส่งแล้วและยังไม่ได้จัดคิว = ขึ้นสีแดง (ถ้าจัดคิวให้คนขับแล้วไม่ต้องเตือน) */
+function isOverdue(o) {
+  return !!(o && o.requestedOverdue && !o.driver);
+}
+
 function badgeHtml(status) {
   var cls = { 'รอจัดคิว': 'b-wait', 'จัดคิวแล้ว': 'b-queued', 'ส่งสำเร็จ': 'b-ok', 'ส่งไม่ครบ': 'b-partial' }[status] || 'b-queued';
   return '<span class="badge ' + cls + '">' + status + '</span>';
@@ -481,7 +488,7 @@ function renderQueue() {
     html += '<div class="item" data-doc="' + esc(o.doc) + '">' +
               '<div class="row1"><div class="doc">' + esc(o.doc) + '</div>' + badgeHtml(o.status) + '</div>' +
               '<div class="site">' + esc(o.site || '— ยังไม่ได้ผูกไซต์ —') + '</div>' +
-              (reqWhen(o) ? '<div class="reqtime">⏰ ขอให้ส่ง: ' + esc(reqWhen(o)) + '</div>' : '') +
+              (reqWhen(o) ? '<div class="reqtime' + (isOverdue(o) ? ' overdue' : '') + '">⏰ ขอให้ส่ง: ' + esc(reqWhen(o)) + '</div>' : '') +
               (meta.length ? '<div class="meta">' + esc(meta.join('  ·  ')) + '</div>' : '') +
             '</div>';
   }
@@ -519,7 +526,13 @@ function renderDoc() {
   else { $('dMaps').classList.add('hide'); }
 
   var when = reqWhen(d);
-  if (when) { $('dReqTime').textContent = when; $('dReqTimeCard').classList.remove('hide'); }
+  if (when) {
+    var od = isOverdue(d);
+    $('dReqTimeCard').classList.toggle('danger', od);
+    $('dReqTimeCard').classList.toggle('amber', !od);
+    $('dReqTime').textContent = when;
+    $('dReqTimeCard').classList.remove('hide');
+  }
   else { $('dReqTimeCard').classList.add('hide'); }
 
   if (d.note) { $('dNote').textContent = d.note; $('dNoteCard').classList.remove('hide'); }
