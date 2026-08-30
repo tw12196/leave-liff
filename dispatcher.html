@@ -78,6 +78,11 @@
 
   .warn-box { font-size: 12.5px; color: #7A5200; background: #FCF0D8; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
 
+  .reqtime { display: inline-block; font-size: 12.5px; font-weight: 600; color: #7A5200; background: #FCF0D8; border-radius: 6px; padding: 3px 9px; margin-top: 6px; }
+  .card.amber { background: #FCF0D8; border: 1px solid #F1DFAE; }
+  .card.amber .label { color: #8A6000; }
+  .card.amber .value { color: #7A5200; }
+
   .card.danger { background: #FDECEA; border: 1px solid #F0B4AC; }
   .card.danger .label { color: #A8321F; font-weight: 600; }
   .card.danger .sub { color: #C0271B; font-weight: 600; }
@@ -206,6 +211,11 @@
       <div class="sub" id="dPlot"></div>
       <a class="maps-link hide" id="dMaps" target="_blank" rel="noopener">📍 เปิดใน Google Maps</a>
       <button class="link-btn" id="chooseSiteBtn">แก้ไข / เลือกไซต์อื่น</button>
+    </div>
+
+    <div class="card amber hide" id="dReqTimeCard">
+      <div class="label">เวลาที่ขอให้ส่ง (เซลล์ระบุไว้)</div>
+      <div class="value" id="dReqTime"></div>
     </div>
 
     <div class="card danger hide" id="dNoteCard">
@@ -463,6 +473,7 @@ function renderQueue() {
     html += '<div class="item" data-doc="' + esc(o.doc) + '">' +
               '<div class="row1"><div class="doc">' + esc(o.doc) + '</div>' + badgeHtml(o.status) + '</div>' +
               '<div class="site">' + esc(o.site || '— ยังไม่ได้ผูกไซต์ —') + '</div>' +
+              (o.requestedTime ? '<div class="reqtime">⏰ ขอให้ส่ง: ' + esc(o.requestedTime) + '</div>' : '') +
               (meta.length ? '<div class="meta">' + esc(meta.join('  ·  ')) + '</div>' : '') +
             '</div>';
   }
@@ -498,6 +509,9 @@ function renderDoc() {
 
   if (d.mapsLink) { $('dMaps').href = d.mapsLink; $('dMaps').classList.remove('hide'); }
   else { $('dMaps').classList.add('hide'); }
+
+  if (d.requestedTime) { $('dReqTime').textContent = d.requestedTime; $('dReqTimeCard').classList.remove('hide'); }
+  else { $('dReqTimeCard').classList.add('hide'); }
 
   if (d.note) { $('dNote').textContent = d.note; $('dNoteCard').classList.remove('hide'); }
   else { $('dNoteCard').classList.add('hide'); }
