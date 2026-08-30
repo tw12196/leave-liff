@@ -214,7 +214,7 @@
     </div>
 
     <div class="card amber hide" id="dReqTimeCard">
-      <div class="label">เวลาที่ขอให้ส่ง (เซลล์ระบุไว้)</div>
+      <div class="label">วัน–เวลาที่ขอให้ส่ง (เซลล์ระบุไว้)</div>
       <div class="value" id="dReqTime"></div>
     </div>
 
@@ -374,6 +374,14 @@ function api(action, payload) {
     });
 }
 
+/* รวม "วันที่" กับ "เวลา" ที่ขอให้ส่ง เป็นข้อความเดียว เช่น "วันนี้  ·  ก่อน 11:00 น." */
+function reqWhen(o) {
+  var parts = [];
+  if (o && o.requestedDateLabel) parts.push(o.requestedDateLabel);
+  if (o && o.requestedTime) parts.push(o.requestedTime);
+  return parts.join('  ·  ');
+}
+
 function badgeHtml(status) {
   var cls = { 'รอจัดคิว': 'b-wait', 'จัดคิวแล้ว': 'b-queued', 'ส่งสำเร็จ': 'b-ok', 'ส่งไม่ครบ': 'b-partial' }[status] || 'b-queued';
   return '<span class="badge ' + cls + '">' + status + '</span>';
@@ -473,7 +481,7 @@ function renderQueue() {
     html += '<div class="item" data-doc="' + esc(o.doc) + '">' +
               '<div class="row1"><div class="doc">' + esc(o.doc) + '</div>' + badgeHtml(o.status) + '</div>' +
               '<div class="site">' + esc(o.site || '— ยังไม่ได้ผูกไซต์ —') + '</div>' +
-              (o.requestedTime ? '<div class="reqtime">⏰ ขอให้ส่ง: ' + esc(o.requestedTime) + '</div>' : '') +
+              (reqWhen(o) ? '<div class="reqtime">⏰ ขอให้ส่ง: ' + esc(reqWhen(o)) + '</div>' : '') +
               (meta.length ? '<div class="meta">' + esc(meta.join('  ·  ')) + '</div>' : '') +
             '</div>';
   }
@@ -510,7 +518,8 @@ function renderDoc() {
   if (d.mapsLink) { $('dMaps').href = d.mapsLink; $('dMaps').classList.remove('hide'); }
   else { $('dMaps').classList.add('hide'); }
 
-  if (d.requestedTime) { $('dReqTime').textContent = d.requestedTime; $('dReqTimeCard').classList.remove('hide'); }
+  var when = reqWhen(d);
+  if (when) { $('dReqTime').textContent = when; $('dReqTimeCard').classList.remove('hide'); }
   else { $('dReqTimeCard').classList.add('hide'); }
 
   if (d.note) { $('dNote').textContent = d.note; $('dNoteCard').classList.remove('hide'); }
