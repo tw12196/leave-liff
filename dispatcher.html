@@ -65,6 +65,16 @@
   .b-queued{ background: #E5EDF7; color: #1D3557; }
   .b-ok    { background: #E1F5EE; color: #085041; }
   .b-partial{ background: #FCF0D8; color: #7A5200; }
+  .b-self  { background: #ECEBE7; color: #5A5A55; }
+  .selfpick-row { margin-top: 14px; text-align: center; }
+  .selfpick-link {
+    background: none; border: none; font-family: inherit; font-size: 13.5px;
+    color: #8A6000; text-decoration: underline; padding: 8px 4px; cursor: pointer;
+  }
+  .selfpick-link.undo { color: #1D3557; }
+  .card.self { background: #ECEBE7; border: 1px solid #D6D4CD; }
+  .card.self .label { color: #5A5A55; font-weight: 600; }
+  .card.self .sub { color: #5A5A55; }
 
   .item {
     background: #fff; border: 1px solid #E4E1D8; border-radius: 12px;
@@ -257,7 +267,16 @@
       <div class="sub" id="dDspNoteHistory"></div>
     </div>
 
+    <div class="card self hide" id="dSelfPickCard">
+      <div class="label">ลูกค้าเปลี่ยนเป็นมารับเอง</div>
+      <div class="sub" id="dSelfPickInfo"></div>
+    </div>
+
     <button class="btn" id="saveQueueBtn">บันทึกคิวรถ</button>
+
+    <div class="selfpick-row">
+      <button class="selfpick-link" id="selfPickBtn"></button>
+    </div>
   </div>
 
   <!-- ============ หน้าเลือกไซต์ ============ -->
@@ -390,7 +409,8 @@ function isOverdue(o) {
 }
 
 function badgeHtml(status) {
-  var cls = { 'รอจัดคิว': 'b-wait', 'จัดคิวแล้ว': 'b-queued', 'ส่งสำเร็จ': 'b-ok', 'ส่งไม่ครบ': 'b-partial' }[status] || 'b-queued';
+  var cls = { 'รอจัดคิว': 'b-wait', 'จัดคิวแล้ว': 'b-queued', 'ส่งสำเร็จ': 'b-ok',
+              'ส่งไม่ครบ': 'b-partial', 'ลูกค้ารับเอง': 'b-self' }[status] || 'b-queued';
   return '<span class="badge ' + cls + '">' + status + '</span>';
 }
 
@@ -555,6 +575,8 @@ function renderDoc() {
   renderCallLog(d.callCount, d.callLast);
   $('saveQueueBtn').textContent = d.driver ? 'อัปเดตคิวรถ' : 'บันทึกคิวรถ';
   $('saveQueueBtn').disabled = false;
+
+  renderSelfPickup(d);
 }
 
 function renderCallLog(count, last) {
@@ -731,6 +753,57 @@ function onSaveQueue() {
   });
 }
 
+/* ---------- ลูกค้าเปลี่ยนเป็นมารับเอง ---------- */
+
+function renderSelfPickup(d) {
+  var on   = !!(d && d.selfPickup);
+  var btn  = $('selfPickBtn');
+  var card = $('dSelfPickCard');
+
+  card.classList.toggle('hide', !on);
+  if (on) {
+    var who = [];
+    if (d.selfPickupBy) who.push('โดย ' + d.selfPickupBy);
+    if (d.selfPickupAt) who.push(d.selfPickupAt);
+    $('dSelfPickInfo').textContent = 'ใบนี้ถูกถอดออกจากคิวรถแล้ว ไม่ต้องจัดรถให้'
+      + (who.length ? ' (' + who.join(' · ') + ')' : '');
+  }
+
+  // ถอดออกจากคิวแล้วก็ไม่ต้องให้กดบันทึกคิวรถอีก กันคนกดพลาด
+  $('saveQueueBtn').classList.toggle('hide', on);
+
+  btn.textContent = on ? '↩︎ กลับเข้าคิวรถอีกครั้ง' : '🙋 ลูกค้าเปลี่ยนเป็นมารับเอง';
+  btn.classList.toggle('undo', on);
+}
+
+function onToggleSelfPickup() {
+  var d = state.doc;
+  if (!d || !d.doc) return;
+  var turningOn = !d.selfPickup;
+
+  if (turningOn && !window.confirm('ถอดใบ ' + d.doc + ' ออกจากคิวรถ เพราะลูกค้ามารับเอง?\n(ยังดูย้อนหลังได้ในแท็บ "ทั้งหมด" และกดกลับเข้าคิวได้)')) return;
+
+  var btn = $('selfPickBtn');
+  btn.disabled = true;
+
+  api('dsp_selfpickup', {
+    doc: d.doc,
+    on:  turningOn,
+    by:  state.profile.displayName
+  }).then(function () {
+    return api('dsp_doc', { doc: d.doc });
+  }).then(function (res) {
+    state.doc = res;
+    renderDoc(res);
+    toast(turningOn ? 'ถอดออกจากคิวรถแล้วค่ะ' : 'กลับเข้าคิวรถแล้วค่ะ');
+    loadQueue();
+  }).catch(function (e) {
+    toast(e.message, true);
+  }).then(function () {
+    btn.disabled = false;
+  });
+}
+
 function goDelivery() {
   var d = state.doc;
   var method = 'จัดส่ง - ' + (d.driver || '');
@@ -838,6 +911,7 @@ document.addEventListener('DOMContentLoaded', function () {
   $('callBtn').addEventListener('click', onCall);
   $('saveNoteBtn').addEventListener('click', onSaveNote);
   $('saveQueueBtn').addEventListener('click', onSaveQueue);
+  $('selfPickBtn').addEventListener('click', onToggleSelfPickup);
 
   $('siteSearch').addEventListener('input', function () {
     clearTimeout(siteTimer);
