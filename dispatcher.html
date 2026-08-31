@@ -126,6 +126,22 @@
   }
   .checkbox-row input { width: 20px; height: 20px; flex-shrink: 0; accent-color: #0F6E56; }
   .checkbox-row span { font-size: 13.5px; color: #0B5C46; font-weight: 600; }
+
+  /* ผลการโทร: เลือกได้อย่างใดอย่างหนึ่ง */
+  .callresult { margin: 14px 0; }
+  .callresult .cr-label { font-size: 11.5px; color: #6B6B68; margin-bottom: 7px; }
+  .cr-opt {
+    display: flex; align-items: center; gap: 10px; padding: 13px;
+    border-radius: 9px; cursor: pointer; margin-bottom: 8px; border: 1px solid transparent;
+  }
+  .cr-opt input { width: 20px; height: 20px; flex-shrink: 0; }
+  .cr-opt span { font-size: 13.5px; font-weight: 600; }
+  .cr-ok    { background: #E1F5EE; border-color: #A9DECB; }
+  .cr-ok input { accent-color: #0F6E56; }
+  .cr-ok span  { color: #0B5C46; }
+  .cr-warn  { background: #FCF0D8; border-color: #F1DFAE; }
+  .cr-warn input { accent-color: #A8721A; }
+  .cr-warn span  { color: #7A5200; }
   .need-confirm {
     margin-top: 8px; padding: 9px 11px; border-radius: 8px;
     background: #FCF0D8; border: 1px solid #F1DFAE;
@@ -257,12 +273,19 @@
       <div class="call-log muted" id="dCallLog">ยังไม่ได้กดโทร</div>
     </div>
 
-    <label class="checkbox-row" for="dConfirmed">
-      <input type="checkbox" id="dConfirmed" />
-      <span>โทรคอนเฟิร์มกับลูกค้าแล้ว</span>
-    </label>
+    <div class="callresult">
+      <div class="cr-label">ผลการโทรหาลูกค้า (ต้องเลือก 1 ข้อ)</div>
+      <label class="cr-opt cr-ok" for="crConfirmed">
+        <input type="radio" name="callResult" value="confirmed" id="crConfirmed" />
+        <span>✅ โทรคอนเฟิร์มกับลูกค้าแล้ว</span>
+      </label>
+      <label class="cr-opt cr-warn" for="crNoAnswer">
+        <input type="radio" name="callResult" value="noanswer" id="crNoAnswer" />
+        <span>📵 โทรไม่ติด / ติดต่อลูกค้าไม่ได้</span>
+      </label>
+    </div>
     <div class="need-confirm hide" id="dNeedConfirm">
-      ☝️ ต้องติ๊กช่องนี้ก่อน ถึงจะบันทึกคิวรถได้ค่ะ
+      ☝️ ต้องเลือกผลการโทรก่อน ถึงจะบันทึกคิวรถได้ค่ะ
     </div>
 
     <!-- หมายเหตุคนจัดเที่ยวรถ -->
@@ -576,7 +599,8 @@ function renderDoc() {
   $('dDriver').value = d.driver || '';
   updatePlateHint();
   $('dPhone').value = d.phone || '';
-  $('dConfirmed').checked = !!d.confirmed;
+  $('crConfirmed').checked = (d.callResult === 'confirmed');
+  $('crNoAnswer').checked  = (d.callResult === 'noanswer');
   $('dDspNote').value = '';
   $('dDspNoteHistory').textContent = d.dispatchNote || '';
 
@@ -734,9 +758,16 @@ function onSaveQueue() {
   if (!d.site || !d.site.trim()) { toast('กรุณาเลือกไซต์จัดส่งก่อนค่ะ', true); return; }
   var driver = $('dDriver').value;
   if (!driver) { toast('กรุณาเลือกคนขับก่อนค่ะ', true); return; }
-  if (!$('dConfirmed').checked) {
-    toast('ต้องโทรคอนเฟิร์มกับลูกค้าก่อน แล้วติ๊กช่องยืนยันค่ะ', true);
-    $('dConfirmed').focus();
+  var callResult = currentCallResult();
+  if (!callResult) {
+    toast('กรุณาเลือกผลการโทรหาลูกค้าก่อนค่ะ', true);
+    $('crConfirmed').focus();
+    return;
+  }
+  // โทรไม่ติดแล้วยังจัดรถไป ต้องเขียนเหตุผลไว้เสมอ จะได้ตามย้อนหลังได้
+  if (callResult === 'noanswer' && !($('dDspNote').value || '').trim()) {
+    toast('โทรไม่ติด กรุณากรอกหมายเหตุว่าเกิดอะไรขึ้นก่อนค่ะ', true);
+    $('dDspNote').focus();
     return;
   }
 
@@ -748,7 +779,7 @@ function onSaveQueue() {
     driver: driver,
     plate: currentPlate(),
     phone: ($('dPhone').value || '').trim(),
-    confirmed: $('dConfirmed').checked,
+    callResult: callResult,
     note: ($('dDspNote').value || '').trim(),
     by: state.profile.displayName,
     lineUserId: state.profile.userId
@@ -770,10 +801,20 @@ function onSaveQueue() {
 /* ยังไม่โทรคอนเฟิร์ม = กดบันทึกคิวรถไม่ได้ (พี่บุ้งกี๋สั่ง 31 ส.ค. 2569)
    หรี่ปุ่มให้เห็นว่ากดไม่ได้ แต่ยังกดได้จริงเพื่อให้ toast อธิบายเหตุผล
    ไม่ใช้ disabled เพราะปุ่มที่กดไม่ได้แล้วเงียบ คนใช้จะงงว่าทำไมกดไม่ติด */
+function currentCallResult() {
+  if ($('crConfirmed').checked) return 'confirmed';
+  if ($('crNoAnswer').checked)  return 'noanswer';
+  return '';
+}
+
 function syncConfirmGate() {
-  var ok = $('dConfirmed').checked;
+  var ok = !!currentCallResult();
   $('dNeedConfirm').classList.toggle('hide', ok);
   $('saveQueueBtn').style.opacity = ok ? '' : '0.55';
+  // โทรไม่ติด = บังคับกรอกหมายเหตุ บอกไว้ตั้งแต่ตอนเลือก ไม่ต้องรอโดนเด้งตอนกดบันทึก
+  $('dDspNote').placeholder = (currentCallResult() === 'noanswer')
+    ? 'จำเป็นต้องกรอก: โทรไม่ติดเพราะอะไร ตัดสินใจยังไงต่อ'
+    : 'เช่น โทรแล้ว หน้างานเข้าไม่ได้ ฝนตก รอเช็คพรุ่งนี้';
 }
 
 /* ---------- ลูกค้าเปลี่ยนเป็นมารับเอง ---------- */
@@ -935,7 +976,8 @@ document.addEventListener('DOMContentLoaded', function () {
   $('saveNoteBtn').addEventListener('click', onSaveNote);
   $('saveQueueBtn').addEventListener('click', onSaveQueue);
   $('selfPickBtn').addEventListener('click', onToggleSelfPickup);
-  $('dConfirmed').addEventListener('change', syncConfirmGate);
+  $('crConfirmed').addEventListener('change', syncConfirmGate);
+  $('crNoAnswer').addEventListener('change', syncConfirmGate);
 
   $('siteSearch').addEventListener('input', function () {
     clearTimeout(siteTimer);
