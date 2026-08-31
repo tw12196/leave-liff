@@ -1,4 +1,4 @@
-undefined<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="th">
 <head>
 <meta charset="UTF-8">
@@ -338,7 +338,7 @@ if (!data.ok) {
 showMessage(data.message || "ไม่สามารถตรวจสอบได้");
 return;
 }
-renderConfirmCard(data.alreadyConfirmed, data.existing);
+renderConfirmCard(data.alreadyConfirmed, data.existing, data.history);
 } catch (err) {
 showMessage("เชื่อมต่อระบบไม่สำเร็จ กรุณาลองใหม่อีกครั้งค่ะ", checkStatus);
 }
@@ -428,23 +428,28 @@ return `
 `;
 }
 
-function renderConfirmCard(alreadyConfirmed, existing) {
+function renderConfirmCard(alreadyConfirmed, existing, history) {
 const appDiv = document.getElementById("app");
 let alreadyHtml = "";
 if (alreadyConfirmed) {
-const extraLines = existing.statusRaw === "ไม่ครบ"
-? `<br>จำนวนที่ส่งจริง: ${existing.qtyActual || "-"}<br>เหตุผล: ${existing.reason || "-"}<br>จะทำอย่างไรต่อไป: ${existing.nextAction || "-"}`
+const entries = (history && history.length) ? history : [existing];
+const boxesHtml = entries.map((h, idx) => {
+const extraLines = h.statusRaw === "ไม่ครบ"
+? `<br>จำนวนที่ส่งจริง: ${h.qtyActual || "-"}<br>เหตุผล: ${h.reason || "-"}<br>จะทำอย่างไรต่อไป: ${h.nextAction || "-"}`
 : "";
-const photoCount = existing.photoUrl ? existing.photoUrl.split(String.fromCharCode(10)).length : 0;
+const photoCount = h.photoUrl ? h.photoUrl.split(String.fromCharCode(10)).length : 0;
 const photoHintLine = photoCount ? `<div class="hint" style="margin-top:8px;">มีรูปแนบ ${photoCount} รูป</div>` : "";
-alreadyHtml = `
+const orderLabel = entries.length > 1 ? `ครั้งที่ ${idx + 1}/${entries.length}<br>` : "";
+return `
 <div class="already">
-⚠️ ใบนี้ถูกยืนยันไปแล้ว<br>
-โดย ${existing.confirmedBy} เมื่อ ${existing.confirmedAt}<br>
-สถานะ: ${existing.status}${extraLines}
+⚠️ ${orderLabel}ใบนี้ถูกยืนยันไปแล้ว<br>
+โดย ${h.confirmedBy} เมื่อ ${h.confirmedAt}<br>
+สถานะ: ${h.status}${extraLines}
 ${photoHintLine}
-${(existing.canEdit || existing.canTopUp) ? "" : '<div class="hint" style="margin-top:8px;">หากพบข้อมูลผิดพลาด กรุณาติดต่อฝ่ายบัญชีเพื่อขอแก้ไขค่ะ</div>'}
 </div>`;
+}).join("");
+const hintHtml = (existing.canEdit || existing.canTopUp) ? "" : '<div class="hint" style="margin-top:8px;">หากพบข้อมูลผิดพลาด กรุณาติดต่อฝ่ายบัญชีเพื่อขอแก้ไขค่ะ</div>';
+alreadyHtml = boxesHtml + hintHtml;
 }
 
 // รีเซ็ตรูปที่ค้างจากรอบก่อนหน้าทุกครั้งที่วาดการ์ดใหม่
