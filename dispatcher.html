@@ -301,7 +301,14 @@
     <div class="field">
       <label>เลือกคนขับ</label>
       <select id="dDriver"><option value="">— เลือกคนขับ —</option></select>
+    </div>
+
+    <!-- ทะเบียนรถ — เติมรถประจำให้อัตโนมัติ แต่แก้ได้ -->
+    <div class="field">
+      <label>ทะเบียนรถ</label>
+      <input id="dPlateInput" placeholder="เช่น กข-1234 เชียงใหม่" />
       <div class="sub" id="dPlate"></div>
+      <button class="link-btn hide" id="usePlateBtn">↩ ใช้ทะเบียนรถประจำ</button>
     </div>
 
     <!-- เบอร์ติดต่อ + ปุ่มโทร -->
@@ -720,6 +727,7 @@ function renderDoc() {
   }
 
   $('dDriver').value = d.driver || '';
+  $('dPlateInput').value = String(d.plate || '').trim() || defaultPlate(d.driver || '');
   updatePlateHint();
   $('dPhone').value = d.phone || '';
   $('crConfirmed').checked = (d.callResult === 'confirmed');
@@ -746,26 +754,56 @@ function renderCallLog(count, last) {
   }
 }
 
-function updatePlateHint() {
-  var name = $('dDriver').value;
-  var hint = '';
+function driverInfo(name) {
   for (var i = 0; i < state.drivers.length; i++) {
-    if (state.drivers[i].name === name) {
-      var d = state.drivers[i];
-      hint = (d.plate ? ('ทะเบียน ' + d.plate) : '') +
-             (d.lineId ? '' : (d.plate ? '  ·  ' : '') + 'ยังไม่มี LINE User ID ในชีตคนขับ');
-      break;
-    }
+    if (state.drivers[i].name === name) return state.drivers[i];
   }
-  $('dPlate').textContent = hint;
+  return null;
 }
 
+/* ทะเบียนรถประจำของคนขับ (คอลัมน์ "ทะเบียนรถ" ในชีต "คนขับ") */
+function defaultPlate(name) {
+  var d = driverInfo(name);
+  return (d && d.plate) ? String(d.plate).trim() : '';
+}
+
+/* ทะเบียนที่จะบันทึกจริง = ค่าในช่อง ไม่ใช่รถประจำ (คนจัดคิวแก้ได้) */
 function currentPlate() {
+  return ($('dPlateInput').value || '').trim();
+}
+
+function updatePlateHint() {
   var name = $('dDriver').value;
-  for (var i = 0; i < state.drivers.length; i++) {
-    if (state.drivers[i].name === name) return state.drivers[i].plate || '';
+  var d    = driverInfo(name);
+  var def  = defaultPlate(name);
+  var cur  = currentPlate();
+  var bits = [];
+
+  if (!name) {
+    bits.push('เลือกคนขับก่อน ระบบจะเติมทะเบียนรถประจำให้อัตโนมัติ');
+  } else if (!def) {
+    bits.push('คนขับคนนี้ยังไม่ได้ตั้งรถประจำไว้ในชีต "คนขับ" — พิมพ์ทะเบียนเองได้เลย');
+  } else if (cur !== def) {
+    bits.push('รถประจำของ ' + name + ' คือ ' + def);
+  } else {
+    bits.push('เติมจากรถประจำในชีต "คนขับ" ให้แล้ว แก้ไขได้');
   }
-  return '';
+  if (d && !d.lineId) bits.push('ยังไม่มี LINE User ID ในชีตคนขับ');
+
+  $('dPlate').textContent = bits.join('  ·  ');
+  $('usePlateBtn').classList.toggle('hide', !(def && cur !== def));
+}
+
+/* เปลี่ยนคนขับ = เปลี่ยนรถ — เขียนทะเบียนรถประจำทับให้เลย
+   (ทะเบียนของคนขับคนก่อนที่ค้างอยู่ ผิดกว่าช่องว่าง) */
+function onDriverChange() {
+  $('dPlateInput').value = defaultPlate($('dDriver').value);
+  updatePlateHint();
+}
+
+function useDefaultPlate() {
+  $('dPlateInput').value = defaultPlate($('dDriver').value);
+  updatePlateHint();
 }
 
 /* ---------- หน้าเลือกไซต์ ---------- */
@@ -1094,7 +1132,9 @@ document.addEventListener('DOMContentLoaded', function () {
   $('mNum4').addEventListener('input', function () { this.value = this.value.replace(/\D/g, ''); });
 
   $('chooseSiteBtn').addEventListener('click', openSiteScreen);
-  $('dDriver').addEventListener('change', updatePlateHint);
+  $('dDriver').addEventListener('change', onDriverChange);
+  $('dPlateInput').addEventListener('input', updatePlateHint);
+  $('usePlateBtn').addEventListener('click', useDefaultPlate);
   $('callBtn').addEventListener('click', onCall);
   $('saveNoteBtn').addEventListener('click', onSaveNote);
   $('saveQueueBtn').addEventListener('click', onSaveQueue);
