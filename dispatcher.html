@@ -59,6 +59,9 @@
     cursor: pointer; font-family: inherit;
   }
   .chip.on { background: #1D3557; color: #fff; border-color: #1D3557; }
+  /* ส่งไม่ครบ = ของค้างที่ต้องส่งอีกรอบ ให้สะดุดตาเมื่อมีค้างอยู่ */
+  .chip.alert { background: #FDECEA; border-color: #F0B4AC; color: #C0271B; font-weight: 600; }
+  .chip.on.alert { background: #C0271B; border-color: #C0271B; color: #fff; }
 
   .badge { font-size: 11px; padding: 3px 9px; border-radius: 7px; font-weight: 600; white-space: nowrap; }
   .b-wait  { background: #FAECE7; color: #A8391A; }
@@ -223,6 +226,7 @@
     <div class="chips">
       <button class="chip on" data-filter="pending">รอจัดคิว <span id="cntPending"></span></button>
       <button class="chip" data-filter="done">จัดคิวแล้ว</button>
+      <button class="chip" data-filter="partial">ส่งไม่ครบ <span id="cntPartial"></span></button>
       <button class="chip" data-filter="all">ทั้งหมด</button>
     </div>
     <div id="queueList"><div class="loading">กำลังโหลดคิว…</div></div>
@@ -596,8 +600,16 @@ function loadDrivers() {
 
 function loadQueue() {
   return api('dsp_queue', {}).then(function (d) {
-    state.queue = { pending: (d && d.pending) || [], done: (d && d.done) || [] };
+    state.queue = {
+      pending: (d && d.pending) || [],
+      done:    (d && d.done)    || [],
+      partial: (d && d.partial) || []
+    };
     $('cntPending').textContent = '(' + state.queue.pending.length + ')';
+    $('cntPartial').textContent = '(' + state.queue.partial.length + ')';
+    // ขึ้นสีแดงเฉพาะตอนมีของค้างจริง ไม่มีก็เป็นชิปเงียบๆ ไม่ต้องเตือนลอยๆ
+    var partialChip = document.querySelector('.chip[data-filter="partial"]');
+    if (partialChip) partialChip.classList.toggle('alert', state.queue.partial.length > 0);
     renderQueue();
   }).catch(function (e) {
     $('queueList').innerHTML = '<div class="empty">โหลดคิวไม่สำเร็จ<br>' + esc(e.message) + '</div>';
@@ -607,9 +619,10 @@ function loadQueue() {
 function renderQueue() {
   var q = ($('queueSearch').value || '').trim().toLowerCase();
   var list;
-  if (state.filter === 'pending')   list = state.queue.pending;
-  else if (state.filter === 'done') list = state.queue.done;
-  else                              list = state.queue.pending.concat(state.queue.done);
+  if (state.filter === 'pending')      list = state.queue.pending;
+  else if (state.filter === 'done')    list = state.queue.done;
+  else if (state.filter === 'partial') list = state.queue.partial || [];
+  else                                 list = state.queue.pending.concat(state.queue.done);
 
   if (q) {
     list = list.filter(function (o) {
@@ -620,7 +633,9 @@ function renderQueue() {
 
   if (!list.length) {
     $('queueList').innerHTML = '<div class="empty">' +
-      (state.filter === 'pending' ? 'ไม่มีเอกสารรอจัดคิวค่ะ 🎉' : 'ไม่พบรายการ') + '</div>';
+      (state.filter === 'pending' ? 'ไม่มีเอกสารรอจัดคิวค่ะ 🎉'
+       : state.filter === 'partial' ? 'ไม่มีใบที่ส่งไม่ครบค้างอยู่ค่ะ 🎉'
+       : 'ไม่พบรายการ') + '</div>';
     return;
   }
 
