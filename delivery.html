@@ -85,6 +85,10 @@ font-size: 14px; z-index: 30; max-width: 90%;
 // ==================== ตั้งค่า (แก้ 2 บรรทัดนี้) ====================
 const LIFF_ID = "2010663561-6mmF990p"; // เอามากาก LINE Developers Console
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbye5zAWnEGLDgTQpGdmMd1cmfHOEmMsOkqd6mMJogU861PJvQU4Nd9SREEdbGscaWQ2/exec"; // URL หลัง deploy Apps Script
+// URL /exec ของ Apps Script "Delivery Sales WebApp" (ระบบจัดคิวรถ Step 1)
+// ใช้ถามว่าเอกสารใบนี้ถูกจัดคิวให้คนขับคนไหนไว้แล้ว เพื่อ auto-fill ช่อง "วิธีการจัดส่ง"
+// ถ้าตั้งเป็นค่าว่าง "" ระบบ auto-fill จะปิดตัวเองทั้งหมด ฟอร์มกลับไปทำงานแบบเดิมทุกประการ
+const DISPATCH_API_URL = "https://script.google.com/macros/s/AKfycbw1wv9CjOJlLuvn4CO7RXZU2rLgtu3zYThZ5viU3-pOefZwdp15vu8oBdTRMeKXCCpfuQ/exec";
 // ====================================================================
 
 // ป้ายจุดโหลด: แปลงค่า loc (ภาษาอังกฤษั้นๆ) เป็นข้อความไทยแสดงบนการ์ด
@@ -102,6 +106,7 @@ const DRIVER_OPTIONS = [
 "สมพงษ์ (เสือ)",
 "มิตร (มิตร ใหม่)",
 "อำนาจ (แอน)",
+"ประถม (อ้วน)",
 ];
 const OTHER_METHOD_VALUE = "__other__";
 
@@ -113,6 +118,7 @@ let currentAllowedLocs = null; // [] หรือ null = ยังไม่ท�
 
 // ข้อมูลรูปที่แนบ (บีบอัด/หรือไฟล์ดิบแล้วแต่กรณี) — เก็บเป็นลิสต์เพื่อรองรับหลายรูป รอตอนกดยืนยัน
 let currentPhotoList = []; // [{ base64, mime, dataUrl }, ...]
+let currentDispatchInfo = null; // ข้อมูลคิวจัดส่งของเอกสารใบนี้ (จาก dsp_doc) — null = ยังไม่ได้ดึง/ดึงไม่สำเร็จ/ไม่มีในคิว
 let currentIsDesignatedEditor = true; // ผู้ใช้ปัจจุบันเป็น 1 ใน 5 คนที่มีสิทธิ์แก้ไขข้อมูล หรือแค่กดส่งของเพิ่มเติม (top-up)
 
 function getDocFromUrl() {
@@ -399,6 +405,7 @@ return `
 <label class="required" id="methodSubLabel" style="display:none;">รายละเอียดการจัดส่ง</label>
 <select id="methodSub" style="display:none;"></select>
 <input type="text" id="deliveryMethodOther" placeholder="ระบุคนขับ/วิธีส่ง" style="display:none;">
+<div id="dispatchHint"></div>
 
 <label class="required">วันที่ส่งมอบจริง</label>
 <input type="date" id="deliveryDate" value="${dateVal}">
@@ -477,6 +484,10 @@ ${changeLocLinkHtml()}
 wireCommonFieldEvents();
 
 if (!alreadyConfirmed) {
+// เติมคนขับที่จัดคิวไว้ให้อัตโนมัติ — ยิงแบบไม่ await โดยตั้งใจ
+// หน้าจอต้องใช้งานได้ทันทีเสมอ ไม่ว่าระบบจัดคิวรถจะตอบช้าหรือล่มก็ตาม
+applyDispatchAutofill_();
+
 document.getElementById("btnFull").onclick = () => {
 const err = validateCommonFields();
 if (err) { notifyError_(err); return; }
@@ -706,6 +717,121 @@ return other.value.trim() ? `${type} - อื่นๆ: ${other.value.trim()}` :
 }
 return `${type} - ${subSelect.value}`;
 }
+
+// ==================== auto-fill คนขับจากระบบจัดคิวรถ (Step 3) ====================
+// หลักการกันพัง: ทุกฟังก์ชันในบล็อกนี้ "ห้าม throw ออกไปข้างนอก" เด็ดขาด
+// ถ้าอะไรผิดพลาด ให้เงียบแล้วปล่อยฟอร์มทำงานแบบเดิม (พนักงานเลือกคนขับเองเหมือนทุกวันนี้)
+
+// ถามระบบจัดคิวรถว่าเอกสารใบนี้จัดคิวไว้ให้ใคร — คืน object ถ้าเจอ, คืน null ทุกกรณีที่เหลือ
+async function fetchDispatchDoc_(docNumber) {
+try {
+if (!DISPATCH_API_URL || !docNumber) return null;
+const payload = encodeURIComponent(JSON.stringify({ doc: docNumber }));
+const url = `${DISPATCH_API_URL}?action=dsp_doc&payload=${payload}`;
+const res = await fetchWithTimeout_(url, { method: "GET" }, 8000);
+if (!res || !res.ok) return null;
+const data = await res.json();
+if (!data) return null;
+if (data.ok === false) return null;
+// รองรับได้ทั้ง {ok, found, doc:{...}} / {ok, data:{...}} / object ตรงๆ
+const rec = data.doc || data.data || data.row || data;
+if (!rec || typeof rec !== "object") return null;
+if (rec.found === false || data.found === false) return null;
+return rec;
+} catch (err) {
+return null;
+}
+}
+
+// ดึงชื่อคนขับออกจากข้อมูลคิว (เผื่อชื่อฟิลด์ต่างกันในอนาคต)
+function dispatchDriverName_(rec) {
+if (!rec) return "";
+const candidates = [rec.driver, rec.driverName, rec["คนขับ"]];
+for (let i = 0; i < candidates.length; i++) {
+const v = candidates[i];
+if (v && String(v).trim()) return String(v).trim();
+}
+return "";
+}
+
+// ตัดช่องว่างทุกชนิดออกก่อนเทียบชื่อ กันเคสที่ชีตพิมพ์ "สมพงษ์(เสือ)" หรือมีเว้นวรรคเกินท้ายชื่อ
+function dispatchNormalizeName_(v) {
+return String(v || "").replace(/\s+/g, "");
+}
+
+// หาชื่อคนขับในชีตว่าตรงกับตัวเลือกไหนใน DRIVER_OPTIONS — คืน "ค่ามาตรฐานในลิสต์" ไม่ใช่ค่าที่มาจากชีต
+// (สำคัญ: ค่าที่บันทึกลงคอลัมน์ I ต้องเป็นรูปแบบเดียวเสมอ ไม่งั้นรายงานสรุปเที่ยวรถจะนับแยกกันเป็นคนละคน)
+function dispatchMatchDriverOption_(driver) {
+const target = dispatchNormalizeName_(driver);
+if (!target) return "";
+for (let i = 0; i < DRIVER_OPTIONS.length; i++) {
+if (dispatchNormalizeName_(DRIVER_OPTIONS[i]) === target) return DRIVER_OPTIONS[i];
+}
+return "";
+}
+
+// ใบที่คนจัดคิวกดว่า "ลูกค้าเปลี่ยนเป็นมารับเอง" (คอลัมน์ Y) — ไม่ auto-fill แต่ขึ้นป้ายเตือนให้เห็น
+function dispatchIsSelfPickup_(rec) {
+if (!rec) return false;
+const v = rec.selfPickup;
+if (v === true) return true;
+return String(v || "").trim() === "ใช่";
+}
+
+function renderDispatchHint_(html) {
+const el = document.getElementById("dispatchHint");
+if (el) el.innerHTML = html || "";
+}
+
+function dispatchHintBox_(bg, border, color, text) {
+return `<div style="margin-top:8px; padding:8px 10px; border-radius:8px; font-size:13px; line-height:1.5; background:${bg}; border:1px solid ${border}; color:${color};">${text}</div>`;
+}
+
+async function applyDispatchAutofill_() {
+try {
+const rec = await fetchDispatchDoc_(currentDocNumber);
+currentDispatchInfo = rec;
+if (!rec) return; // ไม่มีในคิว / ต่อไม่ติด → เงียบ ไม่ต้องบอกอะไรพนักงาน
+
+const typeSelect = document.getElementById("methodType");
+const subSelect = document.getElementById("methodSub");
+if (!typeSelect || !subSelect) return;
+
+// ระหว่างรอ API พนักงานอาจเลือกเองไปแล้ว — ห้ามไปทับของที่คนเลือกเด็ดขาด
+if (typeSelect.value) return;
+
+// ใบที่คนจัดคิวถอดออกเพราะลูกค้าเปลี่ยนเป็นมารับเอง — ไม่เติมอะไรและไม่ขึ้นข้อความใดๆ
+// (คอลัมน์ J อาจยังมีชื่อคนขับค้างอยู่ ถ้าไม่กันไว้ตรงนี้จะเติม "จัดส่ง" ผิดทั้งที่ลูกค้ามารับเอง)
+if (dispatchIsSelfPickup_(rec)) return;
+
+const driver = dispatchDriverName_(rec);
+if (!driver) return; // ผูกไซต์ไว้แล้วแต่ยังไม่ได้จัดคนขับ → ไม่มีอะไรให้เติม
+
+// เซ็ตกล่อง 1 แล้วสั่ง event เดิมทำงาน เพื่อให้กล่อง 2 ถูกวาดด้วยตรรกะเดียวกับที่คนกดเอง
+typeSelect.value = "จัดส่ง";
+typeSelect.dispatchEvent(new Event("change"));
+
+const matchedOption = dispatchMatchDriverOption_(driver);
+if (matchedOption) {
+subSelect.value = matchedOption;
+renderDispatchHint_(dispatchHintBox_("#E1F5EE", "#A9DECB", "#0B5C46",
+`🚚 เติมให้อัตโนมัติจากคิวจัดส่ง: <b>${matchedOption}</b><br>ถ้าคนขับตัวจริงไม่ตรง เปลี่ยนได้เลยค่ะ`));
+} else {
+// ชื่อในชีต "คนขับ" สะกดไม่ตรงกับรายชื่อในหน้านี้ → ใส่ช่อง "อื่นๆ" ไว้ให้ แล้วเตือนให้ตรวจ
+subSelect.value = OTHER_METHOD_VALUE;
+const other = document.getElementById("deliveryMethodOther");
+if (other) {
+other.style.display = "block";
+other.value = driver;
+}
+renderDispatchHint_(dispatchHintBox_("#FFF8E1", "#F0D48A", "#7A5B00",
+`⚠️ คิวจัดส่งระบุคนขับว่า <b>${driver}</b> ซึ่งยังไม่มีในรายชื่อของหน้านี้<br>เติมไว้ในช่อง "อื่นๆ" ให้แล้ว กรุณาตรวจก่อนกดยืนยันค่ะ`));
+}
+} catch (err) {
+// ห้ามให้ auto-fill ทำให้หน้ายืนยันจ่ายของพัง — กลืน error ทิ้งอย่างเดียว
+}
+}
+// ================== จบส่วน auto-fill คนขับจากระบบจัดคิวรถ ==================
 
 function validateCommonFields() {
 const method = getResolvedDeliveryMethod();
