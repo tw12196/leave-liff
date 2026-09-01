@@ -646,6 +646,7 @@ function renderQueue() {
     if (o.driver) meta.push('🚚 ' + o.driver);
     if (o.callCount) meta.push('📞 ' + o.callCount + ' ครั้ง');
     if (o.confirmed) meta.push('✔ คอนเฟิร์มแล้ว');
+    if (o.nextAction) meta.push('📋 ' + o.nextAction);
     if (o.savedAt && !o.driver) meta.push('บันทึก ' + o.savedAt);
     html += '<div class="item" data-doc="' + esc(o.doc) + '">' +
               '<div class="row1"><div class="doc">' + esc(o.doc) + '</div>' + badgeHtml(o.status) + '</div>' +
@@ -731,7 +732,8 @@ function renderDoc() {
   else { $('dNoteCard').classList.add('hide'); }
 
   if (d.confirmStatus) {
-    $('dDelivered').textContent = 'เอกสารนี้ยืนยันจ่ายของแล้ว (สถานะ: ' + d.confirmStatus + ')';
+    $('dDelivered').textContent = 'เอกสารนี้ยืนยันจ่ายของแล้ว (สถานะ: ' + d.confirmStatus + ')' +
+      (d.nextAction ? ('  ·  จะทำอย่างไรต่อไป: ' + d.nextAction) : '');
     $('dDelivered').classList.remove('hide');
   } else {
     $('dDelivered').classList.add('hide');
