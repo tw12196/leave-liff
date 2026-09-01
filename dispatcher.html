@@ -100,12 +100,15 @@
   .reqtime.overdue { color: #C0271B; background: #FDECEA; }
 
   .salescall {
-    display: inline-flex; align-items: center; gap: 6px;
+    display: inline-flex; align-items: center; gap: 5px; flex: none;
     font-size: 12.5px; font-weight: 600; color: #1B6B3A;
     background: #E8F5EC; border: 1px solid #C6E6D2; border-radius: 999px;
-    padding: 7px 13px; margin-top: 7px; text-decoration: none;
+    padding: 5px 12px; text-decoration: none; white-space: nowrap;
   }
   .salescall:active { background: #CFE9D9; }
+
+  .metarow { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 6px; }
+  .metarow .meta { margin-top: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .codchip {
     display: inline-block; font-size: 12.5px; font-weight: 700;
@@ -115,7 +118,6 @@
   .card.money { background: #0B5C46; border: 1px solid #0B5C46; }
   .card.money .label { color: #CFE9D9; }
   .card.money .value { color: #fff; font-weight: 700; }
-  .item .salescall { margin-right: 6px; }
 
   .salescall-btn {
     display: flex; align-items: center; justify-content: center; gap: 8px;
@@ -482,7 +484,10 @@ function codChipHtml(o) {
 
 /* ชื่อเซลล์ที่จะโชว์บนปุ่มโทร — ใช้ชื่อที่แสดงจากชีต ถ้าไม่มีก็ใช้ค่าในคอลัมน์ "บันทึกโดย" */
 function salesName(o) {
-  return (o && (o.salesLabel || o.savedBy) || '').replace(/\s*\(คนจัดเที่ยวรถ\)\s*$/, '').trim();
+  return (o && (o.salesLabel || o.savedBy) || '')
+    .replace(/\s*\(คนจัดเที่ยวรถ\)\s*$/, '')
+    .replace(/\s*\([^)]*\)\s*/g, ' ')   // ตัดวงเล็บออก เหลือแค่ชื่อ เช่น "แนน (เซลล์)" -> "แนน"
+    .trim();
 }
 
 /* ปุ่มโทรหาเซลล์บนการ์ดคิว — ขึ้นเฉพาะใบที่หาเบอร์เจอในชีต "เซลล์ที่มีสิทธิ์" */
@@ -490,8 +495,17 @@ function salesCallHtml(o) {
   var tel = (o && o.salesPhone || '').replace(/[^0-9+]/g, '');
   if (!tel) return '';
   var who = salesName(o);
-  return '<div><a class="salescall" href="tel:' + esc(tel) + '">' +
-         '📞 โทรหาเซลล์' + (who ? ' · ' + esc(who) : '') + '</a></div>';
+  return '<a class="salescall" href="tel:' + esc(tel) + '">📞 ' + esc(who || 'เซลล์') + '</a>';
+}
+
+/* แถวล่างของการ์ด — ข้อความสรุปชิดซ้าย ปุ่มโทรหาเซลล์ชิดขวา */
+function metaRowHtml(meta, o) {
+  var btn = salesCallHtml(o);
+  if (!btn && !meta.length) return '';
+  return '<div class="metarow">' +
+           '<div class="meta">' + (meta.length ? esc(meta.join('  ·  ')) : '') + '</div>' +
+           btn +
+         '</div>';
 }
 
 function isOverdue(o) {
@@ -600,8 +614,7 @@ function renderQueue() {
               '<div class="site">' + esc(o.site || '— ยังไม่ได้ผูกไซต์ —') + '</div>' +
               (reqWhen(o) ? '<div class="reqtime' + (isOverdue(o) ? ' overdue' : '') + '">⏰ ขอให้ส่ง: ' + esc(reqWhen(o)) + '</div>' : '') +
               codChipHtml(o) +
-              salesCallHtml(o) +
-              (meta.length ? '<div class="meta">' + esc(meta.join('  ·  ')) + '</div>' : '') +
+              metaRowHtml(meta, o) +
             '</div>';
   }
   $('queueList').innerHTML = html;
