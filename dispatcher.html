@@ -124,14 +124,8 @@
   .card.money .label { color: #CFE9D9; }
   .card.money .value { color: #fff; font-weight: 700; }
 
-  .salescall-btn {
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-    width: 100%; box-sizing: border-box; margin-top: 9px;
-    background: #E8F5EC; border: 1px solid #C6E6D2; border-radius: 8px;
-    padding: 11px 12px; font-size: 13.5px; font-weight: 600;
-    color: #1B6B3A; text-decoration: none;
-  }
-  .salescall-btn:active { background: #CFE9D9; }
+  .site-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .site-row .value { flex: 1; min-width: 0; }
 
   .maps-link {
     display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid #E4E1D8;
@@ -274,13 +268,14 @@
     <!-- การ์ดไซต์ -->
     <div class="card soft" id="dSiteCard">
       <div class="label">ไซต์จัดส่ง</div>
-      <div class="value" id="dSite">—</div>
+      <div class="site-row">
+        <div class="value" id="dSite">—</div>
+        <a class="salescall hide" id="dSalesCall" href="#">📞</a>
+      </div>
       <div class="sub" id="dPlot"></div>
       <a class="maps-link hide" id="dMaps" target="_blank" rel="noopener">📍 เปิดใน Google Maps</a>
       <button class="link-btn" id="chooseSiteBtn">แก้ไข / เลือกไซต์อื่น</button>
     </div>
-
-    <a class="salescall-btn hide" id="dSalesCall" href="#">📞 โทรหาเซลล์</a>
 
     <div class="card money hide" id="dCodCard">
       <div class="label">ฝากเก็บเงินหน้างาน</div>
@@ -710,7 +705,8 @@ function renderDoc() {
   if (salesTel) {
     var whoS = salesName(d);
     $('dSalesCall').href = 'tel:' + salesTel;
-    $('dSalesCall').textContent = '📞 โทรหาเซลล์' + (whoS ? ' · ' + whoS : '') + '  (' + (d.salesPhone || '') + ')';
+    $('dSalesCall').textContent = '📞 ' + (whoS || 'เซลล์');
+    $('dSalesCall').title = 'โทรหาเซลล์ ' + (whoS || '') + ' ' + (d.salesPhone || '');
     $('dSalesCall').classList.remove('hide');
   } else {
     $('dSalesCall').classList.add('hide');
