@@ -98,6 +98,11 @@
   .card.danger .sub { color: #C0271B; font-weight: 600; }
   .card.danger .value { color: #C0271B; }
   .reqtime.overdue { color: #C0271B; background: #FDECEA; }
+  .reqtime.unknown { color: #6B6B68; background: #EFEEE9; }
+
+  .card.grey { background: #EFEEE9; border: 1px solid #E0DED7; }
+  .card.grey .label { color: #6B6B68; }
+  .card.grey .value { color: #4A4A46; }
 
   .salescall {
     display: inline-flex; align-items: center; gap: 5px; flex: none;
@@ -508,6 +513,22 @@ function metaRowHtml(meta, o) {
          '</div>';
 }
 
+/*
+ * ป้ายวัน-เวลาบนการ์ดคิว
+ * "ยังไม่ทราบวันที่" (เซลล์ติ๊กเพราะลูกค้ายังไม่แจ้ง) ต้องแยกให้ออกจาก "เซลล์ลืมกรอก"
+ * เพราะคนจัดคิวต้องทำคนละอย่าง — อันหนึ่งรอลูกค้า อีกอันต้องไปตามเซลล์
+ */
+function whenChipHtml(o) {
+  if (o && o.unknownDate) {
+    var ut = ((o.requestedTime || '') + '').trim();
+    return '<div class="reqtime unknown">⏰ ยังไม่ทราบวันที่ — ลูกค้ายังไม่แจ้ง' +
+           (ut ? ('  ·  ' + esc(ut)) : '') + '</div>';
+  }
+  var w = reqWhen(o);
+  if (!w) return '';
+  return '<div class="reqtime' + (isOverdue(o) ? ' overdue' : '') + '">⏰ ขอให้ส่ง: ' + esc(w) + '</div>';
+}
+
 function isOverdue(o) {
   return !!(o && o.requestedOverdue && !o.driver);
 }
@@ -612,7 +633,7 @@ function renderQueue() {
     html += '<div class="item" data-doc="' + esc(o.doc) + '">' +
               '<div class="row1"><div class="doc">' + esc(o.doc) + '</div>' + badgeHtml(o.status) + '</div>' +
               '<div class="site">' + esc(o.site || '— ยังไม่ได้ผูกไซต์ —') + '</div>' +
-              (reqWhen(o) ? '<div class="reqtime' + (isOverdue(o) ? ' overdue' : '') + '">⏰ ขอให้ส่ง: ' + esc(reqWhen(o)) + '</div>' : '') +
+              whenChipHtml(o) +
               codChipHtml(o) +
               metaRowHtml(meta, o) +
             '</div>';
@@ -657,15 +678,26 @@ function renderDoc() {
   if (codT) { $('dCod').textContent = codT; $('dCodCard').classList.remove('hide'); }
   else { $('dCodCard').classList.add('hide'); }
 
-  var when = reqWhen(d);
-  if (when) {
-    var od = isOverdue(d);
-    $('dReqTimeCard').classList.toggle('danger', od);
-    $('dReqTimeCard').classList.toggle('amber', !od);
-    $('dReqTime').textContent = when;
+  if (d.unknownDate) {
+    var ut = ((d.requestedTime || '') + '').trim();
+    $('dReqTimeCard').classList.remove('danger');
+    $('dReqTimeCard').classList.remove('amber');
+    $('dReqTimeCard').classList.add('grey');
+    $('dReqTime').textContent = 'ยังไม่ทราบวันที่ — ลูกค้ายังไม่แจ้ง' + (ut ? ('  ·  ' + ut) : '');
     $('dReqTimeCard').classList.remove('hide');
   }
-  else { $('dReqTimeCard').classList.add('hide'); }
+  else {
+    $('dReqTimeCard').classList.remove('grey');
+    var when = reqWhen(d);
+    if (when) {
+      var od = isOverdue(d);
+      $('dReqTimeCard').classList.toggle('danger', od);
+      $('dReqTimeCard').classList.toggle('amber', !od);
+      $('dReqTime').textContent = when;
+      $('dReqTimeCard').classList.remove('hide');
+    }
+    else { $('dReqTimeCard').classList.add('hide'); }
+  }
 
   var salesTel = (d.salesPhone || '').replace(/[^0-9+]/g, '');
   if (salesTel) {
