@@ -106,6 +106,15 @@
     padding: 7px 13px; margin-top: 7px; text-decoration: none;
   }
   .salescall:active { background: #CFE9D9; }
+
+  .codchip {
+    display: inline-block; font-size: 12.5px; font-weight: 700;
+    color: #fff; background: #0B5C46; border-radius: 6px;
+    padding: 4px 10px; margin-top: 6px;
+  }
+  .card.money { background: #0B5C46; border: 1px solid #0B5C46; }
+  .card.money .label { color: #CFE9D9; }
+  .card.money .value { color: #fff; font-weight: 700; }
   .item .salescall { margin-right: 6px; }
 
   .salescall-btn {
@@ -265,6 +274,11 @@
     </div>
 
     <a class="salescall-btn hide" id="dSalesCall" href="#">📞 โทรหาเซลล์</a>
+
+    <div class="card money hide" id="dCodCard">
+      <div class="label">ฝากเก็บเงินหน้างาน</div>
+      <div class="value" id="dCod"></div>
+    </div>
 
     <div class="card amber hide" id="dReqTimeCard">
       <div class="label">วัน–เวลาที่ขอให้ส่ง (เซลล์ระบุไว้)</div>
@@ -455,6 +469,17 @@ function reqWhen(o) {
 }
 
 /* เลยกำหนดส่งแล้วและยังไม่ได้จัดคิว = ขึ้นสีแดง (ถ้าจัดคิวให้คนขับแล้วไม่ต้องเตือน) */
+/* แถบ "ฝากเก็บเงินหน้างาน" — เงินสดที่คนขับต้องเก็บกลับมา พลาดแล้วต้องวิ่งซ้ำ */
+function codText(o) {
+  if (!o || !o.cod) return '';
+  return o.codAmount ? ('💰 เก็บเงิน ' + o.codAmount + ' บาท')
+                     : '💰 ต้องเก็บเงิน (ยังไม่ระบุจำนวน)';
+}
+function codChipHtml(o) {
+  var t = codText(o);
+  return t ? ('<div><span class="codchip">' + esc(t) + '</span></div>') : '';
+}
+
 /* ชื่อเซลล์ที่จะโชว์บนปุ่มโทร — ใช้ชื่อที่แสดงจากชีต ถ้าไม่มีก็ใช้ค่าในคอลัมน์ "บันทึกโดย" */
 function salesName(o) {
   return (o && (o.salesLabel || o.savedBy) || '').replace(/\s*\(คนจัดเที่ยวรถ\)\s*$/, '').trim();
@@ -574,6 +599,7 @@ function renderQueue() {
               '<div class="row1"><div class="doc">' + esc(o.doc) + '</div>' + badgeHtml(o.status) + '</div>' +
               '<div class="site">' + esc(o.site || '— ยังไม่ได้ผูกไซต์ —') + '</div>' +
               (reqWhen(o) ? '<div class="reqtime' + (isOverdue(o) ? ' overdue' : '') + '">⏰ ขอให้ส่ง: ' + esc(reqWhen(o)) + '</div>' : '') +
+              codChipHtml(o) +
               salesCallHtml(o) +
               (meta.length ? '<div class="meta">' + esc(meta.join('  ·  ')) + '</div>' : '') +
             '</div>';
@@ -613,6 +639,10 @@ function renderDoc() {
 
   if (d.mapsLink) { $('dMaps').href = d.mapsLink; $('dMaps').classList.remove('hide'); }
   else { $('dMaps').classList.add('hide'); }
+
+  var codT = codText(d);
+  if (codT) { $('dCod').textContent = codT; $('dCodCard').classList.remove('hide'); }
+  else { $('dCodCard').classList.add('hide'); }
 
   var when = reqWhen(d);
   if (when) {
