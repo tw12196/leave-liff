@@ -99,6 +99,24 @@
   .card.danger .value { color: #C0271B; }
   .reqtime.overdue { color: #C0271B; background: #FDECEA; }
 
+  .salescall {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12.5px; font-weight: 600; color: #1B6B3A;
+    background: #E8F5EC; border: 1px solid #C6E6D2; border-radius: 999px;
+    padding: 7px 13px; margin-top: 7px; text-decoration: none;
+  }
+  .salescall:active { background: #CFE9D9; }
+  .item .salescall { margin-right: 6px; }
+
+  .salescall-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; box-sizing: border-box; margin-top: 9px;
+    background: #E8F5EC; border: 1px solid #C6E6D2; border-radius: 8px;
+    padding: 11px 12px; font-size: 13.5px; font-weight: 600;
+    color: #1B6B3A; text-decoration: none;
+  }
+  .salescall-btn:active { background: #CFE9D9; }
+
   .maps-link {
     display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid #E4E1D8;
     border-radius: 8px; padding: 10px 12px; font-size: 13.5px; color: #1a73e8;
@@ -245,6 +263,8 @@
       <a class="maps-link hide" id="dMaps" target="_blank" rel="noopener">📍 เปิดใน Google Maps</a>
       <button class="link-btn" id="chooseSiteBtn">แก้ไข / เลือกไซต์อื่น</button>
     </div>
+
+    <a class="salescall-btn hide" id="dSalesCall" href="#">📞 โทรหาเซลล์</a>
 
     <div class="card amber hide" id="dReqTimeCard">
       <div class="label">วัน–เวลาที่ขอให้ส่ง (เซลล์ระบุไว้)</div>
@@ -435,6 +455,20 @@ function reqWhen(o) {
 }
 
 /* เลยกำหนดส่งแล้วและยังไม่ได้จัดคิว = ขึ้นสีแดง (ถ้าจัดคิวให้คนขับแล้วไม่ต้องเตือน) */
+/* ชื่อเซลล์ที่จะโชว์บนปุ่มโทร — ใช้ชื่อที่แสดงจากชีต ถ้าไม่มีก็ใช้ค่าในคอลัมน์ "บันทึกโดย" */
+function salesName(o) {
+  return (o && (o.salesLabel || o.savedBy) || '').replace(/\s*\(คนจัดเที่ยวรถ\)\s*$/, '').trim();
+}
+
+/* ปุ่มโทรหาเซลล์บนการ์ดคิว — ขึ้นเฉพาะใบที่หาเบอร์เจอในชีต "เซลล์ที่มีสิทธิ์" */
+function salesCallHtml(o) {
+  var tel = (o && o.salesPhone || '').replace(/[^0-9+]/g, '');
+  if (!tel) return '';
+  var who = salesName(o);
+  return '<div><a class="salescall" href="tel:' + esc(tel) + '">' +
+         '📞 โทรหาเซลล์' + (who ? ' · ' + esc(who) : '') + '</a></div>';
+}
+
 function isOverdue(o) {
   return !!(o && o.requestedOverdue && !o.driver);
 }
@@ -540,6 +574,7 @@ function renderQueue() {
               '<div class="row1"><div class="doc">' + esc(o.doc) + '</div>' + badgeHtml(o.status) + '</div>' +
               '<div class="site">' + esc(o.site || '— ยังไม่ได้ผูกไซต์ —') + '</div>' +
               (reqWhen(o) ? '<div class="reqtime' + (isOverdue(o) ? ' overdue' : '') + '">⏰ ขอให้ส่ง: ' + esc(reqWhen(o)) + '</div>' : '') +
+              salesCallHtml(o) +
               (meta.length ? '<div class="meta">' + esc(meta.join('  ·  ')) + '</div>' : '') +
             '</div>';
   }
@@ -547,7 +582,10 @@ function renderQueue() {
 
   var items = $('queueList').querySelectorAll('.item');
   for (var k = 0; k < items.length; k++) {
-    items[k].addEventListener('click', function () { openDoc(this.getAttribute('data-doc')); });
+    items[k].addEventListener('click', function (ev) {
+      if (ev.target && ev.target.closest && ev.target.closest('.salescall')) return;  // กดปุ่มโทร ไม่ใช่เปิดใบ
+      openDoc(this.getAttribute('data-doc'));
+    });
   }
 }
 
@@ -585,6 +623,16 @@ function renderDoc() {
     $('dReqTimeCard').classList.remove('hide');
   }
   else { $('dReqTimeCard').classList.add('hide'); }
+
+  var salesTel = (d.salesPhone || '').replace(/[^0-9+]/g, '');
+  if (salesTel) {
+    var whoS = salesName(d);
+    $('dSalesCall').href = 'tel:' + salesTel;
+    $('dSalesCall').textContent = '📞 โทรหาเซลล์' + (whoS ? ' · ' + whoS : '') + '  (' + (d.salesPhone || '') + ')';
+    $('dSalesCall').classList.remove('hide');
+  } else {
+    $('dSalesCall').classList.add('hide');
+  }
 
   if (d.note) { $('dNote').textContent = d.note; $('dNoteCard').classList.remove('hide'); }
   else { $('dNoteCard').classList.add('hide'); }
