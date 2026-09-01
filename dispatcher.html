@@ -921,8 +921,10 @@ function onSaveQueue() {
     $('crConfirmed').focus();
     return;
   }
-  // โทรไม่ติดแล้วยังจัดรถไป ต้องเขียนเหตุผลไว้เสมอ จะได้ตามย้อนหลังได้
-  if (callResult === 'noanswer' && !($('dDspNote').value || '').trim()) {
+  // โทรไม่ติดแล้วยังจัดรถไป ต้องมีเหตุผลบันทึกไว้เสมอ จะได้ตามย้อนหลังได้
+  // นับ "หมายเหตุที่บันทึกไปแล้ว" ด้วย — ไม่งั้นคนที่กดปุ่ม "บันทึก" ข้างช่องหมายเหตุไปก่อน
+  // (ซึ่งล้างช่องให้ว่าง) จะโดนบล็อกทั้งที่เขียนเหตุผลไว้เรียบร้อยแล้ว
+  if (callResult === 'noanswer' && !hasNoAnswerReason()) {
     toast('โทรไม่ติด กรุณากรอกหมายเหตุว่าเกิดอะไรขึ้นก่อนค่ะ', true);
     $('dDspNote').focus();
     return;
@@ -958,6 +960,12 @@ function onSaveQueue() {
 /* ยังไม่โทรคอนเฟิร์ม = กดบันทึกคิวรถไม่ได้ (พี่บุ้งกี๋สั่ง 31 ส.ค. 2569)
    หรี่ปุ่มให้เห็นว่ากดไม่ได้ แต่ยังกดได้จริงเพื่อให้ toast อธิบายเหตุผล
    ไม่ใช้ disabled เพราะปุ่มที่กดไม่ได้แล้วเงียบ คนใช้จะงงว่าทำไมกดไม่ติด */
+/* มีเหตุผลกรณีโทรไม่ติดหรือยัง — นับทั้งที่กำลังพิมพ์อยู่ และที่บันทึกไว้แล้วก่อนหน้า */
+function hasNoAnswerReason() {
+  if (($('dDspNote').value || '').trim()) return true;
+  return !!(state.doc && String(state.doc.dispatchNote || '').trim());
+}
+
 function currentCallResult() {
   if ($('crConfirmed').checked) return 'confirmed';
   if ($('crNoAnswer').checked)  return 'noanswer';
@@ -969,7 +977,7 @@ function syncConfirmGate() {
   $('dNeedConfirm').classList.toggle('hide', ok);
   $('saveQueueBtn').style.opacity = ok ? '' : '0.55';
   // โทรไม่ติด = บังคับกรอกหมายเหตุ บอกไว้ตั้งแต่ตอนเลือก ไม่ต้องรอโดนเด้งตอนกดบันทึก
-  $('dDspNote').placeholder = (currentCallResult() === 'noanswer')
+  $('dDspNote').placeholder = (currentCallResult() === 'noanswer' && !hasNoAnswerReason())
     ? 'จำเป็นต้องกรอก: โทรไม่ติดเพราะอะไร ตัดสินใจยังไงต่อ'
     : 'เช่น โทรแล้ว หน้างานเข้าไม่ได้ ฝนตก รอเช็คพรุ่งนี้';
 }
