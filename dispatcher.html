@@ -464,6 +464,8 @@ function show(screen) {
 
 function api(action, payload) {
   var url = API_URL + '?action=' + encodeURIComponent(action) + '&t=' + Date.now();
+  // แนบ LINE User ID ไปให้เซิร์ฟเวอร์ตรวจสิทธิ์ (allowlist ชีต "ผู้จัดคิว")
+  if (state.profile && state.profile.userId) url += '&uid=' + encodeURIComponent(state.profile.userId);
   if (payload) url += '&payload=' + encodeURIComponent(JSON.stringify(payload));
   return fetch(url, { method: 'GET', redirect: 'follow' })
     .then(function (r) { return r.json(); })
@@ -553,6 +555,31 @@ function esc(s) {
 
 /* ---------- เริ่มต้น ---------- */
 
+/* หน้าจอเมื่อไม่มีสิทธิ์ — โชว์ LINE User ID ของตัวเองให้ส่งไปขอสิทธิ์ได้ทันที
+   (ถ้าไม่โชว์ให้ คนใช้จะหา ID ตัวเองไม่เจอ แล้วเรื่องจะค้างอยู่ตรงนั้น) */
+function showDenied(a) {
+  var uid = (state.profile && state.profile.userId) || '';
+  $('screenLoading').innerHTML =
+    '<div class="card danger">' +
+      '<div class="label">ไม่มีสิทธิ์เข้าใช้หน้าจัดคิวรถ</div>' +
+      '<div class="sub">' + esc((a && a.message) || '') + '</div>' +
+    '</div>' +
+    '<div class="card">' +
+      '<div class="label">LINE User ID ของคุณ — ส่งให้ผู้ดูแลเพื่อขอสิทธิ์</div>' +
+      '<div class="value" style="font-size:12.5px;word-break:break-all;">' + esc(uid) + '</div>' +
+      '<button class="link-btn" id="copyUidBtn">📋 คัดลอก LINE User ID</button>' +
+    '</div>';
+  var b = document.getElementById('copyUidBtn');
+  if (b) b.addEventListener('click', function () {
+    try {
+      navigator.clipboard.writeText(uid);
+      toast('คัดลอกแล้ว ส่งให้ผู้ดูแลได้เลยค่ะ');
+    } catch (e) {
+      toast('คัดลอกไม่สำเร็จ กดค้างที่ตัวอักษรแล้วคัดลอกเองนะคะ', true);
+    }
+  });
+}
+
 function boot() {
   liff.init({ liffId: LIFF_ID })
     .then(function () {
@@ -560,13 +587,22 @@ function boot() {
       return liff.getProfile();
     })
     .then(function (p) {
-      if (!p) return;
+      if (!p) return null;
       state.profile = { userId: p.userId || '', displayName: p.displayName || '' };
       $('whoami').textContent = state.profile.displayName;
+      return api('dsp_access');            // ตรวจสิทธิ์ก่อน ยังไม่ดึงข้อมูลคิว
+    })
+    .then(function (a) {
+      if (!a) return null;
+      state.access = a;
+      if (!a.allowed) { showDenied(a); return null; }   // ไม่มีสิทธิ์ = จบตรงนี้ ไม่โหลดข้อมูลอะไรเลย
       return Promise.all([loadDrivers(), loadQueue()]);
     })
-    .then(function () {
-      if (!state.profile.userId) return;
+    .then(function (loaded) {
+      if (!loaded) return;
+      if (state.access && state.access.open) {
+        toast('⚠️ ยังไม่ได้ตั้งรายชื่อผู้จัดคิว ตอนนี้ใครก็เข้าได้', true);
+      }
       // ถ้าเปิดมาพร้อม ?doc=... ให้เข้าหน้าเอกสารนั้นเลย
       var qDoc = (new URLSearchParams(window.location.search)).get('doc');
       if (qDoc) { openDoc(qDoc.toUpperCase()); }
