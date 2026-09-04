@@ -220,6 +220,7 @@
     .stats{grid-template-columns:repeat(2,1fr);}
   }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -245,6 +246,7 @@
     </div>
     <div class="headright">
       <span class="whoami">เข้าสู่ระบบในชื่อ <b id="whoamiName"></b></span>
+      <button class="btn-refresh" id="importOpenBtn" onclick="openImportDrawer()">📥 นำเข้าสินค้าจาก Excel</button>
       <button class="btn-refresh" id="refreshBtn" onclick="manualRefresh()">🔄 รีเฟรชข้อมูล</button>
       <button class="btn-logout" onclick="logout()">ออกจากระบบ</button>
     </div>
@@ -309,6 +311,45 @@
     <button class="x" onclick="closeDrawer()">✕</button>
   </div>
   <div class="db" id="drBody"></div>
+</div>
+
+<div class="scrim" id="importScrim" onclick="closeImportDrawer()"></div>
+<div class="drawer" id="importDrawer">
+  <div class="dh">
+    <div>
+      <div class="doc">นำเข้ารายการสินค้าจาก Excel</div>
+      <div class="sub" style="font-size:12px; color:var(--muted); margin-top:4px;">ไฟล์รายงานที่ ERP ส่งออกมา (.xlsx)</div>
+    </div>
+    <button class="x" onclick="closeImportDrawer()">✕</button>
+  </div>
+  <div class="db">
+    <div class="dbox soft" style="margin-bottom:14px;">
+      ระบบจะอ่านคอลัมน์ "เลขที่ใบจ่ายสินค้า / รหัสสินค้า / ชื่อสินค้า / ปริมาณGI / หน่วยนับการขาย / สถานะใบจ่ายสินค้า"
+      จากชื่อหัวตารางโดยตรง ไม่สนใจตำแหน่งคอลัมน์ในไฟล์ และจะนำเข้าเฉพาะรายการที่สถานะ "Close" เท่านั้น
+    </div>
+
+    <label style="display:block; font-size:12.5px; color:var(--muted); font-weight:600; margin-bottom:6px;">เลือกไฟล์</label>
+    <input type="file" id="importFileInput" accept=".xlsx,.xls" onchange="handleImportFile(event)" style="margin-bottom:14px;">
+
+    <div id="importStatusBox" class="dbox soft" style="display:none;"></div>
+
+    <div id="importPreviewBox" style="display:none;">
+      <div class="itemsec">
+        <div class="ithead"><div class="t">สรุปก่อนนำเข้า</div></div>
+        <div id="importSummaryText" class="dbox amber"></div>
+      </div>
+      <div class="itemsec">
+        <div class="ithead">
+          <div class="t">เอกสารที่จะนำเข้า/แทนที่</div>
+          <div class="n"><span id="importDocCount">0</span> ใบ</div>
+        </div>
+        <div id="importDocListBox" style="max-height:220px; overflow-y:auto; border:1px solid var(--line); border-radius:8px; padding:10px 12px; font-size:12.5px; background:#fff;"></div>
+      </div>
+      <button class="btn-refresh" id="confirmImportBtn" onclick="confirmImport()" style="width:100%; margin-top:14px; font-weight:700;">✅ ยืนยันนำเข้า</button>
+    </div>
+
+    <div id="importResultBox" class="dbox" style="display:none; margin-top:14px;"></div>
+  </div>
 </div>
 
 <script>
@@ -700,6 +741,185 @@ if (savedAuth && savedAuth.name && savedAuth.pin) {
   });
 } else {
   showLogin();
+}
+
+// ---------- นำเข้ารายการสินค้าจาก Excel ----------
+var IMPORT_DOC_REGEX = /^(GI|DO|IS)\d{6}-\d{4}$/;
+var IMPORT_COL = {
+  doc: 'เลขที่ใบจ่ายสินค้า',
+  status: 'สถานะใบจ่ายสินค้า',
+  code: 'รหัสสินค้า',
+  name: 'ชื่อสินค้า',
+  unit: 'หน่วยนับการขาย',
+  qty: 'ปริมาณGI'
+};
+var IMPORT_URL_SAFE_LEN = 6000; // ความยาว URL รวมสูงสุดโดยประมาณต่อ 1 คำขอ (เผื่อ margin ไว้มาก)
+var importGroupedByDoc = null; // { doc: [ {doc,code,name,qty,unit}, ... ], ... }
+var importDocOrder = null;     // ลำดับเอกสารตามที่พบในไฟล์
+
+function openImportDrawer() {
+  resetImportDrawer();
+  document.getElementById('importDrawer').classList.add('on');
+  document.getElementById('importScrim').classList.add('on');
+}
+function closeImportDrawer() {
+  document.getElementById('importDrawer').classList.remove('on');
+  document.getElementById('importScrim').classList.remove('on');
+}
+function resetImportDrawer() {
+  importGroupedByDoc = null;
+  importDocOrder = null;
+  document.getElementById('importFileInput').value = '';
+  var st = document.getElementById('importStatusBox'); st.style.display = 'none'; st.textContent = '';
+  document.getElementById('importPreviewBox').style.display = 'none';
+  var res = document.getElementById('importResultBox'); res.style.display = 'none'; res.textContent = '';
+  var btn = document.getElementById('confirmImportBtn');
+  btn.disabled = false; btn.textContent = '✅ ยืนยันนำเข้า';
+}
+function showImportStatus(msg, isErr) {
+  var box = document.getElementById('importStatusBox');
+  box.style.display = '';
+  box.className = 'dbox ' + (isErr ? 'red' : 'soft');
+  box.textContent = msg;
+}
+
+function handleImportFile(evt) {
+  var file = evt.target.files && evt.target.files[0];
+  if (!file) return;
+  document.getElementById('importPreviewBox').style.display = 'none';
+  showImportStatus('กำลังอ่านไฟล์ ' + file.name + ' ...', false);
+
+  var reader = new FileReader();
+  reader.onload = function (e) {
+    try {
+      var data = new Uint8Array(e.target.result);
+      var workbook = XLSX.read(data, { type: 'array' });
+      var sheet = workbook.Sheets[workbook.SheetNames[0]];
+      var rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', blankrows: false });
+      processImportRows(rows);
+    } catch (err) {
+      showImportStatus('อ่านไฟล์ไม่สำเร็จ: ' + (err && err.message ? err.message : err), true);
+    }
+  };
+  reader.onerror = function () { showImportStatus('อ่านไฟล์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง', true); };
+  reader.readAsArrayBuffer(file);
+}
+
+function processImportRows(rows) {
+  var headerRowIdx = -1, colIndex = {};
+  for (var r = 0; r < Math.min(rows.length, 15); r++) {
+    var row = rows[r] || [], map = {};
+    for (var c = 0; c < row.length; c++) {
+      var cell = (row[c] || '').toString().trim();
+      if (cell) map[cell] = c;
+    }
+    if (map[IMPORT_COL.doc] !== undefined && map[IMPORT_COL.code] !== undefined) { headerRowIdx = r; colIndex = map; break; }
+  }
+  if (headerRowIdx === -1) {
+    showImportStatus('ไม่พบแถวหัวตารางที่มีคอลัมน์ "เลขที่ใบจ่ายสินค้า" และ "รหัสสินค้า" ในไฟล์นี้ กรุณาตรวจสอบว่าเป็นไฟล์รายงานที่ถูกต้อง', true);
+    return;
+  }
+  var missing = [];
+  Object.keys(IMPORT_COL).forEach(function (k) { if (colIndex[IMPORT_COL[k]] === undefined) missing.push(IMPORT_COL[k]); });
+  if (missing.length) { showImportStatus('ไฟล์นี้ขาดคอลัมน์ที่จำเป็น: ' + missing.join(', '), true); return; }
+
+  var byDoc = {}, order = [], skippedBadDoc = 0, skippedNotClose = 0, skippedZeroQty = 0;
+  for (var i = headerRowIdx + 1; i < rows.length; i++) {
+    var dr = rows[i] || [];
+    var docRaw = (dr[colIndex[IMPORT_COL.doc]] || '').toString().trim();
+    if (!docRaw) continue;
+    var doc = docRaw.toUpperCase();
+    if (!IMPORT_DOC_REGEX.test(doc)) { skippedBadDoc++; continue; }
+    var status = (dr[colIndex[IMPORT_COL.status]] || '').toString().trim();
+    if (status !== 'Close') { skippedNotClose++; continue; }
+    var qty = Number(dr[colIndex[IMPORT_COL.qty]] || 0);
+    if (!(qty > 0)) { skippedZeroQty++; continue; }
+    var code = (dr[colIndex[IMPORT_COL.code]] || '').toString().trim();
+    var name = (dr[colIndex[IMPORT_COL.name]] || '').toString().trim();
+    var unit = (dr[colIndex[IMPORT_COL.unit]] || '').toString().trim();
+    if (!byDoc[doc]) { byDoc[doc] = []; order.push(doc); }
+    byDoc[doc].push({ doc: doc, code: code, name: name, qty: qty, unit: unit });
+  }
+
+  if (!order.length) {
+    showImportStatus('ไม่พบรายการที่นำเข้าได้เลยในไฟล์นี้ (ตรวจสอบว่าเลือกไฟล์ถูกต้อง หรือทุกใบถูกยกเลิก/ยังไม่ปิดงาน)', true);
+    return;
+  }
+
+  importGroupedByDoc = byDoc;
+  importDocOrder = order;
+
+  var itemCount = 0; order.forEach(function (d) { itemCount += byDoc[d].length; });
+  var summary = 'พบ ' + order.length + ' เอกสาร รวม ' + itemCount + ' รายการสินค้า';
+  var skipParts = [];
+  if (skippedBadDoc) skipParts.push(skippedBadDoc + ' แถวเลขที่เอกสารไม่ใช่รูปแบบ GI/DO/IS');
+  if (skippedNotClose) skipParts.push(skippedNotClose + ' แถวยังไม่ปิดงาน (ไม่ใช่ Close)');
+  if (skippedZeroQty) skipParts.push(skippedZeroQty + ' แถวจำนวนเป็น 0');
+  if (skipParts.length) summary += ' — ข้าม ' + skipParts.join(', ');
+
+  document.getElementById('importSummaryText').textContent = summary;
+  document.getElementById('importDocCount').textContent = order.length;
+  document.getElementById('importDocListBox').innerHTML = order.map(function (d) {
+    return esc(d) + ' (' + byDoc[d].length + ' รายการ)';
+  }).join('<br>');
+  document.getElementById('importPreviewBox').style.display = '';
+  showImportStatus('อ่านไฟล์สำเร็จ ตรวจสอบรายการด้านล่างก่อนกดยืนยัน', false);
+}
+
+// แบ่งเอกสารเป็นชุด ๆ ตามขนาด JSON จริง (กัน URL ยาวเกินไป) โดยไม่แยกรายการของเอกสารเดียวกันออกจากกัน
+function buildImportBatches() {
+  var batches = [], current = [], currentLen = 0;
+  importDocOrder.forEach(function (doc) {
+    var docItems = importGroupedByDoc[doc];
+    var docLen = encodeURIComponent(JSON.stringify(docItems)).length;
+    if (current.length && currentLen + docLen > IMPORT_URL_SAFE_LEN) {
+      batches.push(current);
+      current = []; currentLen = 0;
+    }
+    current = current.concat(docItems);
+    currentLen += docLen;
+  });
+  if (current.length) batches.push(current);
+  return batches;
+}
+
+function confirmImport() {
+  if (!importGroupedByDoc || !importDocOrder || !importDocOrder.length) return;
+  var auth = currentAuth || loadAuth();
+  if (!auth || !auth.name || !auth.pin) { showImportStatus('กรุณาเข้าสู่ระบบใหม่อีกครั้งก่อนนำเข้าข้อมูล', true); return; }
+
+  var batches = buildImportBatches();
+  var btn = document.getElementById('confirmImportBtn');
+  btn.disabled = true;
+
+  var totalDocs = 0, totalItems = 0, totalReplaced = 0;
+  var runBatch = function (idx) {
+    if (idx >= batches.length) {
+      var box = document.getElementById('importResultBox');
+      box.style.display = ''; box.className = 'dbox soft';
+      box.textContent = '✅ นำเข้าสำเร็จ: ' + totalDocs + ' เอกสาร (' + totalItems + ' รายการ) — แทนที่ข้อมูลเดิม ' + totalReplaced + ' เอกสาร';
+      document.getElementById('importPreviewBox').style.display = 'none';
+      btn.disabled = false; btn.textContent = '✅ ยืนยันนำเข้า';
+      return;
+    }
+    btn.textContent = 'กำลังนำเข้า... (' + (idx + 1) + '/' + batches.length + ')';
+    var payload = { name: auth.name, pin: auth.pin, items: batches[idx] };
+    api('dsp_importitems', { payload: JSON.stringify(payload) })
+      .then(function (res) {
+        totalDocs += res.docsImported || 0;
+        totalItems += res.itemsImported || 0;
+        totalReplaced += res.docsReplaced || 0;
+        runBatch(idx + 1);
+      })
+      .catch(function (err) {
+        var box = document.getElementById('importResultBox');
+        box.style.display = ''; box.className = 'dbox red';
+        box.textContent = 'นำเข้าไม่สำเร็จที่ชุด ' + (idx + 1) + '/' + batches.length +
+          ' (ก่อนหน้านี้สำเร็จไปแล้ว ' + totalDocs + ' เอกสาร): ' + (err && err.message ? err.message : err);
+        btn.disabled = false; btn.textContent = '✅ ยืนยันนำเข้า (ลองใหม่)';
+      });
+  };
+  runBatch(0);
 }
 </script>
 </body>
