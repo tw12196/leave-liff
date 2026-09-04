@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Dashboard สถานะจัดส่ง</title>
+<title>Dashboard จัดส่ง</title>
 <style>
   :root{
     --navy:#1D3557; --ink:#1D1D1B; --muted:#6B6B68; --faint:#9A968A;
@@ -14,6 +14,7 @@
     --done-bg:#E1F5EE;   --done-fg:#085041;
     --partial-bg:#FAECE7;--partial-fg:#8A3316;
     --self-bg:#ECEAE4;   --self-fg:#55534D;
+    --transit-fg:#B9770E; --empty-fg:#B9B4A5;
     --danger-bg:#FDECEA; --danger-fg:#C0271B; --danger-line:#F0B4AC;
   }
   *{box-sizing:border-box;}
@@ -26,7 +27,7 @@
   [hidden]{display:none !important;}
 
   .wrap{max-width:1280px; margin:0 auto; padding:26px 20px 60px;}
-  .pagehead{display:flex; justify-content:space-between; align-items:flex-end; gap:16px; margin-bottom:18px; flex-wrap:wrap;}
+  .pagehead{display:flex; justify-content:space-between; align-items:flex-end; gap:16px; margin-bottom:14px; flex-wrap:wrap;}
   .pagehead h1{font-size:21px; color:var(--navy); margin:0 0 4px;}
   .pagehead .sub{font-size:12.5px; color:var(--muted);}
   .headright{display:flex; align-items:center; gap:10px;}
@@ -43,6 +44,12 @@
   }
   .btn-logout:hover{border-color:var(--danger-line);}
 
+  /* ---------- แท็บสลับ Dashboard / เที่ยวรถ ---------- */
+  .tabbar{ display:flex; gap:6px; background:var(--soft); border:1px solid var(--line); border-radius:12px; padding:4px; margin-bottom:16px; width:fit-content; }
+  .tabbtn{ border:none; background:transparent; color:var(--muted); font-size:13px; font-weight:700; padding:9px 18px; border-radius:9px; cursor:pointer; }
+  .tabbtn:hover:not(.active){ color:var(--ink); }
+  .tabbtn.active{ background:var(--navy); color:#fff; }
+
   /* ---------- แถบแจ้งสถานะโหลด/ผิดพลาด ---------- */
   .statusbar{
     background:#FFF8E6; border:1px solid #F0DFAE; color:#7A5300; border-radius:10px;
@@ -54,7 +61,7 @@
     border-radius:7px; padding:6px 11px; font-size:12px; font-weight:700; cursor:pointer;
   }
 
-  /* ---------- การ์ดสรุป: 6 ก้อน แยกความหมายให้สุด ไม่มีก้อนไหนรวม 2 เรื่องเข้าด้วยกัน ---------- */
+  /* ---------- แท็บ 1: การ์ดสรุปสถานะจัดส่ง (6 ก้อน) ---------- */
   .stats{display:grid; grid-template-columns:repeat(6,1fr); gap:11px; margin-bottom:16px;}
   .stat{
     background:var(--surface); border:1px solid var(--line); border-left:4px solid var(--line);
@@ -146,7 +153,123 @@
   }
   .footnote b{color:var(--navy);}
 
-  /* ---------- Drawer รายละเอียด ---------- */
+  /* ---------- แท็บ 2: เที่ยวรถ ---------- */
+  .datebar{
+    display:flex; align-items:center; gap:10px; background:var(--surface); border:1px solid var(--line);
+    border-radius:12px; padding:10px 14px; margin-bottom:16px; flex-wrap:wrap;
+  }
+  .datebar .arrow{
+    width:32px; height:32px; border-radius:8px; border:1px solid var(--line); background:#fff;
+    color:var(--navy); font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  }
+  .datebar .arrow:hover{ border-color:#C9C5B8; }
+  .datebar .arrow[disabled]{ opacity:.4; cursor:default; }
+  .datebar .curdate{ font-size:14.5px; font-weight:700; color:var(--ink); min-width:190px; text-align:center; }
+  .datebar .curdate .dow{ font-size:11.5px; color:var(--muted); font-weight:600; margin-left:6px; }
+  .datebar input[type=date]{
+    border:1px solid var(--line); border-radius:8px; padding:6px 10px; font-size:12.5px; color:var(--muted);
+    font-family:inherit;
+  }
+  .datebar .todaybtn{
+    border:1px solid var(--line); background:#fff; color:var(--navy); font-weight:700; font-size:12px;
+    padding:7px 13px; border-radius:8px; cursor:pointer;
+  }
+  .datebar .todaybtn:hover{ border-color:var(--navy); }
+  .datebar .todaybtn[disabled]{ opacity:.4; cursor:default; }
+  .datebar .spacer{ flex:1; }
+  .datebar .refresh{
+    border:1px solid var(--line); background:#fff; color:var(--muted); font-size:12px; font-weight:600;
+    padding:7px 13px; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:6px;
+  }
+  .datebar .refresh:hover{ border-color:#C9C5B8; }
+
+  .trip-stats{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:18px; }
+  .trip-stats .stat{ cursor:default; padding:11px 14px; }
+  .trip-stats .stat .v{ font-size:22px; font-weight:800; margin-top:2px; }
+  .trip-stats .stat.s-total{ border-left-color:#7B57C4; }
+  .trip-stats .stat.s-transit{ border-left-color:#D8A73D; }
+  .trip-stats .stat.s-done{ border-left-color:#0F6E56; }
+  .trip-stats .stat.s-idle{ border-left-color:#B9B4A5; }
+  .trip-stats .stat.s-transit .v{ color:var(--transit-fg); }
+  .trip-stats .stat.s-done .v{ color:var(--done-fg); }
+  .trip-stats .stat.s-idle .v{ color:#8A867B; }
+
+  .viewToggle{ display:flex; gap:6px; background:var(--soft); border:1px solid var(--line); border-radius:10px; padding:3px; }
+  .viewToggle button{
+    border:none; background:transparent; color:var(--muted); font-size:12.5px; font-weight:700;
+    padding:7px 14px; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:6px;
+  }
+  .viewToggle button.active{ background:var(--navy); color:#fff; }
+
+  .boardwrap{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:16px; overflow-x:auto; }
+  .board{ display:grid; gap:10px; min-width:900px; }
+  .board .headrow{ display:grid; grid-template-columns:64px repeat(var(--cols), 1fr); gap:10px; }
+  .board .row{ display:grid; grid-template-columns:64px repeat(var(--cols), 1fr); gap:10px; }
+
+  .vehsection{ border:1px solid var(--line); border-radius:12px; margin-bottom:12px; overflow:hidden; }
+  .vehsection:last-child{ margin-bottom:0; }
+  .vehsection .vsHead{
+    background:var(--navy); color:#fff; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;
+  }
+  .vehsection .vsHead .plate{ font-size:14.5px; font-weight:800; }
+  .vehsection .vsHead .driver{ font-size:11.5px; color:#CBD6E6; }
+  .vehsection .vsHead .cnt{ font-size:11px; color:#FFE6A8; font-weight:700; }
+  .vehsection .vsBody{ padding:10px 12px; }
+  .triprow-list{
+    display:flex; align-items:center; gap:10px; padding:9px 6px; border-bottom:1px solid var(--soft); font-size:12.5px;
+  }
+  .triprow-list:last-child{ border-bottom:none; }
+  .triprow-list .tnum{
+    width:22px; height:22px; border-radius:50%; background:var(--soft); color:var(--muted); font-size:11px; font-weight:800;
+    display:flex; align-items:center; justify-content:center; flex:none;
+  }
+  .triprow-list .info{ flex:1; min-width:0; }
+  .triprow-list .info .site{ font-weight:700; color:var(--ink); }
+  .triprow-list .info .doc{ font-size:10.5px; color:var(--faint); }
+  .triprow-list .times{ text-align:right; font-size:11px; flex:none; }
+  .triprow-list .times .out{ color:var(--muted); display:block; }
+  .triprow-list .times .in{ color:var(--done-fg); font-weight:700; display:block; }
+  .triprow-list .times .in.pending{ color:var(--transit-fg); }
+  .vehsection.idle .vsBody{ color:var(--empty-fg); font-size:12.5px; padding:14px; text-align:center; }
+
+  .vhead{
+    background:var(--navy); color:#fff; border-radius:10px; padding:10px 12px; text-align:center;
+  }
+  .vhead .plate{ font-size:14.5px; font-weight:800; letter-spacing:.02em; }
+  .vhead .driver{ font-size:11px; color:#CBD6E6; margin-top:2px; }
+  .vhead .cnt{ font-size:10.5px; color:#FFE6A8; margin-top:4px; font-weight:700; }
+
+  .triplabel{
+    display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:var(--faint);
+  }
+
+  .cell{
+    border:1.5px dashed var(--line); border-radius:10px; padding:9px 10px; min-height:64px;
+    display:flex; flex-direction:column; justify-content:center; font-size:12px;
+  }
+  .cell.empty{ color:var(--empty-fg); align-items:center; font-size:16px; }
+  .cell.filled{ border-style:solid; background:var(--soft); }
+  .cell.done{ border-color:#BFE3D6; }
+  .cell.transit{ border-color:#F0D9A6; background:#FEFAF1; }
+  .cell .site{ font-weight:700; color:var(--ink); font-size:12.5px; line-height:1.25; }
+  .cell .doc{ font-size:10.5px; color:var(--faint); margin-top:1px; }
+  .cell .times{ display:flex; justify-content:space-between; margin-top:6px; font-size:11px; }
+  .cell .times .out{ color:var(--muted); }
+  .cell .times .in{ color:var(--done-fg); font-weight:700; }
+  .cell .times .in.pending{ color:var(--transit-fg); font-weight:700; }
+
+  .legend{ display:flex; gap:18px; flex-wrap:wrap; margin-top:14px; font-size:11.5px; color:var(--muted); }
+  .legend .sw{ display:inline-flex; align-items:center; gap:6px; }
+  .legend .dot{ width:11px; height:11px; border-radius:3px; display:inline-block; }
+  .legend .dot.done{ background:#BFE3D6; border:1px solid #8FCBB4; }
+  .legend .dot.transit{ background:#FEFAF1; border:1.5px solid #F0D9A6; }
+  .legend .dot.empty{ background:#fff; border:1.5px dashed var(--line); }
+
+  .cell.filled, .triprow-list{ cursor:pointer; }
+  .cell.filled:hover{ filter:brightness(0.98); box-shadow:0 0 0 1.5px var(--navy) inset; }
+  .triprow-list:hover{ background:var(--soft); }
+
+  /* ---------- Drawer (ใช้ร่วมกันทั้ง 3 แผง: รายละเอียดเอกสาร / นำเข้า Excel / รายการสินค้าเที่ยวรถ) ---------- */
   .scrim{position:fixed; inset:0; background:rgba(20,20,18,.38); opacity:0; pointer-events:none; transition:opacity .18s; z-index:60;}
   .scrim.on{opacity:1; pointer-events:auto;}
   .drawer{
@@ -157,7 +280,8 @@
   .drawer.on{transform:none;}
   .drawer .dh{padding:16px 18px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:flex-start; gap:10px;}
   .drawer .dh .doc{font-size:17px; font-weight:700; color:var(--navy);}
-  .drawer .dh .x{border:0; background:#F1EFE8; color:var(--muted); width:30px; height:30px; border-radius:8px; font-size:16px; cursor:pointer;}
+  .drawer .dh .sub{font-size:12px; color:var(--muted); margin-top:3px;}
+  .drawer .dh .x{border:0; background:#F1EFE8; color:var(--muted); width:30px; height:30px; border-radius:8px; font-size:16px; cursor:pointer; flex:none;}
   .drawer .db{padding:16px 18px; overflow:auto; flex:1;}
   .drow{display:flex; gap:10px; padding:9px 0; border-bottom:1px dashed #EDEBE3; font-size:13px;}
   .drow:last-child{border-bottom:none;}
@@ -217,7 +341,7 @@
     table{min-width:1060px;}
   }
   @media (max-width:640px){
-    .stats{grid-template-columns:repeat(2,1fr);}
+    .stats, .trip-stats{grid-template-columns:repeat(2,1fr);}
   }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -226,78 +350,133 @@
 
 <div id="loginScreen" class="loginwrap">
   <div class="logincard">
-    <h1>Dashboard สถานะจัดส่ง</h1>
-    <p>กรอกชื่อ + PIN เดียวกับที่ใช้เข้าเว็บเซลล์ เพื่อดูสถานะจัดส่งทุกใบค่ะ</p>
+    <h1>Dashboard จัดส่ง</h1>
+    <p>กรอกชื่อ + PIN เดียวกับที่ใช้เข้าเว็บเซลล์ เพื่อดูสถานะจัดส่งและเที่ยวรถค่ะ</p>
     <div id="loginErr" class="loginerr" hidden></div>
     <label for="loginName">ชื่อ</label>
     <input id="loginName" list="loginNameList" autocomplete="off" placeholder="พิมพ์หรือเลือกชื่อ" />
     <datalist id="loginNameList"></datalist>
     <label for="loginPin">PIN</label>
     <input id="loginPin" type="password" inputmode="numeric" autocomplete="off" placeholder="รหัส PIN" />
-    <button id="loginBtn" onclick="doLogin()">เข้าดู Dashboard</button>
+    <button id="loginBtn" onclick="doLogin()">เข้าสู่ระบบ</button>
   </div>
 </div>
 
 <div id="mainScreen" class="wrap" hidden>
   <div class="pagehead">
     <div>
-      <h1>Dashboard สถานะจัดส่ง</h1>
-      <div class="sub" id="subline">รวมข้อมูลจาก <b>คิวจัดส่ง</b> + <b>ConfirmationLog</b> · <a href="tripboard.html" style="color:var(--navy);font-weight:700;">ดูเที่ยวรถ →</a></div>
+      <h1>Dashboard จัดส่ง</h1>
+      <div class="sub" id="subline">รวมข้อมูลจาก <b>คิวจัดส่ง</b> + <b>ConfirmationLog</b></div>
     </div>
     <div class="headright">
       <span class="whoami">เข้าสู่ระบบในชื่อ <b id="whoamiName"></b></span>
-      <button class="btn-refresh" id="importOpenBtn" onclick="openImportDrawer()">📥 นำเข้าสินค้าจาก Excel</button>
-      <button class="btn-refresh" id="refreshBtn" onclick="manualRefresh()">🔄 รีเฟรชข้อมูล</button>
       <button class="btn-logout" onclick="logout()">ออกจากระบบ</button>
     </div>
   </div>
 
+  <div class="tabbar">
+    <button class="tabbtn active" id="tabBtnDash" onclick="switchTab('dash')">📊 สถานะจัดส่ง</button>
+    <button class="tabbtn" id="tabBtnTrip" onclick="switchTab('trip')">🚚 เที่ยวรถ</button>
+  </div>
+
   <div id="statusBar" class="statusbar" hidden></div>
 
-  <div class="stats" id="stats"></div>
+  <!-- ===================== แท็บ 1: สถานะจัดส่ง ===================== -->
+  <div id="dashPane">
+    <div class="toolbar" style="justify-content:flex-end; margin-bottom:14px;">
+      <button class="btn-refresh" id="importOpenBtn" onclick="openImportDrawer()">📥 นำเข้าสินค้าจาก Excel</button>
+      <button class="btn-refresh" id="refreshBtn" onclick="manualRefresh()">🔄 รีเฟรชข้อมูล</button>
+    </div>
 
-  <div class="rangebar">
-    <span>📅 ค่าเริ่มต้นแสดงย้อนหลัง <b>30 วัน</b></span>
-    <button class="toggle" id="rangeToggle" onclick="toggleRange()">ดูทั้งหมด</button>
-    <span id="rangeNote"></span>
+    <div class="stats" id="stats"></div>
+
+    <div class="rangebar">
+      <span>📅 ค่าเริ่มต้นแสดงย้อนหลัง <b>30 วัน</b></span>
+      <button class="toggle" id="rangeToggle" onclick="toggleRange()">ดูทั้งหมด</button>
+      <span id="rangeNote"></span>
+    </div>
+
+    <div class="toolbar" style="flex-wrap:wrap;">
+      <input id="q" placeholder="🔍 เลขที่เอกสาร / ลูกค้า / ไซต์ / คนขับ" oninput="render()" style="max-width:260px" />
+      <input id="qItem" list="itemNameList" placeholder="📦 ค้นหาสินค้า (พิมพ์บางส่วนก็ได้ เช่น 'ซุปเปอร์')" oninput="render()" style="max-width:260px" />
+      <datalist id="itemNameList"></datalist>
+      <button class="chip on" data-f="all" onclick="setFilter('all')">ทั้งหมด</button>
+      <button class="chip" data-f="wait" onclick="setFilter('wait')">รอจัดคิว</button>
+      <button class="chip" data-f="queued" onclick="setFilter('queued')">จัดคิวแล้ว</button>
+      <button class="chip" data-f="store" onclick="setFilter('store')">อยู่ระหว่างจัดส่ง</button>
+      <button class="chip" data-f="done" onclick="setFilter('done')">ถึงลูกค้าแล้ว</button>
+      <button class="chip" data-f="partial" onclick="setFilter('partial')">ส่งไม่ครบ</button>
+      <button class="chip" data-f="self" onclick="setFilter('self')">ลูกค้ารับเอง</button>
+      <span class="count" id="count"></span>
+    </div>
+
+    <div class="tablecard">
+      <table>
+        <thead>
+          <tr>
+            <th>เลขที่เอกสาร</th>
+            <th>ไซต์จัดส่ง / ลูกค้า</th>
+            <th>สถานะ</th>
+            <th>คนขับ / รถ</th>
+            <th>โทรคอนเฟิร์ม</th>
+            <th>วันที่ส่ง</th>
+            <th>เวลารถออกจากร้าน</th>
+            <th>เวลารถถึงร้าน (=เวลากดปิดงาน)</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="footnote">
+      <b>อ่านคอลัมน์เวลาให้ถูก:</b> "เวลารถออกจากร้าน" คือเวลาที่คนขับกดปุ่มในการ์ด LINE ตอนออกเดินทาง (จากคิวจัดส่ง)
+      ส่วน "เวลารถถึงร้าน (=เวลากดปิดงาน)" คือเวลาที่คนขับกดยืนยันว่าส่งถึงลูกค้าแล้วจริง (จาก ConfirmationLog ที่จุดโหลดโกดัง) —
+      ถ้าออกแล้วแต่ยังไม่กดปิดงาน จะขึ้นว่า "อยู่ระหว่างเดินทาง" ให้เห็นชัดว่ายังไม่ถึง ไม่ใช่ค่าว่างเฉยๆ
+    </div>
   </div>
 
-  <div class="toolbar" style="flex-wrap:wrap;">
-    <input id="q" placeholder="🔍 เลขที่เอกสาร / ลูกค้า / ไซต์ / คนขับ" oninput="render()" style="max-width:260px" />
-    <input id="qItem" list="itemNameList" placeholder="📦 ค้นหาสินค้า (พิมพ์บางส่วนก็ได้ เช่น 'ซุปเปอร์')" oninput="render()" style="max-width:260px" />
-    <datalist id="itemNameList"></datalist>
-    <button class="chip on" data-f="all" onclick="setFilter('all')">ทั้งหมด</button>
-    <button class="chip" data-f="wait" onclick="setFilter('wait')">รอจัดคิว</button>
-    <button class="chip" data-f="queued" onclick="setFilter('queued')">จัดคิวแล้ว</button>
-    <button class="chip" data-f="store" onclick="setFilter('store')">อยู่ระหว่างจัดส่ง</button>
-    <button class="chip" data-f="done" onclick="setFilter('done')">ถึงลูกค้าแล้ว</button>
-    <button class="chip" data-f="partial" onclick="setFilter('partial')">ส่งไม่ครบ</button>
-    <button class="chip" data-f="self" onclick="setFilter('self')">ลูกค้ารับเอง</button>
-    <span class="count" id="count"></span>
-  </div>
+  <!-- ===================== แท็บ 2: เที่ยวรถ ===================== -->
+  <div id="tripPane" hidden>
+    <div class="datebar">
+      <button class="arrow" id="prevDay">‹</button>
+      <div class="curdate" id="curDateLabel">—</div>
+      <button class="arrow" id="nextDay">›</button>
+      <input type="date" id="datePicker" />
+      <button class="todaybtn" id="todayBtn">วันนี้</button>
+      <div class="spacer"></div>
+      <button class="refresh" id="tripRefreshBtn">🔄 รีเฟรช</button>
+    </div>
 
-  <div class="tablecard">
-    <table>
-      <thead>
-        <tr>
-          <th>เลขที่เอกสาร</th>
-          <th>ไซต์จัดส่ง / ลูกค้า</th>
-          <th>สถานะ</th>
-          <th>คนขับ / รถ</th>
-          <th>โทรคอนเฟิร์ม</th>
-          <th>วันที่ส่ง</th>
-          <th>เวลารถออกจากร้าน</th>
-          <th>เวลารถถึงร้าน (=เวลากดปิดงาน)</th>
-        </tr>
-      </thead>
-      <tbody id="tbody"></tbody>
-    </table>
-  </div>
+    <div class="trip-stats">
+      <div class="stat s-total"><div class="k">เที่ยวรถทั้งหมด</div><div class="v" id="statTotal">0</div></div>
+      <div class="stat s-transit"><div class="k">🟠 กำลังวิ่งอยู่ (ยังไม่กลับ)</div><div class="v" id="statTransit">0</div></div>
+      <div class="stat s-done"><div class="k">🟢 กลับถึงแล้ว</div><div class="v" id="statDone">0</div></div>
+      <div class="stat s-idle"><div class="k">รถที่ไม่ได้ออกวันนี้</div><div class="v" id="statIdle">0</div></div>
+    </div>
 
-  <div class="footnote">
-    <b>อ่านคอลัมน์เวลาให้ถูก:</b> "เวลารถออกจากร้าน" คือเวลาที่คนขับกดปุ่มในการ์ด LINE ตอนออกเดินทาง (จากคิวจัดส่ง)
-    ส่วน "เวลารถถึงร้าน (=เวลากดปิดงาน)" คือเวลาที่คนขับกดยืนยันว่าส่งถึงลูกค้าแล้วจริง (จาก ConfirmationLog ที่จุดโหลดโกดัง) —
-    ถ้าออกแล้วแต่ยังไม่กดปิดงาน จะขึ้นว่า "อยู่ระหว่างเดินทาง" ให้เห็นชัดว่ายังไม่ถึง ไม่ใช่ค่าว่างเฉยๆ
+    <div class="boardwrap">
+      <div style="display:flex; justify-content:flex-end; margin-bottom:12px;">
+        <div class="viewToggle">
+          <button id="btnGridView" class="active">🔲 มุมมองตาราง</button>
+          <button id="btnListView">📋 มุมมองรายการ</button>
+        </div>
+      </div>
+      <div class="board" id="board"></div>
+      <div id="boardList" style="display:none;"></div>
+      <div class="legend">
+        <span class="sw"><span class="dot done"></span> กลับถึงแล้ว (มีเวลา ออก + เข้า)</span>
+        <span class="sw"><span class="dot transit"></span> ออกไปแล้ว ยังไม่กลับ (in transit)</span>
+        <span class="sw"><span class="dot empty"></span> ช่องว่าง (รถคันนี้ไม่ได้วิ่งเที่ยวนี้)</span>
+      </div>
+    </div>
+    <div class="footnote" style="margin-top:8px;">💡 บนจอมือถือแนะนำสลับมาใช้ "มุมมองรายการ" จะอ่านง่ายกว่า — ตารางเต็มรูปแบบเลื่อนซ้าย-ขวาได้แต่คอลัมน์จะแคบ</div>
+
+    <div class="footnote">
+      <b>อ่านตารางนี้ยังไง:</b> เลขเที่ยว (แถวที่ 1, 2, 3…) ของรถแต่ละคัน นับจากเวลา <b>ออกจริง</b> จากน้อยไปมาก ไม่ได้นับจากลำดับที่จัดคิวในระบบ ·
+      "เข้า" หมายถึงเวลาปิดงานหน้างาน/กลับถึง ตามข้อมูลจาก ConfirmationLog (จุดโหลดโกดัง) ·
+      รถที่ไม่มีเที่ยวเลยในวันนั้นจะขึ้นเป็น "รถที่ไม่ได้ออกวันนี้" (นับจากรายชื่อคนขับที่ยังใช้งานอยู่) ·
+      💡 กดที่ช่องเที่ยวรถ (หรือแถวในมุมมองรายการ) เพื่อดูรายการสินค้าของใบนั้น
+    </div>
   </div>
 </div>
 
@@ -318,7 +497,7 @@
   <div class="dh">
     <div>
       <div class="doc">นำเข้ารายการสินค้าจาก Excel</div>
-      <div class="sub" style="font-size:12px; color:var(--muted); margin-top:4px;">ไฟล์รายงานที่ ERP ส่งออกมา (.xlsx)</div>
+      <div class="sub">ไฟล์รายงานที่ ERP ส่งออกมา (.xlsx)</div>
     </div>
     <button class="x" onclick="closeImportDrawer()">✕</button>
   </div>
@@ -352,8 +531,22 @@
   </div>
 </div>
 
+<div class="scrim" id="tripScrim" onclick="closeItemDrawer()"></div>
+<div class="drawer" id="itemDrawer">
+  <div class="dh">
+    <div>
+      <div class="doc" id="tripDrDoc"></div>
+      <div class="sub" id="drSub"></div>
+    </div>
+    <button class="x" onclick="closeItemDrawer()">✕</button>
+  </div>
+  <div class="db" id="tripDrBody"></div>
+</div>
+
 <script>
-/* ---------------- ต่อ Apps Script Web App จริง ---------------- */
+/* ============================================================
+   ส่วนกลาง: เชื่อม Apps Script Web App + ล็อกอิน + สลับแท็บ
+   ============================================================ */
 var API_URL = 'https://script.google.com/macros/s/AKfycbw1wv9CjOJlLuvn4CO7RXZU2rLgtu3zYThZ5viU3-pOefZwdp15vu8oBdTRMeKXCCpfuQ/exec';
 var AUTH_KEY = 'dsp_dashboard_auth_v1';
 
@@ -361,6 +554,7 @@ function esc(s){
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
+function fmtNum(n){ return Number(n).toLocaleString('th-TH', {maximumFractionDigits:2}); }
 
 function api(action, params){
   var url = API_URL + '?action=' + encodeURIComponent(action) + '&t=' + Date.now();
@@ -379,7 +573,10 @@ function api(action, params){
     });
 }
 
-/* ---------------- เข้าสู่ระบบด้วย ชื่อ + PIN ---------------- */
+/* ---------------- เข้าสู่ระบบด้วย ชื่อ + PIN (ใช้ร่วมกันทั้ง 2 แท็บ) ---------------- */
+var currentAuth = null;
+var tripLoaded = false; // โหลดข้อมูลเที่ยวรถแบบ lazy — โหลดครั้งแรกที่กดแท็บ "เที่ยวรถ" เท่านั้น
+
 function loadAuth(){
   try { return JSON.parse(localStorage.getItem(AUTH_KEY) || 'null'); } catch (e) { return null; }
 }
@@ -392,6 +589,7 @@ function clearAuth(){
 function showLogin(errMsg){
   document.getElementById('loginScreen').hidden = false;
   document.getElementById('mainScreen').hidden = true;
+  tripLoaded = false;
   var errEl = document.getElementById('loginErr');
   if (errMsg) { errEl.textContent = errMsg; errEl.hidden = false; }
   else { errEl.hidden = true; }
@@ -400,6 +598,7 @@ function showMain(name){
   document.getElementById('loginScreen').hidden = true;
   document.getElementById('mainScreen').hidden = false;
   document.getElementById('whoamiName').textContent = name || '';
+  switchTab('dash');
 }
 function loadLoginNames(){
   api('dsp_salesnames', {}).then(function(names){
@@ -419,7 +618,7 @@ function doLogin(){
   }).catch(function(err){
     showLogin(err && err.denied ? 'ชื่อหรือ PIN ไม่ถูกต้องค่ะ' : ((err && err.message) || 'เชื่อมต่อไม่สำเร็จ ลองใหม่อีกครั้งค่ะ'));
   }).finally(function(){
-    btn.disabled = false; btn.textContent = 'เข้าดู Dashboard';
+    btn.disabled = false; btn.textContent = 'เข้าสู่ระบบ';
   });
 }
 function logout(){
@@ -428,17 +627,51 @@ function logout(){
   showLogin();
 }
 
-/* ---------------- โหลดข้อมูล Dashboard จริง ---------------- */
-var ROWS = [];
-var currentAuth = null;
-
 function setStatusBar(msg, isErr, showRetry){
   var bar = document.getElementById('statusBar');
   if (!msg) { bar.hidden = true; bar.innerHTML = ''; return; }
   bar.hidden = false;
   bar.className = 'statusbar' + (isErr ? ' err' : '');
-  bar.innerHTML = '<span>' + esc(msg) + '</span>' + (showRetry ? '<button onclick="manualRefresh()">ลองใหม่</button>' : '');
+  bar.innerHTML = '<span>' + esc(msg) + '</span>' + (showRetry ? '<button onclick="retryCurrent()">ลองใหม่</button>' : '');
 }
+function retryCurrent(){
+  if (!document.getElementById('dashPane').hidden) { manualRefresh(); }
+  else if (tripLoaded) { refreshCurrent(); }
+  else { switchTab('trip'); }
+}
+
+/* ---------------- สลับแท็บ Dashboard / เที่ยวรถ ---------------- */
+function switchTab(tab){
+  var isDash = tab === 'dash';
+  document.getElementById('tabBtnDash').classList.toggle('active', isDash);
+  document.getElementById('tabBtnTrip').classList.toggle('active', !isDash);
+  document.getElementById('dashPane').hidden = !isDash;
+  document.getElementById('tripPane').hidden = isDash;
+  if (!isDash && !tripLoaded) {
+    var auth = currentAuth || loadAuth();
+    if (!auth) { showLogin(); return; }
+    setStatusBar('⏳ กำลังโหลดข้อมูลเที่ยวรถ...', false, false);
+    loadAll(auth.name, auth.pin, '').then(function(){
+      tripLoaded = true;
+      setStatusBar('');
+    }).catch(function(err){
+      if (err && err.denied) { clearAuth(); showLogin('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่ค่ะ'); }
+      else setStatusBar('⚠ โหลดข้อมูลเที่ยวรถไม่สำเร็จ: ' + ((err && err.message) || 'ไม่ทราบสาเหตุ'), true, true);
+    });
+  }
+}
+
+document.addEventListener('keydown', function(e){
+  if (e.key === 'Escape'){ closeDrawer(); closeImportDrawer(); closeItemDrawer(); }
+});
+document.getElementById('loginPin').addEventListener('keydown', function(e){ if (e.key === 'Enter'){ doLogin(); } });
+document.getElementById('loginName').addEventListener('keydown', function(e){ if (e.key === 'Enter'){ document.getElementById('loginPin').focus(); } });
+
+
+/* ============================================================
+   แท็บ 1: สถานะจัดส่ง (คิวจัดส่ง + ConfirmationLog)
+   ============================================================ */
+var ROWS = [];
 
 function fetchDashboard(name, pin){
   setStatusBar('⏳ กำลังโหลดข้อมูล...', false, false);
@@ -644,8 +877,6 @@ function render(){
 }
 
 /* ---------------- รายละเอียด ---------------- */
-function fmtNum(n){ return Number(n).toLocaleString('th-TH', {maximumFractionDigits:2}); }
-
 function itemsTableHtml(r){
   let h = '<div class="itemsec">';
   if (r.items && r.items.length){
@@ -724,26 +955,8 @@ function closeDrawer(){
   document.getElementById('drawer').classList.remove('on');
   document.getElementById('scrim').classList.remove('on');
 }
-document.addEventListener('keydown', e => { if (e.key === 'Escape'){ closeDrawer(); } });
-document.getElementById('loginPin').addEventListener('keydown', e => { if (e.key === 'Enter'){ doLogin(); } });
-document.getElementById('loginName').addEventListener('keydown', e => { if (e.key === 'Enter'){ document.getElementById('loginPin').focus(); } });
 
-/* ---------------- เริ่มทำงาน ---------------- */
-loadLoginNames();
-var savedAuth = loadAuth();
-if (savedAuth && savedAuth.name && savedAuth.pin) {
-  document.getElementById('loginName').value = savedAuth.name;
-  fetchDashboard(savedAuth.name, savedAuth.pin).then(function(){
-    showMain(savedAuth.name);
-  }).catch(function(err){
-    if (err && err.denied) { clearAuth(); }
-    showLogin(err && err.denied ? 'เข้าสู่ระบบอีกครั้งค่ะ (ชื่อ/PIN เดิมใช้ไม่ได้แล้ว)' : 'เชื่อมต่อไม่สำเร็จ ลองใหม่อีกครั้งค่ะ');
-  });
-} else {
-  showLogin();
-}
-
-// ---------- นำเข้ารายการสินค้าจาก Excel ----------
+/* ---------------- นำเข้ารายการสินค้าจาก Excel ---------------- */
 var IMPORT_DOC_REGEX = /^(GI|DO|IS)\d{6}-\d{4}$/;
 var IMPORT_COL = {
   doc: 'เลขที่ใบจ่ายสินค้า',
@@ -920,6 +1133,300 @@ function confirmImport() {
       });
   };
   runBatch(0);
+}
+
+
+/* ============================================================
+   แท็บ 2: เที่ยวรถ (dsp_drivers + dsp_tripboard)
+   ============================================================ */
+var ROSTER = [];      // จาก dsp_drivers: [{name, plate, lineId, note}]
+var TRIP = null;      // จาก dsp_tripboard: {date, today, vehicles, trips}
+var ITEMS_BY_DOC = {};
+var curDate = '';
+var MAX_DATE = '';
+var viewMode = 'grid';
+var THAI_MONTHS = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+var THAI_DOW = ["อาทิตย์","จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์"];
+
+function loadRoster(name, pin){
+  return api('dsp_drivers', { name: name, pin: pin }).then(function(list){ ROSTER = list || []; });
+}
+function loadTripboard(name, pin, date){
+  var params = { name: name, pin: pin };
+  if (date) params.date = date;
+  return api('dsp_tripboard', params).then(function(data){
+    TRIP = data || { date: '', today: '', vehicles: [], trips: {} };
+    curDate = TRIP.date;
+    MAX_DATE = TRIP.today;
+    ITEMS_BY_DOC = {};
+    Object.keys(TRIP.trips || {}).forEach(function(p){
+      (TRIP.trips[p] || []).forEach(function(t){ if (t.doc) ITEMS_BY_DOC[t.doc] = t.items || null; });
+    });
+    return TRIP;
+  });
+}
+function loadAll(name, pin, date){
+  return Promise.all([loadRoster(name, pin), loadTripboard(name, pin, date)]).then(function(){
+    currentAuth = { name: name, pin: pin };
+    renderTrip();
+  });
+}
+function refreshCurrent(){
+  var auth = currentAuth || loadAuth();
+  if (!auth) { showLogin(); return; }
+  var btn = document.getElementById('tripRefreshBtn');
+  var t = btn.textContent; btn.textContent = '⏳'; btn.disabled = true;
+  setStatusBar('⏳ กำลังโหลดข้อมูล...', false, false);
+  loadAll(auth.name, auth.pin, curDate).then(function(){
+    setStatusBar('');
+  }).catch(function(err){
+    if (err && err.denied) { clearAuth(); showLogin('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่ค่ะ'); }
+    else setStatusBar('⚠ โหลดข้อมูลไม่สำเร็จ: ' + ((err && err.message) || 'ไม่ทราบสาเหตุ'), true, true);
+  }).finally(function(){
+    btn.textContent = t; btn.disabled = false;
+  });
+}
+function goDate(newDate){
+  if (!newDate) return;
+  if (MAX_DATE && newDate > MAX_DATE) newDate = MAX_DATE;
+  var auth = currentAuth || loadAuth();
+  if (!auth) { showLogin(); return; }
+  setStatusBar('⏳ กำลังโหลดข้อมูล...', false, false);
+  loadTripboard(auth.name, auth.pin, newDate).then(function(){
+    renderTrip();
+    setStatusBar('');
+  }).catch(function(err){
+    if (err && err.denied) { clearAuth(); showLogin('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่ค่ะ'); }
+    else setStatusBar('⚠ โหลดข้อมูลไม่สำเร็จ: ' + ((err && err.message) || 'ไม่ทราบสาเหตุ'), true, true);
+  });
+}
+
+/* ---------------- รวมรายชื่อรถ: คนขับที่ลงทะเบียน ∪ รถที่มีเที่ยววันนี้ ---------------- */
+function buildVehicleList(){
+  var byPlate = {};
+  ROSTER.forEach(function(d){
+    var plate = String(d.plate || '').trim();
+    if (!plate) return; // คนขับที่ยังไม่ผูกทะเบียนรถ ไม่มีคอลัมน์ให้แสดง
+    byPlate[plate] = { plate: plate, driver: d.name || '' };
+  });
+  ((TRIP && TRIP.vehicles) || []).forEach(function(v){
+    var plate = String(v.plate || '').trim() || '(ไม่ระบุทะเบียน)';
+    if (!byPlate[plate]) byPlate[plate] = { plate: plate, driver: v.driver || '' };
+    else if (v.driver) byPlate[plate].driver = v.driver; // ใช้ชื่อคนขับของเที่ยวจริงวันนั้นแทน ถ้ามี (เผื่อสลับคนขับ)
+  });
+  var list = Object.keys(byPlate).map(function(p){ return byPlate[p]; });
+  list.sort(function(a, b){ return a.plate.localeCompare(b.plate, 'th'); });
+  return list;
+}
+
+/* ---------------- ตัวช่วยวันที่ ---------------- */
+function fmtDateLabel(iso){
+  var parts = iso.split('-').map(Number);
+  var y = parts[0], m = parts[1], d = parts[2];
+  return d + ' ' + THAI_MONTHS[m - 1] + ' ' + (y + 543);
+}
+function dowOf(iso){
+  var d = new Date(iso + 'T00:00:00');
+  return THAI_DOW[d.getDay()];
+}
+function addDays(iso, delta){
+  var d = new Date(iso + 'T00:00:00');
+  d.setDate(d.getDate() + delta);
+  return d.toISOString().slice(0, 10);
+}
+
+/* ---------------- วาดหน้าจอเที่ยวรถ ---------------- */
+function renderTrip(){
+  if (!TRIP) return;
+  document.getElementById('datePicker').value = curDate;
+  if (MAX_DATE) document.getElementById('datePicker').max = MAX_DATE;
+  document.getElementById('curDateLabel').innerHTML = esc(fmtDateLabel(curDate)) + ' <span class="dow">' + esc(dowOf(curDate)) + '</span>';
+  document.getElementById('nextDay').disabled = (MAX_DATE && curDate >= MAX_DATE);
+  document.getElementById('todayBtn').disabled = (MAX_DATE && curDate === MAX_DATE);
+
+  var VEHICLES = buildVehicleList();
+  var board = document.getElementById('board');
+  var boardList = document.getElementById('boardList');
+  board.style.setProperty('--cols', VEHICLES.length || 1);
+  board.innerHTML = '';
+  boardList.innerHTML = '';
+
+  if (!VEHICLES.length){
+    var emptyMsg = '<div style="padding:30px;text-align:center;color:#9A968A;">ยังไม่มีรถ/คนขับในระบบ (ตรวจสอบชีต "คนขับ")</div>';
+    board.innerHTML = emptyMsg;
+    boardList.innerHTML = emptyMsg;
+    ['statTotal','statTransit','statDone','statIdle'].forEach(function(id){ document.getElementById(id).textContent = '0'; });
+    return;
+  }
+
+  var perVeh = {};
+  var maxTrips = 1;
+  var total = 0, transit = 0, done = 0, idle = 0;
+  VEHICLES.forEach(function(v){
+    var list = ((TRIP.trips && TRIP.trips[v.plate]) || []).slice().sort(function(a, b){ return String(a.out).localeCompare(String(b.out)); });
+    perVeh[v.plate] = list;
+    maxTrips = Math.max(maxTrips, list.length);
+    if (list.length === 0) idle++;
+    list.forEach(function(t){ total++; if (t.in) done++; else transit++; });
+  });
+
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statTransit').textContent = transit;
+  document.getElementById('statDone').textContent = done;
+  document.getElementById('statIdle').textContent = idle;
+
+  // แถวหัวตาราง
+  var head = document.createElement('div');
+  head.className = 'headrow';
+  head.innerHTML = '<div></div>' + VEHICLES.map(function(v){
+    var n = perVeh[v.plate].length;
+    return '<div class="vhead"><div class="plate">' + esc(v.plate) + '</div><div class="driver">' + esc(v.driver || '—') + '</div><div class="cnt">' + n + ' เที่ยว</div></div>';
+  }).join('');
+  board.appendChild(head);
+
+  // แถวเที่ยวรถ
+  for (var r = 0; r < maxTrips; r++){
+    var row = document.createElement('div');
+    row.className = 'row';
+    var html = '<div class="triplabel">เที่ยว ' + (r + 1) + '</div>';
+    VEHICLES.forEach(function(v){
+      var t = perVeh[v.plate][r];
+      if (!t){
+        html += '<div class="cell empty">·</div>';
+      } else {
+        var isDone = !!t.in;
+        html += '<div class="cell filled ' + (isDone ? 'done' : 'transit') + '" data-doc="' + esc(t.doc) + '" data-site="' + esc(t.site) + '">' +
+          '<div class="site">' + esc(t.site || '(ไม่ระบุไซต์)') + '</div>' +
+          '<div class="doc">' + esc(t.doc) + '</div>' +
+          '<div class="times">' +
+            '<span class="out">ออก ' + esc(t.out) + '</span>' +
+            '<span class="in ' + (isDone ? '' : 'pending') + '">' + (isDone ? 'เข้า ' + esc(t.in) : '⏳ ยังไม่กลับ') + '</span>' +
+          '</div>' +
+        '</div>';
+      }
+    });
+    row.innerHTML = html;
+    board.appendChild(row);
+  }
+
+  // มุมมองรายการ (ต่อรถ)
+  VEHICLES.forEach(function(v){
+    var list = perVeh[v.plate];
+    var sec = document.createElement('div');
+    if (list.length === 0){
+      sec.className = 'vehsection idle';
+      sec.innerHTML =
+        '<div class="vsHead"><span class="plate">' + esc(v.plate) + '</span><span class="driver">' + esc(v.driver || '—') + '</span><span class="cnt">0 เที่ยว</span></div>' +
+        '<div class="vsBody">รถคันนี้ไม่ได้ออกวิ่งในวันนี้</div>';
+    } else {
+      sec.className = 'vehsection';
+      var rowsHtml = '';
+      list.forEach(function(t, idx){
+        var isDone = !!t.in;
+        rowsHtml +=
+          '<div class="triprow-list" data-doc="' + esc(t.doc) + '" data-site="' + esc(t.site) + '">' +
+            '<div class="tnum">' + (idx + 1) + '</div>' +
+            '<div class="info">' +
+              '<div class="site">' + esc(t.site || '(ไม่ระบุไซต์)') + '</div>' +
+              '<div class="doc">' + esc(t.doc) + '</div>' +
+            '</div>' +
+            '<div class="times">' +
+              '<span class="out">ออก ' + esc(t.out) + '</span>' +
+              '<span class="in ' + (isDone ? '' : 'pending') + '">' + (isDone ? 'เข้า ' + esc(t.in) : '⏳ ยังไม่กลับ') + '</span>' +
+            '</div>' +
+          '</div>';
+      });
+      sec.innerHTML =
+        '<div class="vsHead"><span class="plate">' + esc(v.plate) + '</span><span class="driver">' + esc(v.driver || '—') + '</span><span class="cnt">' + list.length + ' เที่ยว</span></div>' +
+        '<div class="vsBody">' + rowsHtml + '</div>';
+    }
+    boardList.appendChild(sec);
+  });
+}
+
+/* ---------------- แผงรายการสินค้า (แท็บเที่ยวรถ) ---------------- */
+function openItemDrawer(doc, site){
+  document.getElementById('tripDrDoc').textContent = doc;
+  document.getElementById('drSub').textContent = site || '';
+  var items = ITEMS_BY_DOC[doc];
+  var h = '';
+  if (items && items.length){
+    h += '<div class="itemsec"><div class="ithead"><div class="t">📦 รายการสินค้า</div><div class="n">' + items.length + ' รายการ</div></div>';
+    h += '<table class="itemtable"><thead><tr><th style="width:26px">#</th><th>สินค้า</th><th class="num">จำนวน</th><th>หน่วย</th></tr></thead><tbody>';
+    items.forEach(function(it, i){
+      h += '<tr><td>' + (i + 1) + '</td><td><div class="pname">' + esc(it.name) + '</div><div class="pcode">' + esc(it.code) + '</div></td>' +
+           '<td class="num">' + fmtNum(it.qty) + '</td><td>' + esc(it.unit) + '</td></tr>';
+    });
+    h += '</tbody></table>';
+    h += '<div class="src">ที่มา: นำเข้าจากรายงาน ERP (join ด้วยเลขที่เอกสาร) — ไม่ใช่ข้อมูลเรียลไทม์</div></div>';
+  } else {
+    h = '<div class="itemsec"><div class="ithead"><div class="t">📦 รายการสินค้า</div></div>' +
+        '<div class="dbox soft">ยังไม่มีข้อมูลรายการสินค้าสำหรับใบนี้ — อาจยังไม่ได้นำเข้าไฟล์ ERP ของรอบนี้</div></div>';
+  }
+  document.getElementById('tripDrBody').innerHTML = h;
+  document.getElementById('itemDrawer').classList.add('on');
+  document.getElementById('tripScrim').classList.add('on');
+}
+function closeItemDrawer(){
+  document.getElementById('itemDrawer').classList.remove('on');
+  document.getElementById('tripScrim').classList.remove('on');
+}
+document.getElementById('board').addEventListener('click', function(e){
+  var el = e.target.closest('.cell.filled');
+  if (el) openItemDrawer(el.dataset.doc, el.dataset.site);
+});
+document.getElementById('boardList').addEventListener('click', function(e){
+  var el = e.target.closest('.triprow-list');
+  if (el && el.dataset.doc) openItemDrawer(el.dataset.doc, el.dataset.site);
+});
+
+/* ---------------- มุมมองตาราง / รายการ ---------------- */
+function applyViewMode(){
+  var board = document.getElementById('board');
+  var boardList = document.getElementById('boardList');
+  var btnGrid = document.getElementById('btnGridView');
+  var btnList = document.getElementById('btnListView');
+  if (viewMode === 'grid'){
+    board.style.display = '';
+    boardList.style.display = 'none';
+    btnGrid.classList.add('active');
+    btnList.classList.remove('active');
+  } else {
+    board.style.display = 'none';
+    boardList.style.display = '';
+    btnGrid.classList.remove('active');
+    btnList.classList.add('active');
+  }
+}
+document.getElementById('btnGridView').addEventListener('click', function(){ viewMode = 'grid'; applyViewMode(); });
+document.getElementById('btnListView').addEventListener('click', function(){ viewMode = 'list'; applyViewMode(); });
+
+/* ---------------- แถบวันที่ ---------------- */
+document.getElementById('prevDay').addEventListener('click', function(){ goDate(addDays(curDate, -1)); });
+document.getElementById('nextDay').addEventListener('click', function(){ goDate(addDays(curDate, 1)); });
+document.getElementById('todayBtn').addEventListener('click', function(){ goDate(MAX_DATE || curDate); });
+document.getElementById('datePicker').addEventListener('change', function(e){ goDate(e.target.value); });
+document.getElementById('tripRefreshBtn').addEventListener('click', refreshCurrent);
+
+applyViewMode();
+
+
+/* ============================================================
+   เริ่มทำงาน — โหลดเฉพาะแท็บสถานะจัดส่งก่อน (แท็บเริ่มต้น)
+   ส่วนแท็บเที่ยวรถโหลดแบบ lazy ตอนกดแท็บครั้งแรก (ดู switchTab)
+   ============================================================ */
+loadLoginNames();
+var savedAuth = loadAuth();
+if (savedAuth && savedAuth.name && savedAuth.pin) {
+  document.getElementById('loginName').value = savedAuth.name;
+  fetchDashboard(savedAuth.name, savedAuth.pin).then(function(){
+    showMain(savedAuth.name);
+  }).catch(function(err){
+    if (err && err.denied) { clearAuth(); }
+    showLogin(err && err.denied ? 'เข้าสู่ระบบอีกครั้งค่ะ (ชื่อ/PIN เดิมใช้ไม่ได้แล้ว)' : 'เชื่อมต่อไม่สำเร็จ ลองใหม่อีกครั้งค่ะ');
+  });
+} else {
+  showLogin();
 }
 </script>
 </body>
