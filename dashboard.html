@@ -280,10 +280,10 @@
         <tr>
           <th>เลขที่เอกสาร</th>
           <th>ไซต์จัดส่ง / ลูกค้า</th>
-          <th>กำหนดส่ง</th>
           <th>สถานะ</th>
           <th>คนขับ / รถ</th>
           <th>โทรคอนเฟิร์ม</th>
+          <th>วันที่ส่ง</th>
           <th>เวลารถออกจากร้าน</th>
           <th>เวลารถถึงร้าน (=เวลากดปิดงาน)</th>
         </tr>
@@ -476,16 +476,15 @@ function toggleRange(){
 
 /* ---------------- ตัวช่วยแสดงผล ---------------- */
 function isOverdue(r){ return !!r.overdue && statusOf(r).key === 'wait'; }
-function reqWhen(r){
-  if (!r.reqDate) return '<span class="dash">—</span>';
-  const txt = esc(r.reqDate) + (r.reqTime ? ' · ' + esc(r.reqTime) : '');
-  return '<span class="when' + (isOverdue(r) ? ' over' : '') + '">' + txt + '</span>';
-}
 function callCell(r){
   if (r.callResult === 'confirmed') return '<span class="call ok">✓ คอนเฟิร์ม ' + esc(r.confirmed) + '</span>';
   if (r.callResult === 'noanswer') return '<span class="call tried">📵 โทรไม่ติด (' + (r.calls||0) + ' ครั้ง)</span>';
   if (r.calls > 0) return '<span class="call tried">📞 โทรแล้ว ' + r.calls + ' ครั้ง ยังไม่คอนเฟิร์ม</span>';
   return '<span class="call none">ยังไม่โทร</span>';
+}
+function departDateCell(r){
+  if (!r.departDate) return '<span class="dash">—</span>';
+  return esc(r.departDate);
 }
 function departCell(r){
   if (!r.departAt) return '<span class="dash">—</span>';
@@ -593,10 +592,10 @@ function render(){
         (r.site ? '<div class="name">' + esc(r.site) + '</div><div class="sub">' + esc(r.customer) + (r.phone ? ' · ' + esc(r.phone) : '') + '</div>'
                 : '<div class="name dash">ยังไม่ผูกไซต์</div><div class="sub">เซลล์ยังไม่กรอกข้อมูล</div>') +
       '</td>' +
-      '<td>' + reqWhen(r) + '</td>' +
       '<td>' + badgeHtml(r) + '</td>' +
       '<td class="driver-cell">' + (r.driver ? esc(r.driver) + '<div class="sub">' + esc(r.plate || '—') + '</div>' : '<span class="dash">—</span>') + '</td>' +
       '<td>' + callCell(r) + '</td>' +
+      '<td>' + departDateCell(r) + '</td>' +
       '<td>' + departCell(r) + '</td>' +
       '<td>' + arriveCell(r) + '</td>' +
     '</tr>';
@@ -650,6 +649,7 @@ function detailHtml(r){
     ['โทรคอนเฟิร์ม', r.callResult === 'confirmed' ? '✓ คอนเฟิร์มแล้ว ' + esc(r.confirmed) + ' (กดโทร ' + r.calls + ' ครั้ง)'
                     : r.callResult === 'noanswer' ? '📵 โทรไม่ติด (กดโทร ' + r.calls + ' ครั้ง)'
                     : (r.calls ? 'กดโทร ' + r.calls + ' ครั้ง ยังไม่คอนเฟิร์ม' : 'ยังไม่โทร')],
+    ['วันที่ส่ง', esc(r.departDate) || '—'],
     ['เวลารถออกจากร้าน', esc(r.departAt) || '—'],
     ['เวลารถถึงร้าน (=เวลากดปิดงาน)', esc(r.closedAt) || (r.departAt ? 'อยู่ระหว่างเดินทาง' : '—')],
   ];
