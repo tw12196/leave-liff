@@ -310,6 +310,21 @@
       <button class="link-btn hide" id="usePlateBtn">↩ ใช้ทะเบียนรถประจำ</button>
     </div>
 
+    <!-- รถคันที่ 2 — ใบเดียวของเยอะ แบ่งใส่ 2 คัน ออกพร้อมกันไปที่เดียวกัน -->
+    <button class="btn ghost" id="addTruck2Btn" style="margin-bottom:14px;">➕ เพิ่มรถคันที่ 2</button>
+    <div id="truck2Box" class="hide">
+      <div class="field">
+        <label>คนขับคันที่ 2</label>
+        <select id="dDriver2"><option value="">— เลือกคนขับคันที่ 2 —</option></select>
+      </div>
+      <div class="field">
+        <label>ทะเบียนรถคันที่ 2</label>
+        <input id="dPlate2Input" placeholder="เช่น 82-8487" />
+        <div class="sub" id="dPlate2"></div>
+        <button class="link-btn" id="removeTruck2Btn">✕ ไม่ใช้รถคันที่ 2 แล้ว</button>
+      </div>
+    </div>
+
     <!-- เบอร์ติดต่อ + ปุ่มโทร -->
     <div class="field">
       <label>เบอร์ติดต่อหน้างาน</label>
@@ -626,6 +641,16 @@ function loadDrivers() {
       opt.textContent = d.name + (d.plate ? ('  ·  ' + d.plate) : '');
       sel.appendChild(opt);
     }
+    // คันที่ 2 ใช้รายชื่อชุดเดียวกัน
+    var sel2 = $('dDriver2');
+    sel2.innerHTML = '<option value="">— เลือกคนขับคันที่ 2 —</option>';
+    for (var k = 0; k < state.drivers.length; k++) {
+      var d2 = state.drivers[k];
+      var o2 = document.createElement('option');
+      o2.value = d2.name;
+      o2.textContent = d2.name + (d2.plate ? ('  ·  ' + d2.plate) : '');
+      sel2.appendChild(o2);
+    }
     if (!state.drivers.length) {
       toast('ยังไม่มีรายชื่อในชีต "คนขับ" — เพิ่มชื่อในชีตก่อนนะคะ', true);
     }
@@ -679,7 +704,7 @@ function renderQueue() {
   for (var i = 0; i < list.length; i++) {
     var o = list[i];
     var meta = [];
-    if (o.driver) meta.push('🚚 ' + o.driver);
+    if (o.driver) meta.push('🚚 ' + o.driver + (o.driver2 ? (' + ' + o.driver2) : ''));
     if (o.callCount) meta.push('📞 ' + o.callCount + ' ครั้ง');
     if (o.confirmed) meta.push('✔ คอนเฟิร์มแล้ว');
     if (o.nextAction) meta.push('📋 ' + o.nextAction);
@@ -778,6 +803,12 @@ function renderDoc() {
   $('dDriver').value = d.driver || '';
   $('dPlateInput').value = String(d.plate || '').trim() || defaultPlate(d.driver || '');
   updatePlateHint();
+
+  var d2 = String(d.driver2 || '').trim();
+  $('dDriver2').value = d2;
+  $('dPlate2Input').value = String(d.plate2 || '').trim() || (d2 ? defaultPlate(d2) : '');
+  showTruck2(!!d2);                    // ใบไหนเคยจัด 2 คัน เปิดกล่องค้างไว้ให้เห็นเลย
+  updatePlate2Hint();
   $('dPhone').value = d.phone || '';
   $('crConfirmed').checked = (d.callResult === 'confirmed');
   $('crNoAnswer').checked  = (d.callResult === 'noanswer');
@@ -848,6 +879,38 @@ function updatePlateHint() {
 function onDriverChange() {
   $('dPlateInput').value = defaultPlate($('dDriver').value);
   updatePlateHint();
+}
+
+/* ---------- รถคันที่ 2 ---------- */
+
+function showTruck2(on) {
+  $('truck2Box').classList.toggle('hide', !on);
+  $('addTruck2Btn').classList.toggle('hide', on);
+}
+
+function onDriver2Change() {
+  $('dPlate2Input').value = defaultPlate($('dDriver2').value);
+  updatePlate2Hint();
+}
+
+function updatePlate2Hint() {
+  var name = $('dDriver2').value;
+  var def  = defaultPlate(name);
+  var cur  = ($('dPlate2Input').value || '').trim();
+  var bits = [];
+  if (!name) bits.push('เลือกคนขับคันที่ 2 ก่อน');
+  else if (name === $('dDriver').value) bits.push('⚠️ ซ้ำกับคนขับคันแรก กรุณาเลือกคนอื่น');
+  else if (!def) bits.push('คนขับคนนี้ยังไม่ได้ตั้งรถประจำ — พิมพ์ทะเบียนเองได้เลย');
+  else if (cur !== def) bits.push('รถประจำของ ' + name + ' คือ ' + def);
+  else bits.push('เติมจากรถประจำให้แล้ว แก้ไขได้');
+  $('dPlate2').textContent = bits.join('  ·  ');
+}
+
+function removeTruck2() {
+  $('dDriver2').value = '';
+  $('dPlate2Input').value = '';
+  updatePlate2Hint();
+  showTruck2(false);
 }
 
 function useDefaultPlate() {
@@ -986,10 +1049,18 @@ function onSaveQueue() {
   var btn = $('saveQueueBtn');
   btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
 
+  var driver2 = ($('truck2Box').classList.contains('hide')) ? '' : ($('dDriver2').value || '');
+  if (driver2 && driver2 === driver) {
+    toast('คนขับคันที่ 2 ต้องไม่ใช่คนเดียวกับคันแรกค่ะ', true);
+    return;
+  }
+
   api('dsp_save', {
     doc: d.doc,
     driver: driver,
     plate: currentPlate(),
+    driver2: driver2,
+    plate2: driver2 ? (($('dPlate2Input').value || '').trim()) : '',
     phone: ($('dPhone').value || '').trim(),
     callResult: callResult,
     note: ($('dDspNote').value || '').trim(),
@@ -998,7 +1069,8 @@ function onSaveQueue() {
   }).then(function (res) {
     state.doc = res;
     $('doneSummary').innerHTML = esc(res.doc) + '<br>' + esc(res.site) + '<br>🚚 ' + esc(res.driver) +
-      (res.plate ? ('  ·  ' + esc(res.plate)) : '');
+      (res.plate ? ('  ·  ' + esc(res.plate)) : '') +
+      (res.driver2 ? ('<br>🚚 ' + esc(res.driver2) + (res.plate2 ? ('  ·  ' + esc(res.plate2)) : '')) : '');
     $('donePush').textContent = (res.pushResult && res.pushResult.sent)
       ? '✅ แจ้ง LINE คนขับแล้ว'
       : 'ℹ️ ยังไม่ได้เปิดใช้การแจ้ง LINE คนขับอัตโนมัติ (' + ((res.pushResult && res.pushResult.message) || '-') + ')';
@@ -1192,6 +1264,10 @@ document.addEventListener('DOMContentLoaded', function () {
   $('dDriver').addEventListener('change', onDriverChange);
   $('dPlateInput').addEventListener('input', updatePlateHint);
   $('usePlateBtn').addEventListener('click', useDefaultPlate);
+  $('addTruck2Btn').addEventListener('click', function () { showTruck2(true); updatePlate2Hint(); });
+  $('removeTruck2Btn').addEventListener('click', removeTruck2);
+  $('dDriver2').addEventListener('change', onDriver2Change);
+  $('dPlate2Input').addEventListener('input', updatePlate2Hint);
   $('callBtn').addEventListener('click', onCall);
   $('saveNoteBtn').addEventListener('click', onSaveNote);
   $('saveQueueBtn').addEventListener('click', onSaveQueue);
