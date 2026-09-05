@@ -561,6 +561,16 @@
 var API_URL = 'https://script.google.com/macros/s/AKfycbw1wv9CjOJlLuvn4CO7RXZU2rLgtu3zYThZ5viU3-pOefZwdp15vu8oBdTRMeKXCCpfuQ/exec';
 var AUTH_KEY = 'dsp_dashboard_auth_v1';
 
+/* ---------------- เข้าผ่านลิงก์ปุ่ม Rich Menu (?k=รหัสลับ) — ข้ามหน้าล็อกอินไปเลย ---------------- */
+var URL_KEY = (function(){
+  try { return new URLSearchParams(window.location.search).get('k') || ''; } catch (e) { return ''; }
+})();
+var IS_KEY_MODE = false; // true เมื่อเข้าด้วย ?k= ที่ถูกต้องแล้ว (ตั้งค่าตอน login สำเร็จ)
+function credParams(auth){
+  // auth = {key:'...'} (เข้าทาง Rich Menu) หรือ {name:'...', pin:'...'} (เข้าทางฟอร์มล็อกอินปกติ)
+  return (auth && auth.key) ? { key: auth.key } : { name: (auth && auth.name) || '', pin: (auth && auth.pin) || '' };
+}
+
 function esc(s){
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -608,7 +618,12 @@ function showLogin(errMsg){
 function showMain(name){
   document.getElementById('loginScreen').hidden = true;
   document.getElementById('mainScreen').hidden = false;
-  document.getElementById('whoamiName').textContent = name || '';
+  if (IS_KEY_MODE) {
+    document.querySelector('.whoami').innerHTML = 'เข้าผ่าน <b>Rich Menu</b>';
+    document.querySelector('.btn-logout').hidden = true;
+  } else {
+    document.getElementById('whoamiName').textContent = name || '';
+  }
   switchTab('dash');
 }
 function loadLoginNames(){
@@ -623,7 +638,7 @@ function doLogin(){
   if (!name || !pin) { showLogin('กรุณากรอกทั้งชื่อและ PIN ค่ะ'); return; }
   var btn = document.getElementById('loginBtn');
   btn.disabled = true; btn.textContent = 'กำลังตรวจสอบ...';
-  fetchDashboard(name, pin).then(function(){
+  fetchDashboard({ name: name, pin: pin }).then(function(){
     saveAuth(name, pin);
     showMain(name);
   }).catch(function(err){
@@ -662,7 +677,7 @@ function switchTab(tab){
     var auth = currentAuth || loadAuth();
     if (!auth) { showLogin(); return; }
     setStatusBar('⏳ กำลังโหลดข้อมูลเที่ยวรถ...', false, false);
-    loadAll(auth.name, auth.pin, '').then(function(){
+    loadAll(auth, '').then(function(){
       tripLoaded = true;
       setStatusBar('');
     }).catch(function(err){
@@ -684,10 +699,10 @@ document.getElementById('loginName').addEventListener('keydown', function(e){ if
    ============================================================ */
 var ROWS = [];
 
-function fetchDashboard(name, pin){
+function fetchDashboard(auth){
   setStatusBar('⏳ กำลังโหลดข้อมูล...', false, false);
-  return api('dsp_dashboard', { name: name, pin: pin }).then(function(data){
-    currentAuth = { name: name, pin: pin };
+  return api('dsp_dashboard', credParams(auth)).then(function(data){
+    currentAuth = auth;
     ROWS = (data && data.rows) || [];
     fillItemDatalist();
     render();
@@ -707,7 +722,7 @@ function manualRefresh(){
   if (!auth) { showLogin(); return; }
   var btn = document.getElementById('refreshBtn');
   var t = btn.textContent; btn.textContent = '⏳'; btn.disabled = true;
-  fetchDashboard(auth.name, auth.pin).catch(function(err){
+  fetchDashboard(auth).catch(function(err){
     if (err && err.denied) { clearAuth(); showLogin('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่ค่ะ'); }
   }).finally(function(){
     btn.textContent = t; btn.disabled = false;
@@ -1125,7 +1140,7 @@ function buildImportBatches() {
 function confirmImport() {
   if (!importGroupedByDoc || !importDocOrder || !importDocOrder.length) return;
   var auth = currentAuth || loadAuth();
-  if (!auth || !auth.name || !auth.pin) { showImportStatus('กรุณาเข้าสู่ระบบใหม่อีกครั้งก่อนนำเข้าข้อมูล', true); return; }
+  if (!auth || (!auth.key && (!auth.name || !auth.pin))) { showImportStatus('กรุณาเข้าสู่ระบบใหม่อีกครั้งก่อนนำเข้าข้อมูล', true); return; }
 
   var batches = buildImportBatches();
   var btn = document.getElementById('confirmImportBtn');
@@ -1142,7 +1157,7 @@ function confirmImport() {
       return;
     }
     btn.textContent = 'กำลังนำเข้า... (' + (idx + 1) + '/' + batches.length + ')';
-    var payload = { name: auth.name, pin: auth.pin, items: batches[idx] };
+    var payload = Object.assign({ items: batches[idx] }, credParams(auth));
     api('dsp_importitems', { payload: JSON.stringify(payload) })
       .then(function (res) {
         totalDocs += res.docsImported || 0;
@@ -1174,11 +1189,11 @@ var viewMode = 'grid';
 var THAI_MONTHS = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
 var THAI_DOW = ["อาทิตย์","จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์"];
 
-function loadRoster(name, pin){
-  return api('dsp_drivers', { name: name, pin: pin }).then(function(list){ ROSTER = list || []; });
+function loadRoster(auth){
+  return api('dsp_drivers', credParams(auth)).then(function(list){ ROSTER = list || []; });
 }
-function loadTripboard(name, pin, date){
-  var params = { name: name, pin: pin };
+function loadTripboard(auth, date){
+  var params = credParams(auth);
   if (date) params.date = date;
   return api('dsp_tripboard', params).then(function(data){
     TRIP = data || { date: '', today: '', vehicles: [], trips: {} };
@@ -1193,9 +1208,9 @@ function loadTripboard(name, pin, date){
     return TRIP;
   });
 }
-function loadAll(name, pin, date){
-  return Promise.all([loadRoster(name, pin), loadTripboard(name, pin, date)]).then(function(){
-    currentAuth = { name: name, pin: pin };
+function loadAll(auth, date){
+  return Promise.all([loadRoster(auth), loadTripboard(auth, date)]).then(function(){
+    currentAuth = auth;
     renderTrip();
   });
 }
@@ -1205,7 +1220,7 @@ function refreshCurrent(){
   var btn = document.getElementById('tripRefreshBtn');
   var t = btn.textContent; btn.textContent = '⏳'; btn.disabled = true;
   setStatusBar('⏳ กำลังโหลดข้อมูล...', false, false);
-  loadAll(auth.name, auth.pin, curDate).then(function(){
+  loadAll(auth, curDate).then(function(){
     setStatusBar('');
   }).catch(function(err){
     if (err && err.denied) { clearAuth(); showLogin('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่ค่ะ'); }
@@ -1220,7 +1235,7 @@ function goDate(newDate){
   var auth = currentAuth || loadAuth();
   if (!auth) { showLogin(); return; }
   setStatusBar('⏳ กำลังโหลดข้อมูล...', false, false);
-  loadTripboard(auth.name, auth.pin, newDate).then(function(){
+  loadTripboard(auth, newDate).then(function(){
     renderTrip();
     setStatusBar('');
   }).catch(function(err){
@@ -1462,16 +1477,31 @@ applyViewMode();
    ============================================================ */
 loadLoginNames();
 var savedAuth = loadAuth();
-if (savedAuth && savedAuth.name && savedAuth.pin) {
-  document.getElementById('loginName').value = savedAuth.name;
-  fetchDashboard(savedAuth.name, savedAuth.pin).then(function(){
-    showMain(savedAuth.name);
-  }).catch(function(err){
-    if (err && err.denied) { clearAuth(); }
-    showLogin(err && err.denied ? 'เข้าสู่ระบบอีกครั้งค่ะ (ชื่อ/PIN เดิมใช้ไม่ได้แล้ว)' : 'เชื่อมต่อไม่สำเร็จ ลองใหม่อีกครั้งค่ะ');
+function bootWithSavedAuth(){
+  if (savedAuth && savedAuth.name && savedAuth.pin) {
+    document.getElementById('loginName').value = savedAuth.name;
+    fetchDashboard({ name: savedAuth.name, pin: savedAuth.pin }).then(function(){
+      showMain(savedAuth.name);
+    }).catch(function(err){
+      if (err && err.denied) { clearAuth(); }
+      showLogin(err && err.denied ? 'เข้าสู่ระบบอีกครั้งค่ะ (ชื่อ/PIN เดิมใช้ไม่ได้แล้ว)' : 'เชื่อมต่อไม่สำเร็จ ลองใหม่อีกครั้งค่ะ');
+    });
+  } else {
+    showLogin();
+  }
+}
+if (URL_KEY) {
+  // เข้าผ่านลิงก์ปุ่ม Rich Menu ที่ฝังรหัสลับไว้ — ข้ามหน้าล็อกอินไปเลย
+  IS_KEY_MODE = true;
+  fetchDashboard({ key: URL_KEY }).then(function(){
+    showMain('');
+  }).catch(function(){
+    // รหัสลับผิด/หมดอายุ — กลับไปใช้ชื่อ+PIN ตามปกติแทนที่จะค้างหน้าขาว
+    IS_KEY_MODE = false;
+    bootWithSavedAuth();
   });
 } else {
-  showLogin();
+  bootWithSavedAuth();
 }
 </script>
 </body>
