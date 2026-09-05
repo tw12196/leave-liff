@@ -372,6 +372,13 @@
   </div>
 </div>
 
+<div id="keyLoading" class="loginwrap" hidden>
+  <div class="logincard" style="text-align:center;">
+    <h1>Dashboard จัดส่ง</h1>
+    <p>กำลังเข้าสู่ระบบผ่าน Rich Menu...</p>
+  </div>
+</div>
+
 <div id="mainScreen" class="wrap" hidden>
   <div class="pagehead">
     <div>
@@ -610,6 +617,7 @@ function clearAuth(){
 function showLogin(errMsg){
   document.getElementById('loginScreen').hidden = false;
   document.getElementById('mainScreen').hidden = true;
+  document.getElementById('keyLoading').hidden = true;
   tripLoaded = false;
   var errEl = document.getElementById('loginErr');
   if (errMsg) { errEl.textContent = errMsg; errEl.hidden = false; }
@@ -617,6 +625,7 @@ function showLogin(errMsg){
 }
 function showMain(name){
   document.getElementById('loginScreen').hidden = true;
+  document.getElementById('keyLoading').hidden = true;
   document.getElementById('mainScreen').hidden = false;
   if (IS_KEY_MODE) {
     document.querySelector('.whoami').innerHTML = 'เข้าผ่าน <b>Rich Menu</b>';
@@ -1492,12 +1501,16 @@ function bootWithSavedAuth(){
 }
 if (URL_KEY) {
   // เข้าผ่านลิงก์ปุ่ม Rich Menu ที่ฝังรหัสลับไว้ — ข้ามหน้าล็อกอินไปเลย
+  // โชว์หน้า "กำลังเข้าสู่ระบบ..." แทนหน้าล็อกอินระหว่างรอเช็ครหัสลับ กันไม่ให้เห็นฟอร์มล็อกอินโผล่วาบ
+  document.getElementById('loginScreen').hidden = true;
+  document.getElementById('keyLoading').hidden = false;
   IS_KEY_MODE = true;
   fetchDashboard({ key: URL_KEY }).then(function(){
     showMain('');
   }).catch(function(){
     // รหัสลับผิด/หมดอายุ — กลับไปใช้ชื่อ+PIN ตามปกติแทนที่จะค้างหน้าขาว
     IS_KEY_MODE = false;
+    document.getElementById('keyLoading').hidden = true;
     bootWithSavedAuth();
   });
 } else {
