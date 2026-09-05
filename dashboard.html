@@ -216,13 +216,16 @@
   .vehsection .vsHead .cnt{ font-size:11px; color:#FFE6A8; font-weight:700; }
   .vehsection .vsBody{ padding:10px 12px; }
   .triprow-list{
-    display:flex; align-items:center; gap:10px; padding:9px 6px; border-bottom:1px solid var(--soft); font-size:12.5px;
+    display:flex; align-items:flex-start; gap:10px; padding:9px 6px; border-bottom:1px solid var(--soft); font-size:12.5px;
   }
   .triprow-list:last-child{ border-bottom:none; }
   .triprow-list .tnum{
     width:22px; height:22px; border-radius:50%; background:var(--soft); color:var(--muted); font-size:11px; font-weight:800;
-    display:flex; align-items:center; justify-content:center; flex:none;
+    display:flex; align-items:center; justify-content:center; flex:none; margin-top:2px;
   }
+  .triprow-list .stops{ flex:1; min-width:0; display:flex; flex-direction:column; gap:8px; }
+  .triprow-list .stopblock{ display:flex; align-items:center; gap:10px; }
+  .triprow-list .stopblock + .stopblock{ padding-top:8px; border-top:1px dashed var(--line); }
   .triprow-list .info{ flex:1; min-width:0; }
   .triprow-list .info .site{ font-weight:700; color:var(--ink); }
   .triprow-list .info .doc{ font-size:10.5px; color:var(--faint); }
@@ -259,6 +262,7 @@
   .cell .times .in.pending{ color:var(--transit-fg); font-weight:700; }
   .cell .times .out.unknown{ color:var(--transit-fg); font-style:italic; }
   .cell .doc .multidoc{ color:var(--transit-fg); font-weight:700; }
+  .cell .stopblock + .stopblock{ margin-top:6px; padding-top:6px; border-top:1px dashed var(--line); }
   .triprow-list .times .out.unknown{ color:var(--transit-fg); font-style:italic; }
   .triprow-list .info .doc .multidoc{ color:var(--transit-fg); font-weight:700; }
 
@@ -1259,6 +1263,27 @@ function addDays(iso, delta){
   return d.toISOString().slice(0, 10);
 }
 
+/* ---------------- สร้าง HTML ของแต่ละจุดส่งย่อยภายในเที่ยวเดียวกัน ---------------- */
+// เที่ยวที่ถูกรวม (เช่น ออกจากร้านไปหลายจุดแล้วกลับมาปิดงานพร้อมกัน) จะมี t.stops
+// เก็บรายละเอียดแยกตามจุดส่งจริง (ไซต์ + เลขที่เอกสาร + เวลาออกของจุดนั้นๆ) —
+// ส่วน "เข้า" (เวลาปิดงาน/กลับถึง) ใช้ค่าเดียวกันของทั้งเที่ยว เพราะกดปิดงานพร้อมกันจริง
+function stopBlocksHtml(t, isDone, wrapInfo){
+  var stops = (t.stops && t.stops.length) ? t.stops : [{ site: t.site, docs: t.docs, out: t.out, outMissing: t.outMissing }];
+  return stops.map(function(s){
+    var sDocsLabel = (s.docs || []).join(', ');
+    var sMultiTag = (s.docs && s.docs.length > 1) ? ' <span class="multidoc">(' + s.docs.length + ' บิล)</span>' : '';
+    var sOutLabel = s.outMissing ? '⚠ ไม่ทราบเวลาออก' : ('ออก ' + esc(s.out));
+    var timesHtml = '<div class="times">' +
+        '<span class="out' + (s.outMissing ? ' unknown' : '') + '">' + sOutLabel + '</span>' +
+        '<span class="in ' + (isDone ? '' : 'pending') + '">' + (isDone ? 'เข้า ' + esc(t.in) : '⏳ ยังไม่กลับ') + '</span>' +
+      '</div>';
+    var siteDocHtml = '<div class="site">' + esc(s.site || '(ไม่ระบุไซต์)') + '</div>' +
+      '<div class="doc">' + esc(sDocsLabel) + sMultiTag + '</div>';
+    if (wrapInfo) return '<div class="stopblock"><div class="info">' + siteDocHtml + '</div>' + timesHtml + '</div>';
+    return '<div class="stopblock">' + siteDocHtml + timesHtml + '</div>';
+  }).join('');
+}
+
 /* ---------------- วาดหน้าจอเที่ยวรถ ---------------- */
 function renderTrip(){
   if (!TRIP) return;
@@ -1320,16 +1345,8 @@ function renderTrip(){
       } else {
         var isDone = !!t.in;
         var docsCsv = (t.docs || []).join(',');
-        var docsLabel = (t.docs || []).join(', ');
-        var multiTag = (t.docs && t.docs.length > 1) ? ' <span class="multidoc">(' + t.docs.length + ' บิล)</span>' : '';
-        var outLabel = t.outMissing ? '⚠ ไม่ทราบเวลาออก' : ('ออก ' + esc(t.out));
         html += '<div class="cell filled ' + (isDone ? 'done' : 'transit') + '" data-doc="' + esc(docsCsv) + '" data-site="' + esc(t.site) + '">' +
-          '<div class="site">' + esc(t.site || '(ไม่ระบุไซต์)') + '</div>' +
-          '<div class="doc">' + esc(docsLabel) + multiTag + '</div>' +
-          '<div class="times">' +
-            '<span class="out' + (t.outMissing ? ' unknown' : '') + '">' + outLabel + '</span>' +
-            '<span class="in ' + (isDone ? '' : 'pending') + '">' + (isDone ? 'เข้า ' + esc(t.in) : '⏳ ยังไม่กลับ') + '</span>' +
-          '</div>' +
+          stopBlocksHtml(t, isDone, false) +
         '</div>';
       }
     });
@@ -1352,20 +1369,10 @@ function renderTrip(){
       list.forEach(function(t, idx){
         var isDone = !!t.in;
         var docsCsv = (t.docs || []).join(',');
-        var docsLabel = (t.docs || []).join(', ');
-        var multiTag = (t.docs && t.docs.length > 1) ? ' <span class="multidoc">(' + t.docs.length + ' บิล)</span>' : '';
-        var outLabel = t.outMissing ? '⚠ ไม่ทราบเวลาออก' : ('ออก ' + esc(t.out));
         rowsHtml +=
           '<div class="triprow-list" data-doc="' + esc(docsCsv) + '" data-site="' + esc(t.site) + '">' +
             '<div class="tnum">' + (idx + 1) + '</div>' +
-            '<div class="info">' +
-              '<div class="site">' + esc(t.site || '(ไม่ระบุไซต์)') + '</div>' +
-              '<div class="doc">' + esc(docsLabel) + multiTag + '</div>' +
-            '</div>' +
-            '<div class="times">' +
-              '<span class="out' + (t.outMissing ? ' unknown' : '') + '">' + outLabel + '</span>' +
-              '<span class="in ' + (isDone ? '' : 'pending') + '">' + (isDone ? 'เข้า ' + esc(t.in) : '⏳ ยังไม่กลับ') + '</span>' +
-            '</div>' +
+            '<div class="stops">' + stopBlocksHtml(t, isDone, true) + '</div>' +
           '</div>';
       });
       sec.innerHTML =
