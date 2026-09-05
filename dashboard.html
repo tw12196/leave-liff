@@ -412,6 +412,7 @@
       <button class="chip" data-f="store" onclick="setFilter('store')">อยู่ระหว่างจัดส่ง</button>
       <button class="chip" data-f="done" onclick="setFilter('done')">ถึงลูกค้าแล้ว</button>
       <button class="chip" data-f="partial" onclick="setFilter('partial')">ส่งไม่ครบ</button>
+      <button class="chip" data-f="closed" onclick="setFilter('closed')">ปิดงาน (ลดหนี้/รับเอง)</button>
       <button class="chip" data-f="self" onclick="setFilter('self')">ลูกค้ารับเอง</button>
       <span class="count" id="count"></span>
     </div>
@@ -710,9 +711,20 @@ function manualRefresh(){
 }
 
 /* ---------------- คำนวณสถานะ ---------------- */
+// นับว่า "ปิดงานแล้วไม่ต้องส่งซ้ำ" เมื่อ nextAction ที่คนขับ/คลังระบุไว้ใน ConfirmationLog
+// เป็นการตัดจบแบบไม่ต้องจัดรถไปอีกรอบ เช่น ทำใบลดหนี้ หรือลูกค้ามารับส่วนที่เหลือเอง
+function isClosedNextAction(na){
+  na = String(na || '');
+  return na.indexOf('ลดหนี้') >= 0 || na.indexOf('รับที่เหลือ') >= 0 || na.indexOf('ลูกค้ามารับ') >= 0;
+}
 function statusOf(r){
   if (r.conf){
-    if (r.conf.status === 'ไม่ครบ') return { key:'partial', label:'⚠ ส่งไม่ครบ', cls:'b-partial' };
+    if (r.conf.status === 'ไม่ครบ') {
+      if (isClosedNextAction(r.conf.nextAction)) {
+        return { key:'closed', label:'🧾 ปิดงาน (' + esc(r.conf.nextAction) + ')', cls:'b-self' };
+      }
+      return { key:'partial', label:'⚠ ส่งไม่ครบ', cls:'b-partial' };
+    }
     return r.conf.loc === 'store'
       ? { key:'store', label:'📦 อยู่ระหว่างจัดส่ง', cls:'b-store' }
       : { key:'done',  label:'✓ ส่งถึงลูกค้าแล้ว',   cls:'b-done'  };
@@ -729,6 +741,7 @@ const IN_FILTER = {
   store:  s => s === 'store',
   done:   s => s === 'done',
   partial:s => s === 'partial',
+  closed: s => s === 'closed',
   self:   s => s === 'self',
 };
 
@@ -814,9 +827,9 @@ function fillItemDatalist(){
     [...names].map(n => '<option value="' + esc(n) + '">').join('');
 }
 
-/* ---------------- การ์ดสรุป: 6 ก้อน แยกกันเด็ดขาด ---------------- */
+/* ---------------- การ์ดสรุป: 7 ก้อน แยกกันเด็ดขาด ---------------- */
 function buildStats(){
-  const c = { wait:0, queued:0, store:0, done:0, partial:0, self:0, overdueWait:0 };
+  const c = { wait:0, queued:0, store:0, done:0, partial:0, closed:0, self:0, overdueWait:0 };
   ROWS.filter(inRange).forEach(r => {
     const k = statusOf(r).key;
     c[k]++;
@@ -837,6 +850,8 @@ function renderStats(){
       n:'คนขับกดปิดงานหน้างานแล้ว' },
     { f:'partial', cls:'s-partial', k:'⚠ ส่งไม่ครบ',            v:c.partial,
       n:'ต้องมีรอบเก็บตก' },
+    { f:'closed',  cls:'s-self',    k:'🧾 ปิดงาน (ลดหนี้/รับเอง)', v:c.closed,
+      n:'ส่งไม่ครบแต่ไม่ต้องส่งซ้ำแล้ว' },
     { f:'self',    cls:'s-self',    k:'🙋 ลูกค้ารับเอง',         v:c.self,
       n:'ถอดออกจากคิวแล้ว' },
   ];
@@ -936,6 +951,7 @@ function detailHtml(r){
     rows.push(['ความหมายของเวลานี้', r.conf.loc === 'store' ? 'เวลาที่ของออกจากร้าน (ยังไม่ถึงลูกค้า)' : 'เวลาที่คนขับกดปิดงานที่หน้างาน (ถึงลูกค้าแล้ว)']);
     rows.push(['ยืนยันโดย', esc(r.conf.by || '—') + (r.conf.method ? ' · วิธีส่ง: ' + esc(r.conf.method) : '')]);
     rows.push(['ผลการส่ง', esc(r.conf.status) + (r.conf.reason ? ' — ' + esc(r.conf.reason) : '')]);
+    if (r.conf.nextAction) rows.push(['จะทำอย่างไรต่อไป', esc(r.conf.nextAction)]);
     rows.push(['รูปหลักฐาน', (r.conf.photos || 0) + ' รูป']);
   }
   if (r.selfPickup){
