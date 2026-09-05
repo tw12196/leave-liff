@@ -257,6 +257,10 @@
   .cell .times .out{ color:var(--muted); }
   .cell .times .in{ color:var(--done-fg); font-weight:700; }
   .cell .times .in.pending{ color:var(--transit-fg); font-weight:700; }
+  .cell .times .out.unknown{ color:var(--transit-fg); font-style:italic; }
+  .cell .doc .multidoc{ color:var(--transit-fg); font-weight:700; }
+  .triprow-list .times .out.unknown{ color:var(--transit-fg); font-style:italic; }
+  .triprow-list .info .doc .multidoc{ color:var(--transit-fg); font-weight:700; }
 
   .legend{ display:flex; gap:18px; flex-wrap:wrap; margin-top:14px; font-size:11.5px; color:var(--muted); }
   .legend .sw{ display:inline-flex; align-items:center; gap:6px; }
@@ -302,6 +306,8 @@
   .itemtable .pname{font-weight:600;}
   .itemtable .pcode{font-size:10.5px; color:var(--faint);}
   .itemsec .src{font-size:10.5px; color:var(--faint); margin-top:6px;}
+  .itemsec .docsub{ font-size:12px; font-weight:700; color:var(--navy); margin:10px 0 6px; padding-top:10px; border-top:1px dashed var(--line); }
+  .itemsec:first-child .docsub{ margin-top:0; padding-top:0; border-top:none; }
 
   .dacts{display:flex; gap:8px; margin:6px 0 14px; flex-wrap:wrap;}
   .dacts a{
@@ -1160,7 +1166,9 @@ function loadTripboard(name, pin, date){
     MAX_DATE = TRIP.today;
     ITEMS_BY_DOC = {};
     Object.keys(TRIP.trips || {}).forEach(function(p){
-      (TRIP.trips[p] || []).forEach(function(t){ if (t.doc) ITEMS_BY_DOC[t.doc] = t.items || null; });
+      (TRIP.trips[p] || []).forEach(function(t){
+        (t.docs || []).forEach(function(d){ ITEMS_BY_DOC[d] = (t.itemsByDoc && t.itemsByDoc[d]) || null; });
+      });
     });
     return TRIP;
   });
@@ -1295,11 +1303,15 @@ function renderTrip(){
         html += '<div class="cell empty">·</div>';
       } else {
         var isDone = !!t.in;
-        html += '<div class="cell filled ' + (isDone ? 'done' : 'transit') + '" data-doc="' + esc(t.doc) + '" data-site="' + esc(t.site) + '">' +
+        var docsCsv = (t.docs || []).join(',');
+        var docsLabel = (t.docs || []).join(', ');
+        var multiTag = (t.docs && t.docs.length > 1) ? ' <span class="multidoc">(' + t.docs.length + ' บิล)</span>' : '';
+        var outLabel = t.outMissing ? '⚠ ไม่ทราบเวลาออก' : ('ออก ' + esc(t.out));
+        html += '<div class="cell filled ' + (isDone ? 'done' : 'transit') + '" data-doc="' + esc(docsCsv) + '" data-site="' + esc(t.site) + '">' +
           '<div class="site">' + esc(t.site || '(ไม่ระบุไซต์)') + '</div>' +
-          '<div class="doc">' + esc(t.doc) + '</div>' +
+          '<div class="doc">' + esc(docsLabel) + multiTag + '</div>' +
           '<div class="times">' +
-            '<span class="out">ออก ' + esc(t.out) + '</span>' +
+            '<span class="out' + (t.outMissing ? ' unknown' : '') + '">' + outLabel + '</span>' +
             '<span class="in ' + (isDone ? '' : 'pending') + '">' + (isDone ? 'เข้า ' + esc(t.in) : '⏳ ยังไม่กลับ') + '</span>' +
           '</div>' +
         '</div>';
@@ -1323,15 +1335,19 @@ function renderTrip(){
       var rowsHtml = '';
       list.forEach(function(t, idx){
         var isDone = !!t.in;
+        var docsCsv = (t.docs || []).join(',');
+        var docsLabel = (t.docs || []).join(', ');
+        var multiTag = (t.docs && t.docs.length > 1) ? ' <span class="multidoc">(' + t.docs.length + ' บิล)</span>' : '';
+        var outLabel = t.outMissing ? '⚠ ไม่ทราบเวลาออก' : ('ออก ' + esc(t.out));
         rowsHtml +=
-          '<div class="triprow-list" data-doc="' + esc(t.doc) + '" data-site="' + esc(t.site) + '">' +
+          '<div class="triprow-list" data-doc="' + esc(docsCsv) + '" data-site="' + esc(t.site) + '">' +
             '<div class="tnum">' + (idx + 1) + '</div>' +
             '<div class="info">' +
               '<div class="site">' + esc(t.site || '(ไม่ระบุไซต์)') + '</div>' +
-              '<div class="doc">' + esc(t.doc) + '</div>' +
+              '<div class="doc">' + esc(docsLabel) + multiTag + '</div>' +
             '</div>' +
             '<div class="times">' +
-              '<span class="out">ออก ' + esc(t.out) + '</span>' +
+              '<span class="out' + (t.outMissing ? ' unknown' : '') + '">' + outLabel + '</span>' +
               '<span class="in ' + (isDone ? '' : 'pending') + '">' + (isDone ? 'เข้า ' + esc(t.in) : '⏳ ยังไม่กลับ') + '</span>' +
             '</div>' +
           '</div>';
@@ -1345,24 +1361,30 @@ function renderTrip(){
 }
 
 /* ---------------- แผงรายการสินค้า (แท็บเที่ยวรถ) ---------------- */
-function openItemDrawer(doc, site){
-  document.getElementById('tripDrDoc').textContent = doc;
+function openItemDrawer(docsCsv, site){
+  var docs = String(docsCsv || '').split(',').filter(Boolean);
+  document.getElementById('tripDrDoc').textContent = docs.join(', ');
   document.getElementById('drSub').textContent = site || '';
-  var items = ITEMS_BY_DOC[doc];
   var h = '';
-  if (items && items.length){
-    h += '<div class="itemsec"><div class="ithead"><div class="t">📦 รายการสินค้า</div><div class="n">' + items.length + ' รายการ</div></div>';
-    h += '<table class="itemtable"><thead><tr><th style="width:26px">#</th><th>สินค้า</th><th class="num">จำนวน</th><th>หน่วย</th></tr></thead><tbody>';
-    items.forEach(function(it, i){
-      h += '<tr><td>' + (i + 1) + '</td><td><div class="pname">' + esc(it.name) + '</div><div class="pcode">' + esc(it.code) + '</div></td>' +
-           '<td class="num">' + fmtNum(it.qty) + '</td><td>' + esc(it.unit) + '</td></tr>';
-    });
-    h += '</tbody></table>';
-    h += '<div class="src">ที่มา: นำเข้าจากรายงาน ERP (join ด้วยเลขที่เอกสาร) — ไม่ใช่ข้อมูลเรียลไทม์</div></div>';
-  } else {
-    h = '<div class="itemsec"><div class="ithead"><div class="t">📦 รายการสินค้า</div></div>' +
-        '<div class="dbox soft">ยังไม่มีข้อมูลรายการสินค้าสำหรับใบนี้ — อาจยังไม่ได้นำเข้าไฟล์ ERP ของรอบนี้</div></div>';
-  }
+  docs.forEach(function(doc){
+    var items = ITEMS_BY_DOC[doc];
+    h += '<div class="itemsec">';
+    if (docs.length > 1) h += '<div class="docsub">📄 ' + esc(doc) + '</div>';
+    if (items && items.length){
+      h += '<div class="ithead"><div class="t">📦 รายการสินค้า</div><div class="n">' + items.length + ' รายการ</div></div>';
+      h += '<table class="itemtable"><thead><tr><th style="width:26px">#</th><th>สินค้า</th><th class="num">จำนวน</th><th>หน่วย</th></tr></thead><tbody>';
+      items.forEach(function(it, i){
+        h += '<tr><td>' + (i + 1) + '</td><td><div class="pname">' + esc(it.name) + '</div><div class="pcode">' + esc(it.code) + '</div></td>' +
+             '<td class="num">' + fmtNum(it.qty) + '</td><td>' + esc(it.unit) + '</td></tr>';
+      });
+      h += '</tbody></table>';
+      h += '<div class="src">ที่มา: นำเข้าจากรายงาน ERP (join ด้วยเลขที่เอกสาร) — ไม่ใช่ข้อมูลเรียลไทม์</div>';
+    } else {
+      h += '<div class="ithead"><div class="t">📦 รายการสินค้า</div></div>' +
+           '<div class="dbox soft">ยังไม่มีข้อมูลรายการสินค้าสำหรับใบนี้ — อาจยังไม่ได้นำเข้าไฟล์ ERP ของรอบนี้</div>';
+    }
+    h += '</div>';
+  });
   document.getElementById('tripDrBody').innerHTML = h;
   document.getElementById('itemDrawer').classList.add('on');
   document.getElementById('tripScrim').classList.add('on');
