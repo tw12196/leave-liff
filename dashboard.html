@@ -1029,9 +1029,11 @@ function closeImportDrawer() {
   document.getElementById('importDrawer').classList.remove('on');
   document.getElementById('importScrim').classList.remove('on');
 }
+var importRunState = null; // {idx, batchCount, totalDocs, totalItems, totalReplaced} — จำจุดที่หลุดไว้ ให้ปุ่ม "ลองใหม่" ทำต่อจากชุดนั้น ไม่ต้องเริ่มนับ 1 ใหม่
 function resetImportDrawer() {
   importGroupedByDoc = null;
   importDocOrder = null;
+  importRunState = null;
   document.getElementById('importFileInput').value = '';
   var st = document.getElementById('importStatusBox'); st.style.display = 'none'; st.textContent = '';
   document.getElementById('importPreviewBox').style.display = 'none';
@@ -1155,9 +1157,23 @@ function confirmImport() {
   var btn = document.getElementById('confirmImportBtn');
   btn.disabled = true;
 
-  var totalDocs = 0, totalItems = 0, totalReplaced = 0;
-  var runBatch = function (idx) {
+  // ถ้าเคยหลุดกลางทางมาก่อน (ไฟล์เดิม จำนวนชุดเท่าเดิม) กด "ลองใหม่" จะทำต่อจากชุดที่ค้างไว้ ไม่เริ่มนับ 1 ใหม่
+  // กันเสียเวลายิงซ้ำหลายร้อยชุดที่สำเร็จไปแล้ว (ข้อมูลเดิมที่นำเข้าไปแล้วก็ไม่หายอยู่แล้วเพราะฝั่งเซิร์ฟเวอร์ทำงานแบบแทนที่)
+  var start = 0, totalDocs = 0, totalItems = 0, totalReplaced = 0;
+  if (importRunState && importRunState.batchCount === batches.length) {
+    start = importRunState.idx;
+    totalDocs = importRunState.totalDocs;
+    totalItems = importRunState.totalItems;
+    totalReplaced = importRunState.totalReplaced;
+  }
+
+  var BATCH_DELAY_MS = 400;    // เว้นจังหวะสั้นๆ ระหว่างชุด กันยิงถี่เกินไปจนเครือข่าย/เซิร์ฟเวอร์ตัดการเชื่อมต่อ (Failed to fetch)
+  var MAX_ATTEMPTS_PER_BATCH = 3; // ชุดไหนหลุด ลองซ้ำอัตโนมัติในชุดเดิมก่อนถึงจะถือว่าล้มเหลวจริง
+
+  var runBatch = function (idx, attempt) {
+    attempt = attempt || 1;
     if (idx >= batches.length) {
+      importRunState = null;
       var box = document.getElementById('importResultBox');
       box.style.display = ''; box.className = 'dbox soft';
       box.textContent = '✅ นำเข้าสำเร็จ: ' + totalDocs + ' เอกสาร (' + totalItems + ' รายการ) — แทนที่ข้อมูลเดิม ' + totalReplaced + ' เอกสาร';
@@ -1165,24 +1181,32 @@ function confirmImport() {
       btn.disabled = false; btn.textContent = '✅ ยืนยันนำเข้า';
       return;
     }
-    btn.textContent = 'กำลังนำเข้า... (' + (idx + 1) + '/' + batches.length + ')';
+    btn.textContent = 'กำลังนำเข้า... (' + (idx + 1) + '/' + batches.length + ')' + (attempt > 1 ? ' (ลองซ้ำครั้งที่ ' + attempt + ')' : '');
     var payload = Object.assign({ items: batches[idx] }, credParams(auth));
     api('dsp_importitems', { payload: JSON.stringify(payload) })
       .then(function (res) {
         totalDocs += res.docsImported || 0;
         totalItems += res.itemsImported || 0;
         totalReplaced += res.docsReplaced || 0;
-        runBatch(idx + 1);
+        importRunState = { idx: idx + 1, batchCount: batches.length, totalDocs: totalDocs, totalItems: totalItems, totalReplaced: totalReplaced };
+        setTimeout(function () { runBatch(idx + 1, 1); }, BATCH_DELAY_MS);
       })
       .catch(function (err) {
+        if (attempt < MAX_ATTEMPTS_PER_BATCH) {
+          // เครือข่าย/เซิร์ฟเวอร์สะดุดชั่วคราว — รอสักครู่แล้วลองยิงชุดเดิมซ้ำอัตโนมัติก่อน ยังไม่ต้องรอผู้ใช้กดเอง
+          setTimeout(function () { runBatch(idx, attempt + 1); }, 1000 * attempt);
+          return;
+        }
+        importRunState = { idx: idx, batchCount: batches.length, totalDocs: totalDocs, totalItems: totalItems, totalReplaced: totalReplaced };
         var box = document.getElementById('importResultBox');
         box.style.display = ''; box.className = 'dbox red';
         box.textContent = 'นำเข้าไม่สำเร็จที่ชุด ' + (idx + 1) + '/' + batches.length +
-          ' (ก่อนหน้านี้สำเร็จไปแล้ว ' + totalDocs + ' เอกสาร): ' + (err && err.message ? err.message : err);
+          ' (ก่อนหน้านี้สำเร็จไปแล้ว ' + totalDocs + ' เอกสาร) หลังลองซ้ำอัตโนมัติ ' + MAX_ATTEMPTS_PER_BATCH + ' ครั้งแล้ว: ' + (err && err.message ? err.message : err) +
+          ' — กด "ลองใหม่" เพื่อทำต่อจากชุดนี้ได้เลยค่ะ (ของเดิมที่นำเข้าไปแล้วไม่หาย)';
         btn.disabled = false; btn.textContent = '✅ ยืนยันนำเข้า (ลองใหม่)';
       });
   };
-  runBatch(0);
+  runBatch(start, 1);
 }
 
 
