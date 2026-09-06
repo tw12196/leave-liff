@@ -139,6 +139,14 @@ const day = String(d.getDate()).padStart(2, "0");
 return `${y}-${m}-${day}`;
 }
 
+// เวลาปัจจุบัน รูปแบบ HH:MM (24 ชม.) ให้ตรงกับ input type="time"
+function nowTimeStr() {
+const d = new Date();
+const hh = String(d.getHours()).padStart(2, "0");
+const mm = String(d.getMinutes()).padStart(2, "0");
+return `${hh}:${mm}`;
+}
+
 async function main() {
 try {
 await liff.init({ liffId: LIFF_ID });
@@ -394,6 +402,7 @@ return '<option value="' + o + '"' + (o === selected ? " selected" : "") + '>' +
 function deliveryFormSectionHtml_(prefill) {
 prefill = prefill || {};
 const dateVal = prefill.deliveryDate ? String(prefill.deliveryDate).slice(0, 10) : todayDateStr();
+const timeVal = prefill.deliveryTime ? String(prefill.deliveryTime).slice(0, 5) : nowTimeStr();
 const photoHint = prefill.photoUrl
 ? "มีรูปเดิมแนบอยู่แล้ว ถ้าไม่แนบรูปใหม่ระบบจะเก็บรูปเดิมไว้"
 : "ถ่ายรูปสินค้า/ใบเบิก/จุดส่งเป็นหลักฐานก่อนกดยืนยัน เลือกได้ทีละหลายรูป";
@@ -407,8 +416,12 @@ return `
 <input type="text" id="deliveryMethodOther" placeholder="ระบุคนขับ/วิธีส่ง" style="display:none;">
 <div id="dispatchHint"></div>
 
-<label class="required">วันที่ส่งมอบจริง</label>
-<input type="date" id="deliveryDate" value="${dateVal}">
+<label class="required">วันที่-เวลาส่งมอบจริง</label>
+<div style="display:flex; gap:8px;">
+<input type="date" id="deliveryDate" value="${dateVal}" style="flex:1.3;">
+<input type="time" id="deliveryTime" value="${timeVal}" style="flex:1;">
+</div>
+<div class="field-hint">เวลาเติมให้อัตโนมัติตอนเปิดหน้านี้ แก้ไขเองได้ถ้าไม่ตรง</div>
 
 <label class="required">รูปถ่าย (แนบได้หลายรูป)</label>
 <div style="display:flex; gap:8px; margin-top:6px;">
@@ -536,6 +549,7 @@ document.getElementById("qtyActual").value = "";
 document.getElementById("reason").value = "";
 document.getElementById("nextAction").value = "";
 document.getElementById("deliveryDate").value = todayDateStr();
+document.getElementById("deliveryTime").value = nowTimeStr();
 if (fieldHintEl) fieldHintEl.textContent = "แนบเฉพาะรูปของรอบนี้ที่ส่ง/รับเพิ่มเติม (ต้องเป็นรูปใหม่ทุกครั้ง ห้ามใช้รูปเดิม)";
 document.getElementById("editFormWrap").style.display = "block";
 topUpBtnEl.style.display = "none";
@@ -870,6 +884,7 @@ showMessage(errMsg, () => attemptSubmitConfirmation_(payload));
 async function submitConfirmation(status, qtyActual, reason, nextAction) {
 const deliveryMethod = getResolvedDeliveryMethod();
 const deliveryDate = document.getElementById("deliveryDate").value;
+const deliveryTime = document.getElementById("deliveryTime").value;
 const photos = currentPhotoList.map((p) => ({ base64: p.base64, mimeType: p.mime }));
 const payload = {
 action: "confirm",
@@ -883,6 +898,7 @@ lineUserId: currentUserId,
 lineDisplayName: currentDisplayName,
 deliveryMethod: deliveryMethod,
 deliveryDate: deliveryDate,
+deliveryTime: deliveryTime,
 photos: photos,
 };
 attemptSubmitConfirmation_(payload);
@@ -936,6 +952,7 @@ showMessage(errMsg, () => attemptSubmitEdit_(payload));
 async function submitEdit(status, qtyActual, reason, nextAction) {
 const deliveryMethod = getResolvedDeliveryMethod();
 const deliveryDate = document.getElementById("deliveryDate").value;
+const deliveryTime = document.getElementById("deliveryTime").value;
 const photos = currentPhotoList.map((p) => ({ base64: p.base64, mimeType: p.mime }));
 const payload = {
 action: "edit",
@@ -949,6 +966,7 @@ lineUserId: currentUserId,
 lineDisplayName: currentDisplayName,
 deliveryMethod: deliveryMethod,
 deliveryDate: deliveryDate,
+deliveryTime: deliveryTime,
 photos: photos,
 };
 attemptSubmitEdit_(payload);
@@ -982,6 +1000,7 @@ showMessage(errMsg, () => attemptSubmitTopUp_(payload));
 async function submitTopUp(status, qtyActual, reason, nextAction) {
 const deliveryMethod = getResolvedDeliveryMethod();
 const deliveryDate = document.getElementById("deliveryDate").value;
+const deliveryTime = document.getElementById("deliveryTime").value;
 const photos = currentPhotoList.map((p) => ({ base64: p.base64, mimeType: p.mime }));
 const payload = {
 action: "topup",
@@ -995,6 +1014,7 @@ lineUserId: currentUserId,
 lineDisplayName: currentDisplayName,
 deliveryMethod: deliveryMethod,
 deliveryDate: deliveryDate,
+deliveryTime: deliveryTime,
 photos: photos,
 };
 attemptSubmitTopUp_(payload);
