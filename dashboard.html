@@ -767,12 +767,14 @@ function statusOf(r){
       }
       return { key:'partial', label:'⚠ ส่งไม่ครบ', cls:'b-partial' };
     }
-    return r.conf.loc === 'store'
-      ? { key:'store', label:'📦 อยู่ระหว่างจัดส่ง', cls:'b-store' }
-      : { key:'done',  label:'✓ ส่งถึงลูกค้าแล้ว',   cls:'b-done'  };
+    return { key:'done',  label:'✓ ส่งถึงลูกค้าแล้ว',   cls:'b-done'  };
   }
   if (r.selfPickup) return { key:'self',   label:'🙋 ลูกค้ารับเอง', cls:'b-self' };
   if (r.failCount > 0) return { key:'failed', label:'⚠️ ส่งไม่สำเร็จ · รอจัดเที่ยวใหม่', cls:'b-failed' };
+  // มีเวลาออกจากร้านแล้ว (คนขับกดปุ่มบนการ์ด LINE ตอนออกเดินทาง) แต่ยังไม่กดปิดงาน (ยังไม่มี ConfirmationLog)
+  // ก่อนหน้านี้เช็ค r.conf.loc==='store' ซึ่งไม่เคยตรงจริง (ConfirmationLog เก็บ loc เป็น 'warehouse' เสมอ)
+  // ทำให้เที่ยวที่ออกจากร้านไปแล้วค้างอยู่ที่ "จัดคิวแล้ว รอส่ง" ตลอด ไม่เคยขยับมาที่นี่ (แก้ 7 ก.ย. 2569)
+  if (r.driver && r.departAt) return { key:'store', label:'📦 อยู่ระหว่างจัดส่ง', cls:'b-store' };
   if (r.driver)     return { key:'queued', label:'🚚 จัดคิวแล้ว รอส่ง', cls:'b-queue' };
   if (!r.site)      return { key:'wait',   label:'⏳ ยังไม่ผูกไซต์', cls:'b-wait' };
   return              { key:'wait',   label:'⏳ รอจัดคิว', cls:'b-wait' };
