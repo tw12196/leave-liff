@@ -72,7 +72,7 @@
   }
   .datebar .refresh:hover{ border-color:#C9C5B8; }
 
-  .stats{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:18px; }
+  .stats{ display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-bottom:18px; }
   .stat{
     background:var(--surface); border:1px solid var(--line); border-left:4px solid var(--line);
     border-radius:10px; padding:11px 14px;
@@ -82,9 +82,11 @@
   .stat.s-total{ border-left-color:#7B57C4; }
   .stat.s-transit{ border-left-color:#D8A73D; }
   .stat.s-done{ border-left-color:#0F6E56; }
+  .stat.s-failed{ border-left-color:var(--danger-fg); }
   .stat.s-idle{ border-left-color:#B9B4A5; }
   .stat.s-transit .v{ color:var(--transit-fg); }
   .stat.s-done .v{ color:var(--done-fg); }
+  .stat.s-failed .v{ color:var(--danger-fg); }
   .stat.s-idle .v{ color:#8A867B; }
 
   .viewToggle{ display:flex; gap:6px; background:var(--soft); border:1px solid var(--line); border-radius:10px; padding:3px; }
@@ -162,6 +164,7 @@
   .legend .dot{ width:11px; height:11px; border-radius:3px; display:inline-block; }
   .legend .dot.done{ background:#BFE3D6; border:1px solid #8FCBB4; }
   .legend .dot.transit{ background:#FEFAF1; border:1.5px solid #F0D9A6; }
+  .legend .dot.failedtrip{ background:var(--danger-bg); border:1.5px solid var(--danger-line); }
   .legend .dot.empty{ background:#fff; border:1.5px dashed var(--line); }
 
   .footnote{ font-size:11.5px; color:var(--faint); margin-top:14px; line-height:1.6; }
@@ -223,6 +226,9 @@
     border-radius:8px; padding:9px 12px; font-size:12.5px; margin-bottom:14px;
   }
 
+  @media (max-width:1100px){
+    .stats{grid-template-columns:repeat(3,1fr);}
+  }
   @media (max-width:640px){
     .stats{grid-template-columns:repeat(2,1fr);}
   }
@@ -271,6 +277,7 @@
   <div class="stats">
     <div class="stat s-total"><div class="k">เที่ยวรถทั้งหมด</div><div class="v" id="statTotal">0</div></div>
     <div class="stat s-transit"><div class="k">🟠 กำลังวิ่งอยู่ (ยังไม่กลับ)</div><div class="v" id="statTransit">0</div></div>
+    <div class="stat s-failed"><div class="k">⚠️ ส่งไม่สำเร็จ</div><div class="v" id="statFailed">0</div></div>
     <div class="stat s-done"><div class="k">🟢 กลับถึงแล้ว</div><div class="v" id="statDone">0</div></div>
     <div class="stat s-idle"><div class="k">รถที่ไม่ได้ออกวันนี้</div><div class="v" id="statIdle">0</div></div>
   </div>
@@ -287,6 +294,7 @@
     <div class="legend">
       <span class="sw"><span class="dot done"></span> กลับถึงแล้ว (มีเวลา ออก + เข้า)</span>
       <span class="sw"><span class="dot transit"></span> ออกไปแล้ว ยังไม่กลับ (in transit)</span>
+      <span class="sw"><span class="dot failedtrip"></span> ส่งไม่สำเร็จ (ต้องจัดเที่ยวใหม่)</span>
       <span class="sw"><span class="dot empty"></span> ช่องว่าง (รถคันนี้ไม่ได้วิ่งเที่ยวนี้)</span>
     </div>
   </div>
@@ -518,25 +526,26 @@ function render(){
     var emptyMsg = '<div style="padding:30px;text-align:center;color:#9A968A;">ยังไม่มีรถ/คนขับในระบบ (ตรวจสอบชีต "คนขับ")</div>';
     board.innerHTML = emptyMsg;
     boardList.innerHTML = emptyMsg;
-    ['statTotal','statTransit','statDone','statIdle'].forEach(function(id){ document.getElementById(id).textContent = '0'; });
+    ['statTotal','statTransit','statDone','statIdle','statFailed'].forEach(function(id){ document.getElementById(id).textContent = '0'; });
     return;
   }
 
   var perVeh = {};
   var maxTrips = 1;
-  var total = 0, transit = 0, done = 0, idle = 0;
+  var total = 0, transit = 0, done = 0, idle = 0, failed = 0;
   VEHICLES.forEach(function(v){
     var list = ((TRIP.trips && TRIP.trips[v.plate]) || []).slice().sort(function(a, b){ return String(a.out).localeCompare(String(b.out)); });
     perVeh[v.plate] = list;
     maxTrips = Math.max(maxTrips, list.length);
     if (list.length === 0) idle++;
-    list.forEach(function(t){ total++; if (t.in) done++; else transit++; });
+    list.forEach(function(t){ total++; if (t.failed) failed++; else if (t.in) done++; else transit++; });
   });
 
   document.getElementById('statTotal').textContent = total;
   document.getElementById('statTransit').textContent = transit;
   document.getElementById('statDone').textContent = done;
   document.getElementById('statIdle').textContent = idle;
+  document.getElementById('statFailed').textContent = failed;
 
   // แถวหัวตาราง
   var head = document.createElement('div');
