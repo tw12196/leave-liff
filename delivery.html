@@ -856,6 +856,69 @@ if (!currentPhotoList.length) return "กรุณาแนบรูปถ่า
 return null;
 }
 
+// ถามระบบจัดคิวรถว่าเอกสารใบนี้มีบิลอื่นของ "คนขับคนเดียวกัน + ไซต์เดียวกัน" ที่จัดคิวไว้แล้วแต่ยังไม่ยืนยันหรือไม่
+// คืน array ของ {doc, site, queuedAt} ถ้าเจอ, คืน [] ทุกกรณีที่เหลือ — ห้าม throw ออกไปข้างนอกเด็ดขาด
+async function fetchRelatedDocs_(docNumber) {
+try {
+if (!DISPATCH_API_URL || !docNumber) return [];
+const payload = encodeURIComponent(JSON.stringify({ doc: docNumber }));
+const url = `${DISPATCH_API_URL}?action=dsp_relateddocs&payload=${payload}`;
+const res = await fetchWithTimeout_(url, { method: "GET" }, 8000);
+if (!res || !res.ok) return [];
+const data = await res.json();
+if (!data) return [];
+// รองรับได้ทั้ง {ok, related:[...]} ตรงๆ หรือห่อไว้ใน {ok, data:{ok, related:[...]}}
+const inner = (data.data && typeof data.data === "object") ? data.data : data;
+if (!inner || inner.ok === false) return [];
+return Array.isArray(inner.related) ? inner.related : [];
+} catch (err) {
+return [];
+}
+}
+
+// หลังยืนยันสำเร็จ 1 ใบ เช็คว่าลูกค้ารายนี้ (คนขับ+ไซต์เดียวกัน) มีบิลอื่นที่จัดคิวไว้แล้วแต่ยังไม่ยืนยันค้างอยู่ไหม
+// ถ้ามี ต่อกล่องเตือนท้ายการ์ดสำเร็จ พร้อมปุ่มพาไปยืนยันใบถัดไปได้เลยโดยไม่ต้องปิดหน้า/พิมพ์เลขเอง
+// ห้าม throw ออกไปข้างนอกเด็ดขาด — ทำงานหลังบันทึกสำเร็จแล้ว ถ้าพังตรงนี้ต้องไม่ทำให้พนักงานเข้าใจผิดว่ายืนยันไม่สำเร็จ
+async function showRelatedDocsPrompt_(justConfirmedDoc) {
+try {
+const related = await fetchRelatedDocs_(justConfirmedDoc);
+if (!related.length) return; // กรณีปกติส่วนใหญ่ — ไม่มีอะไรค้าง หน้าตาเหมือนเดิมทุกประการ
+
+const card = document.querySelector("#app .card");
+if (!card) return;
+
+const next = related[0];
+const moreLine = related.length > 1 ? `<br>(และอีก ${related.length - 1} ใบ)` : "";
+
+const box = document.createElement("div");
+box.className = "already";
+box.innerHTML = `📦 ลูกค้ารายนี้มีอีก <b>${related.length} ใบ</b> ที่ยังไม่ได้ยืนยัน<br>(<b>${next.doc}</b>${moreLine})<br>ต้องการยืนยันต่อเลยไหม?`;
+
+const btnNext = document.createElement("button");
+btnNext.className = "btn btn-full";
+btnNext.textContent = "✅ ยืนยันใบถัดไปเลย";
+btnNext.onclick = async () => {
+currentDocNumber = next.doc;
+await checkStatus();
+};
+
+const btnClose = document.createElement("button");
+btnClose.className = "change-loc";
+btnClose.textContent = "ไม่ต้อง ปิดหน้านี้";
+btnClose.onclick = () => {
+box.remove();
+btnNext.remove();
+btnClose.remove();
+};
+
+card.appendChild(box);
+card.appendChild(btnNext);
+card.appendChild(btnClose);
+} catch (err) {
+// เงียบ ไม่ทำให้การ์ดสำเร็จที่แสดงไปแล้วพัง
+}
+}
+
 async function attemptSubmitConfirmation_(payload) {
 const appDiv = document.getElementById("app");
 appDiv.innerHTML = `<div class = "loading">กำลังอัปโหลดรูป (${payload.photos.length} รูป) และบันทึกข้อมูล...</div>`;
@@ -869,6 +932,7 @@ const data = await res.json();
 if (data.ok) {
 showToast(payload.status === "ครบ" ? "ยืนยันสำเร็จ ✅" : "บันทึกแล้ว แจ้งเตือนพี่บุ้งกี๋แล้ว ⚠️");
 appDiv.innerHTML = `<div class = "card"><div class = "doc-number">${currentDocNumber}</div>${locBadgeHtml()}<div class = "hint">บันทึกเรียบร้อยแล้ว ปิดหน้านี้ได้เลย</div></div>`;
+await showRelatedDocsPrompt_(currentDocNumber);
 } else {
 const errMsg = "เกิดข้อผิดพลาด: " + (data.message || "กรุณาลองใหม่อีกครั้ง");
 notifyError_(errMsg);
