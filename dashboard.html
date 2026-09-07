@@ -186,15 +186,17 @@
   }
   .datebar .refresh:hover{ border-color:#C9C5B8; }
 
-  .trip-stats{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:18px; }
+  .trip-stats{ display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-bottom:18px; }
   .trip-stats .stat{ cursor:default; padding:11px 14px; }
   .trip-stats .stat .v{ font-size:22px; font-weight:800; margin-top:2px; }
   .trip-stats .stat.s-total{ border-left-color:#7B57C4; }
   .trip-stats .stat.s-transit{ border-left-color:#D8A73D; }
   .trip-stats .stat.s-done{ border-left-color:#0F6E56; }
+  .trip-stats .stat.s-failed{ border-left-color:#C0271B; }
   .trip-stats .stat.s-idle{ border-left-color:#B9B4A5; }
   .trip-stats .stat.s-transit .v{ color:var(--transit-fg); }
   .trip-stats .stat.s-done .v{ color:var(--done-fg); }
+  .trip-stats .stat.s-failed .v{ color:#C0271B; }
   .trip-stats .stat.s-idle .v{ color:#8A867B; }
 
   .viewToggle{ display:flex; gap:6px; background:var(--soft); border:1px solid var(--line); border-radius:10px; padding:3px; }
@@ -236,6 +238,8 @@
   .triprow-list .times .out{ color:var(--muted); display:block; }
   .triprow-list .times .in{ color:var(--done-fg); font-weight:700; display:block; }
   .triprow-list .times .in.pending{ color:var(--transit-fg); }
+  .triprow-list .times .in.failed{ color:#C0271B; font-weight:700; }
+  .triprow-list.failedtrip{ background:#FDECEA; }
   .vehsection.idle .vsBody{ color:var(--empty-fg); font-size:12.5px; padding:14px; text-align:center; }
 
   .vhead{
@@ -257,12 +261,14 @@
   .cell.filled{ border-style:solid; background:var(--soft); }
   .cell.done{ border-color:#BFE3D6; background:var(--done-bg); }
   .cell.transit{ border-color:#F0D9A6; background:#FEFAF1; }
+  .cell.failedtrip{ border-color:#F0B4AC; background:#FDECEA; }
   .cell .site{ font-weight:700; color:var(--ink); font-size:12.5px; line-height:1.25; }
   .cell .doc{ font-size:10.5px; color:var(--faint); margin-top:1px; }
   .cell .times{ display:flex; justify-content:space-between; margin-top:6px; font-size:11px; }
   .cell .times .out{ color:var(--muted); }
   .cell .times .in{ color:var(--done-fg); font-weight:700; }
   .cell .times .in.pending{ color:var(--transit-fg); font-weight:700; }
+  .cell .times .in.failed{ color:#C0271B; font-weight:700; }
   .cell .times .out.unknown{ color:var(--transit-fg); font-style:italic; }
   .cell .doc .multidoc{ color:var(--transit-fg); font-weight:700; }
   .cell .stopblock + .stopblock{ margin-top:6px; padding-top:6px; border-top:1px dashed var(--line); }
@@ -274,6 +280,7 @@
   .legend .dot{ width:11px; height:11px; border-radius:3px; display:inline-block; }
   .legend .dot.done{ background:#BFE3D6; border:1px solid #8FCBB4; }
   .legend .dot.transit{ background:#FEFAF1; border:1.5px solid #F0D9A6; }
+  .legend .dot.failedtrip{ background:#FDECEA; border:1.5px solid #F0B4AC; }
   .legend .dot.empty{ background:#fff; border:1.5px dashed var(--line); }
 
   .cell.filled, .triprow-list{ cursor:pointer; }
@@ -350,6 +357,7 @@
 
   @media (max-width:1100px){
     .stats{grid-template-columns:repeat(3,1fr);}
+    .trip-stats{grid-template-columns:repeat(3,1fr);}
     .tablecard{overflow-x:auto;}
     table{min-width:1060px;}
   }
@@ -472,6 +480,7 @@
     <div class="trip-stats">
       <div class="stat s-total"><div class="k">เที่ยวรถทั้งหมด</div><div class="v" id="statTotal">0</div></div>
       <div class="stat s-transit"><div class="k">🟠 กำลังวิ่งอยู่ (ยังไม่กลับ)</div><div class="v" id="statTransit">0</div></div>
+      <div class="stat s-failed"><div class="k">⚠️ ส่งไม่สำเร็จ</div><div class="v" id="statFailed">0</div></div>
       <div class="stat s-done"><div class="k">🟢 กลับถึงแล้ว</div><div class="v" id="statDone">0</div></div>
       <div class="stat s-idle"><div class="k">รถที่ไม่ได้ออกวันนี้</div><div class="v" id="statIdle">0</div></div>
     </div>
@@ -488,6 +497,7 @@
       <div class="legend">
         <span class="sw"><span class="dot done"></span> กลับถึงแล้ว (มีเวลา ออก + เข้า)</span>
         <span class="sw"><span class="dot transit"></span> ออกไปแล้ว ยังไม่กลับ (in transit)</span>
+        <span class="sw"><span class="dot failedtrip"></span> ส่งไม่สำเร็จ (ต้องจัดเที่ยวใหม่)</span>
         <span class="sw"><span class="dot empty"></span> ช่องว่าง (รถคันนี้ไม่ได้วิ่งเที่ยวนี้)</span>
       </div>
     </div>
@@ -1330,9 +1340,12 @@ function stopBlocksHtml(t, isDone, wrapInfo){
     var sDocsLabel = (s.docs || []).join(', ');
     var sMultiTag = (s.docs && s.docs.length > 1) ? ' <span class="multidoc">(' + s.docs.length + ' บิล)</span>' : '';
     var sOutLabel = s.outMissing ? '⚠ ไม่ทราบเวลาออก' : ('ออก ' + esc(s.out));
+    var sInHtml = t.failed
+      ? '<span class="in failed">⚠️ ส่งไม่สำเร็จ' + (t.failReason ? ' · ' + esc(t.failReason) : '') + '</span>'
+      : '<span class="in ' + (isDone ? '' : 'pending') + '">' + (isDone ? 'เข้า ' + esc(t.in) : '⏳ ยังไม่กลับ') + '</span>';
     var timesHtml = '<div class="times">' +
         '<span class="out' + (s.outMissing ? ' unknown' : '') + '">' + sOutLabel + '</span>' +
-        '<span class="in ' + (isDone ? '' : 'pending') + '">' + (isDone ? 'เข้า ' + esc(t.in) : '⏳ ยังไม่กลับ') + '</span>' +
+        sInHtml +
       '</div>';
     var siteDocHtml = '<div class="site">' + esc(s.site || '(ไม่ระบุไซต์)') + '</div>' +
       '<div class="doc">' + esc(sDocsLabel) + sMultiTag + '</div>';
@@ -1361,25 +1374,26 @@ function renderTrip(){
     var emptyMsg = '<div style="padding:30px;text-align:center;color:#9A968A;">ยังไม่มีรถ/คนขับในระบบ (ตรวจสอบชีต "คนขับ")</div>';
     board.innerHTML = emptyMsg;
     boardList.innerHTML = emptyMsg;
-    ['statTotal','statTransit','statDone','statIdle'].forEach(function(id){ document.getElementById(id).textContent = '0'; });
+    ['statTotal','statTransit','statDone','statIdle','statFailed'].forEach(function(id){ document.getElementById(id).textContent = '0'; });
     return;
   }
 
   var perVeh = {};
   var maxTrips = 1;
-  var total = 0, transit = 0, done = 0, idle = 0;
+  var total = 0, transit = 0, done = 0, idle = 0, failed = 0;
   VEHICLES.forEach(function(v){
     var list = ((TRIP.trips && TRIP.trips[v.plate]) || []).slice().sort(function(a, b){ return String(a.out).localeCompare(String(b.out)); });
     perVeh[v.plate] = list;
     maxTrips = Math.max(maxTrips, list.length);
     if (list.length === 0) idle++;
-    list.forEach(function(t){ total++; if (t.in) done++; else transit++; });
+    list.forEach(function(t){ total++; if (t.failed) failed++; else if (t.in) done++; else transit++; });
   });
 
   document.getElementById('statTotal').textContent = total;
   document.getElementById('statTransit').textContent = transit;
   document.getElementById('statDone').textContent = done;
   document.getElementById('statIdle').textContent = idle;
+  document.getElementById('statFailed').textContent = failed;
 
   // แถวหัวตาราง
   var head = document.createElement('div');
@@ -1402,7 +1416,7 @@ function renderTrip(){
       } else {
         var isDone = !!t.in;
         var docsCsv = (t.docs || []).join(',');
-        html += '<div class="cell filled ' + (isDone ? 'done' : 'transit') + '" data-doc="' + esc(docsCsv) + '" data-site="' + esc(t.site) + '">' +
+        html += '<div class="cell filled ' + (t.failed ? 'failedtrip' : (isDone ? 'done' : 'transit')) + '" data-doc="' + esc(docsCsv) + '" data-site="' + esc(t.site) + '">' +
           stopBlocksHtml(t, isDone, false) +
         '</div>';
       }
@@ -1427,7 +1441,7 @@ function renderTrip(){
         var isDone = !!t.in;
         var docsCsv = (t.docs || []).join(',');
         rowsHtml +=
-          '<div class="triprow-list" data-doc="' + esc(docsCsv) + '" data-site="' + esc(t.site) + '">' +
+          '<div class="triprow-list' + (t.failed ? ' failedtrip' : '') + '" data-doc="' + esc(docsCsv) + '" data-site="' + esc(t.site) + '">' +
             '<div class="tnum">' + (idx + 1) + '</div>' +
             '<div class="stops">' + stopBlocksHtml(t, isDone, true) + '</div>' +
           '</div>';
