@@ -79,6 +79,8 @@
   .stat.s-done{border-left-color:#0F6E56;}
   .stat.s-partial{border-left-color:#D85A30;}
   .stat.s-self{border-left-color:#A8A49B;}
+  .s-failed{border-left-color:#C0271B;}
+  .stat.s-failed .v{color:#C0271B;}
   .stat.s-wait .v{color:#4E4C46;}
   .stat.s-queue .v{color:var(--queue-fg);}
   .stat.s-store .v{color:var(--store-fg);}
@@ -144,6 +146,7 @@
   .b-done{background:var(--done-bg); color:var(--done-fg);}
   .b-partial{background:var(--partial-bg); color:var(--partial-fg);}
   .b-self{background:var(--self-bg); color:var(--self-fg);}
+  .b-failed{background:#FDECEA; color:#C0271B;}
 
   .empty{padding:40px 20px; text-align:center; color:var(--faint); font-size:13.5px;}
 
@@ -425,6 +428,7 @@
       <button class="chip" data-f="partial" onclick="setFilter('partial')">ส่งไม่ครบ</button>
       <button class="chip" data-f="closed" onclick="setFilter('closed')">ปิดงาน (ลดหนี้/รับเอง)</button>
       <button class="chip" data-f="self" onclick="setFilter('self')">ลูกค้ารับเอง</button>
+      <button class="chip" data-f="failed" onclick="setFilter('failed')">ส่งไม่สำเร็จ</button>
       <span class="count" id="count"></span>
     </div>
 
@@ -758,6 +762,7 @@ function statusOf(r){
       : { key:'done',  label:'✓ ส่งถึงลูกค้าแล้ว',   cls:'b-done'  };
   }
   if (r.selfPickup) return { key:'self',   label:'🙋 ลูกค้ารับเอง', cls:'b-self' };
+  if (r.failCount > 0) return { key:'failed', label:'⚠️ ส่งไม่สำเร็จ · รอจัดเที่ยวใหม่', cls:'b-failed' };
   if (r.driver)     return { key:'queued', label:'🚚 จัดคิวแล้ว รอส่ง', cls:'b-queue' };
   if (!r.site)      return { key:'wait',   label:'⏳ ยังไม่ผูกไซต์', cls:'b-wait' };
   return              { key:'wait',   label:'⏳ รอจัดคิว', cls:'b-wait' };
@@ -771,6 +776,7 @@ const IN_FILTER = {
   partial:s => s === 'partial',
   closed: s => s === 'closed',
   self:   s => s === 'self',
+  failed: s => s === 'failed',
 };
 
 let filter = 'all';
@@ -857,7 +863,7 @@ function fillItemDatalist(){
 
 /* ---------------- การ์ดสรุป: 7 ก้อน แยกกันเด็ดขาด ---------------- */
 function buildStats(){
-  const c = { wait:0, queued:0, store:0, done:0, partial:0, closed:0, self:0, overdueWait:0 };
+  const c = { wait:0, queued:0, store:0, done:0, partial:0, closed:0, self:0, failed:0, overdueWait:0 };
   ROWS.filter(inRange).forEach(r => {
     const k = statusOf(r).key;
     c[k]++;
@@ -872,6 +878,8 @@ function renderStats(){
       n:'ยังไม่มีคนขับ', warn: c.overdueWait ? '🔴 เลยกำหนดส่งแล้ว ' + c.overdueWait + ' ใบ' : '' },
     { f:'queued',  cls:'s-queue',   k:'🚚 จัดคิวแล้ว รอส่ง',     v:c.queued,
       n:'มีคนขับแล้ว ยังไม่ยืนยันจ่ายของ' },
+    { f:'failed',  cls:'s-failed',  k:'⚠️ ส่งไม่สำเร็จ',         v:c.failed,
+      n:'ไปแล้วส่งไม่ได้ ต้องจัดเที่ยวใหม่' },
     { f:'store',   cls:'s-store',   k:'📦 อยู่ระหว่างจัดส่ง',    v:c.store,
       n:'ยังไม่ถึงมือลูกค้า' },
     { f:'done',    cls:'s-done',    k:'✓ ส่งถึงลูกค้าแล้ว',      v:c.done,
@@ -972,6 +980,7 @@ function detailHtml(r){
                     : (r.calls ? 'กดโทร ' + r.calls + ' ครั้ง ยังไม่คอนเฟิร์ม' : 'ยังไม่โทร')],
     ['วันที่ส่ง', esc(r.departDate) || '—'],
     ['เวลารถออกจากร้าน', esc(r.departAt) || '—'],
+        ...(r.failCount > 0 ? [['ส่งไม่สำเร็จ ' + r.failCount + ' ครั้ง', '<span style="color:#C0271B;font-weight:700">' + esc(r.failReason || '—') + '</span>']] : []),
     ['เวลารถถึงร้าน (=เวลากดปิดงาน)', esc(r.closedAt) || (r.departAt ? 'อยู่ระหว่างเดินทาง' : '—')],
   ];
   if (r.conf){
