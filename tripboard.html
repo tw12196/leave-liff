@@ -122,6 +122,7 @@
   .triprow-list .times{ text-align:right; font-size:11px; flex:none; }
   .triprow-list .times .out{ color:var(--muted); display:block; }
   .triprow-list .times .in{ color:var(--done-fg); font-weight:700; display:block; }
+  .times .in.failed{ color:#C0271B; font-weight:700; }
   .triprow-list .times .in.pending{ color:var(--transit-fg); }
   .vehsection.idle .vsBody{ color:var(--empty-fg); font-size:12.5px; padding:14px; text-align:center; }
 
@@ -144,6 +145,7 @@
   .cell.filled{ border-style:solid; background:var(--soft); }
   .cell.done{ border-color:#BFE3D6; background:#E1F5EE; }
   .cell.transit{ border-color:#F0D9A6; background:#FEFAF1; }
+  .cell.failedtrip{ border-color:#F0B4AC; background:#FDECEA; }
   .cell .site{ font-weight:700; color:var(--ink); font-size:12.5px; line-height:1.25; }
   .cell .doc{ font-size:10.5px; color:var(--faint); margin-top:1px; }
   .cell .times{ display:flex; justify-content:space-between; margin-top:6px; font-size:11px; }
@@ -556,16 +558,19 @@ function render(){
         html += '<div class="cell empty">·</div>';
       } else {
         var isDone = !!t.in;
+        var inHtml = t.failed
+          ? '<span class="in failed">⚠️ ส่งไม่สำเร็จ' + (t.failReason ? ' · ' + esc(t.failReason) : '') + '</span>'
+          : '<span class="in ' + (isDone ? '' : 'pending') + '">' + (isDone ? 'เข้า ' + esc(t.in) : '⏳ ยังไม่กลับ') + '</span>';
         var docsCsv = (t.docs || []).join(',');
         var docsLabel = (t.docs || []).join(', ');
         var multiTag = (t.docs && t.docs.length > 1) ? ' <span class="multidoc">(' + t.docs.length + ' บิล)</span>' : '';
         var outLabel = t.outMissing ? '⚠ ไม่ทราบเวลาออก' : ('ออก ' + esc(t.out));
-        html += '<div class="cell filled ' + (isDone ? 'done' : 'transit') + '" data-doc="' + esc(docsCsv) + '" data-site="' + esc(t.site) + '">' +
+        html += '<div class="cell filled ' + (t.failed ? 'failedtrip' : (isDone ? 'done' : 'transit')) + '" data-doc="' + esc(docsCsv) + '" data-site="' + esc(t.site) + '">' +
           '<div class="site">' + esc(t.site || '(ไม่ระบุไซต์)') + '</div>' +
           '<div class="doc">' + esc(docsLabel) + multiTag + '</div>' +
           '<div class="times">' +
             '<span class="out' + (t.outMissing ? ' unknown' : '') + '">' + outLabel + '</span>' +
-            '<span class="in ' + (isDone ? '' : 'pending') + '">' + (isDone ? 'เข้า ' + esc(t.in) : '⏳ ยังไม่กลับ') + '</span>' +
+            inHtml +
           '</div>' +
         '</div>';
       }
@@ -588,6 +593,9 @@ function render(){
       var rowsHtml = '';
       list.forEach(function(t, idx){
         var isDone = !!t.in;
+        var inHtml = t.failed
+          ? '<span class="in failed">⚠️ ส่งไม่สำเร็จ' + (t.failReason ? ' · ' + esc(t.failReason) : '') + '</span>'
+          : '<span class="in ' + (isDone ? '' : 'pending') + '">' + (isDone ? 'เข้า ' + esc(t.in) : '⏳ ยังไม่กลับ') + '</span>';
         var docsCsv = (t.docs || []).join(',');
         var docsLabel = (t.docs || []).join(', ');
         var multiTag = (t.docs && t.docs.length > 1) ? ' <span class="multidoc">(' + t.docs.length + ' บิล)</span>' : '';
@@ -601,7 +609,7 @@ function render(){
             '</div>' +
             '<div class="times">' +
               '<span class="out' + (t.outMissing ? ' unknown' : '') + '">' + outLabel + '</span>' +
-              '<span class="in ' + (isDone ? '' : 'pending') + '">' + (isDone ? 'เข้า ' + esc(t.in) : '⏳ ยังไม่กลับ') + '</span>' +
+              inHtml +
             '</div>' +
           '</div>';
       });
