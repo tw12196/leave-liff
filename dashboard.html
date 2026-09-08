@@ -157,6 +157,68 @@
   }
   .footnote b{color:var(--navy);}
 
+  /* ---------- แท็บ 3: รับเอง ---------- */
+  .pk-stats{grid-template-columns:repeat(3,1fr);}
+  .pk-stats .stat{cursor:default;}
+  .pk-stats .stat.s-pick{border-left-color:#A8A49B;}
+  .pk-stats .stat.s-loc{border-left-color:#3E6797;}
+  .pk-stats .stat.s-bad{border-left-color:#D85A30;}
+  .pk-stats .stat.s-bad .v{color:#C0271B;}
+  .pk-stats .split{display:flex; align-items:flex-end; gap:14px; margin-top:2px;}
+  .pk-stats .split .v{font-size:22px;}
+  .pk-stats .split .lab{font-size:10.5px; color:var(--faint); margin-top:2px;}
+  .pk-stats .vline{width:1px; align-self:stretch; background:var(--line); margin:3px 0;}
+  .pk-lbl{font-size:12px; color:var(--muted);}
+  .pk-sep{width:1px; align-self:stretch; background:var(--line); margin:2px 3px;}
+  .pk-range{font-size:12px; color:var(--muted);}
+  .pk-range b{color:var(--ink);}
+  .pk-date{
+    padding:7px 9px; border:1px solid var(--line); border-radius:9px;
+    font-family:inherit; font-size:12.5px; background:#fff; color:var(--ink);
+  }
+  .pk-find{
+    background:#EDF5F1; border:1px solid #CBE3D9; color:#14503F; border-radius:10px;
+    padding:9px 13px; font-size:12.5px; margin-bottom:10px;
+  }
+  .pk-find b{color:#0B3B2E;}
+  .pk-sm{font-size:11.5px; color:var(--faint); margin-top:3px;}
+  .pk-hit{background:#FFF6D6; border-radius:4px; padding:0 3px;}
+  .pk-hitline{font-size:12px; margin-top:2px;}
+  .pk-chev{display:inline-block; transition:transform .15s; color:var(--faint);}
+  tr.pk-open .pk-chev{transform:rotate(90deg);}
+  tr.pk-detail td{background:#FBFAF7; padding:0; cursor:default;}
+  tr.pk-detail:hover td{background:#FBFAF7;}
+  .pk-box{padding:13px 16px 16px;}
+  .pk-issue{
+    background:#FDECEA; border:1px solid #F0C9C3; border-radius:10px;
+    padding:10px 13px; font-size:12.5px; margin-bottom:12px; color:#7A241B;
+  }
+  .pk-issue .ih{font-weight:700; color:#C0271B; margin-bottom:5px;}
+  .pk-issue dl{margin:0; display:grid; grid-template-columns:auto 1fr; gap:3px 12px;}
+  .pk-issue dt{color:#9A5B52; white-space:nowrap;}
+  .pk-issue dd{margin:0; color:#5C1B14;}
+  .pk-hint{
+    background:#F2F6FA; border:1px solid #D7E3EE; color:#26476B; border-radius:10px;
+    padding:9px 12px; font-size:12px; margin-bottom:11px;
+  }
+  .pk-tl{background:#fff; border:1px solid var(--line); border-radius:10px; overflow:hidden; margin-bottom:14px;}
+  .pk-tlrow{display:flex; gap:12px; align-items:flex-start; padding:9px 13px; border-bottom:1px solid #F1EFE8; font-size:12.5px;}
+  .pk-tlrow:last-child{border-bottom:none;}
+  .pk-tlrow.out{opacity:.5;}
+  .pk-num{
+    width:22px; height:22px; border-radius:50%; background:var(--navy); color:#fff; flex:none;
+    font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; margin-top:1px;
+  }
+  .pk-tlrow.dlv .pk-num{background:#9A4A12;}
+  .pk-tlmeta{color:var(--muted); font-size:12px; margin-top:3px;}
+  .pk-tlmeta a{color:var(--navy);}
+  .pk-head{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:8px; font-weight:700; font-size:13px;}
+  .pk-head .n{font-weight:400; font-size:12px; color:var(--faint);}
+  .b-mix{background:#FFE9DC; color:#9A4A12;}
+  .b-next{background:#EFEAF7; color:#463765;}
+  .b-wh{background:#E6EEF6; color:#1D3557;}
+  @media (max-width:900px){ .pk-stats{grid-template-columns:1fr;} }
+
   /* ---------- แท็บ 2: เที่ยวรถ ---------- */
   .datebar{
     display:flex; align-items:center; gap:10px; background:var(--surface); border:1px solid var(--line);
@@ -406,6 +468,7 @@
   <div class="tabbar">
     <button class="tabbtn active" id="tabBtnDash" onclick="switchTab('dash')">📊 สถานะจัดส่ง</button>
     <button class="tabbtn" id="tabBtnTrip" onclick="switchTab('trip')">🚚 เที่ยวรถ</button>
+    <button class="tabbtn" id="tabBtnPick" onclick="switchTab('pick')">🙋 รับเอง</button>
   </div>
 
   <div id="statusBar" class="statusbar" hidden></div>
@@ -510,6 +573,75 @@
       "เข้า" หมายถึงเวลาปิดงานหน้างาน/กลับถึง ตามข้อมูลจาก ConfirmationLog (จุดโหลดโกดัง) ·
       รถที่ไม่มีเที่ยวเลยในวันนั้นจะขึ้นเป็น "รถที่ไม่ได้ออกวันนี้" (นับจากรายชื่อคนขับที่ยังใช้งานอยู่) ·
       💡 กดที่ช่องเที่ยวรถ (หรือแถวในมุมมองรายการ) เพื่อดูรายการสินค้าของใบนั้น
+    </div>
+  </div>
+
+  <!-- ===================== แท็บ 3: รับเอง (ลูกค้า / บริษัทขนส่งมารับ) ===================== -->
+  <div id="pickPane" hidden>
+    <div class="toolbar" style="justify-content:flex-end; margin-bottom:12px;">
+      <span class="pk-range" id="pkLoadedNote"></span>
+      <button class="btn-refresh" id="pkAllBtn" onclick="pkLoad({all:true})">📚 โหลดย้อนหลังทั้งหมด</button>
+      <button class="btn-refresh" onclick="pkRefresh()">🔄 รีเฟรชข้อมูล</button>
+    </div>
+
+    <div class="pk-range" id="pkRangeLine" style="margin-bottom:7px;"></div>
+    <div class="stats pk-stats" id="pkStats"></div>
+
+    <div class="toolbar">
+      <span class="pk-lbl">📅 ช่วงที่มารับของ</span>
+      <button class="chip on" data-d="all" onclick="pkSetRange('all', this)">ทั้งหมดที่โหลดมา</button>
+      <button class="chip" data-d="7" onclick="pkSetRange('7', this)">7 วันล่าสุด</button>
+      <button class="chip" data-d="30" onclick="pkSetRange('30', this)">30 วันล่าสุด</button>
+      <button class="chip" data-d="thismonth" onclick="pkSetRange('thismonth', this)">เดือนนี้</button>
+      <span class="pk-lbl">จาก</span>
+      <input type="date" id="pkFrom" class="pk-date" onchange="pkManualDate()" />
+      <span class="pk-lbl">ถึง</span>
+      <input type="date" id="pkTo" class="pk-date" onchange="pkManualDate()" />
+      <button class="chip" onclick="pkClearDate()">ล้างช่วงวันที่</button>
+    </div>
+
+    <div class="toolbar" style="flex-wrap:wrap;">
+      <input id="pkQ" placeholder="🔍 เลขที่เอกสาร / ผู้ยืนยัน / ชื่อสินค้า" oninput="pkRender()" style="max-width:300px" />
+      <button class="chip on" data-m="" onclick="pkSetMethod('', this)">ทุกวิธีรับ</button>
+      <button class="chip" data-m="ลูกค้า" onclick="pkSetMethod('ลูกค้า', this)">ลูกค้ารับเอง</button>
+      <button class="chip" data-m="บริษัทขนส่ง" onclick="pkSetMethod('บริษัทขนส่ง', this)">บริษัทขนส่ง</button>
+      <span class="pk-sep"></span>
+      <button class="chip on" data-l="" onclick="pkSetLoc('', this)">ทุกจุดโหลด</button>
+      <button class="chip" data-l="store" onclick="pkSetLoc('store', this)">หน้าร้าน</button>
+      <button class="chip" data-l="warehouse" onclick="pkSetLoc('warehouse', this)">โกดัง</button>
+      <button class="chip" data-l="both" onclick="pkSetLoc('both', this)">จ่าย 2 จุด</button>
+      <span class="pk-sep"></span>
+      <button class="chip" id="pkBadChip" onclick="pkToggleBad(this)">⚠ เฉพาะไม่ครบ</button>
+      <button class="chip" id="pkMixChip" onclick="pkToggleMix(this)">🔀 มีรถร้านส่งด้วย</button>
+      <span class="count" id="pkCount"></span>
+    </div>
+
+    <div class="pk-find" id="pkFind" hidden></div>
+
+    <div class="tablecard">
+      <table>
+        <thead>
+          <tr>
+            <th>เลขที่เอกสาร</th>
+            <th>วิธีรับ</th>
+            <th>จุดโหลดที่จ่ายของ</th>
+            <th>ยืนยันเมื่อ</th>
+            <th>ผู้ยืนยัน (คลัง)</th>
+            <th>สถานะ</th>
+            <th>รายการสินค้า</th>
+          </tr>
+        </thead>
+        <tbody id="pkTbody"></tbody>
+      </table>
+      <div class="empty" id="pkEmpty" hidden>ไม่พบรายการที่ตรงกับเงื่อนไข</div>
+    </div>
+
+    <div class="footnote">
+      <b>แท็บนี้คือใบที่ไม่ได้ส่งด้วยรถบริษัท</b> — ลูกค้ามารับเอง หรือบริษัทขนส่งมารับ (ดูจากช่อง "วิธีส่ง" ใน ConfirmationLog) ·
+      ใบเดียวอาจจ่ายของ <b>2 จุดโหลด</b> คนละครั้ง จึงรวมเป็นแถวเดียวแล้วแสดงป้ายจุดโหลดครบทุกจุด — กดที่แถวเพื่อดูไทม์ไลน์การจ่ายของและรายการสินค้า ·
+      ช่วงวันที่นับจาก <b>วันที่มารับของจริง</b> (เวลาที่คลังกดยืนยัน) ไม่ใช่วันที่ในเลขเอกสาร ·
+      ใบที่ <b>ไม่ครบ</b> จะแสดงหมายเหตุ เหตุผล และ "จะทำอย่างไรต่อไป" ที่คลังบันทึกไว้ ·
+      จำนวนสินค้าเป็นยอด <b>ตามใบเบิก</b> (จากไฟล์ ERP ที่นำเข้า) ไม่ใช่จำนวนที่รับไปจริง
     </div>
   </div>
 </div>
@@ -694,11 +826,20 @@ function retryCurrent(){
 /* ---------------- สลับแท็บ Dashboard / เที่ยวรถ ---------------- */
 function switchTab(tab){
   var isDash = tab === 'dash';
+  var isPick = tab === 'pick';
+  var isTrip = tab === 'trip';
   document.getElementById('tabBtnDash').classList.toggle('active', isDash);
-  document.getElementById('tabBtnTrip').classList.toggle('active', !isDash);
+  document.getElementById('tabBtnTrip').classList.toggle('active', isTrip);
+  document.getElementById('tabBtnPick').classList.toggle('active', isPick);
   document.getElementById('dashPane').hidden = !isDash;
-  document.getElementById('tripPane').hidden = isDash;
-  if (!isDash && !tripLoaded) {
+  document.getElementById('tripPane').hidden = !isTrip;
+  document.getElementById('pickPane').hidden = !isPick;
+
+  if (isPick) {
+    if (!pkLoaded) pkLoad({ days: PK_DEFAULT_DAYS });
+    return;
+  }
+  if (isTrip && !tripLoaded) {
     var auth = currentAuth || loadAuth();
     if (!auth) { showLogin(); return; }
     setStatusBar('⏳ กำลังโหลดข้อมูลเที่ยวรถ...', false, false);
@@ -1567,6 +1708,345 @@ if (URL_KEY) {
   });
 } else {
   bootWithSavedAuth();
+}
+
+/* ============================================================
+   แท็บ 3: รับเอง (ลูกค้า / บริษัทขนส่งมารับเอง)  — 8 ก.ย. 2569
+   ข้อมูลจาก endpoint dsp_pickuplist: 1 ใบ = 1 แถว แต่เก็บทุกครั้งที่จ่ายของไว้ใน events[]
+   (ใบเดียวจ่ายได้ทั้งหน้าร้านและโกดัง คนละครั้ง — ต้องแสดงครบทั้งสองจุด)
+   ============================================================ */
+var PK_DEFAULT_DAYS = 60;
+var pkLoaded = false, pkRows = [], pkMeta = {};
+var pkMethod = '', pkLoc = '', pkBad = false, pkMix = false, pkFrom = '', pkTo = '', pkOpenDoc = null;
+var PK_LOCN = { store: 'หน้าร้าน', warehouse: 'โกดัง' };
+var PK_TH_M = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+
+function pkThDate(ymd){
+  if (!ymd) return '';
+  var p = String(ymd).split('-');
+  if (p.length < 3) return ymd;
+  return Number(p[2]) + ' ' + PK_TH_M[Number(p[1]) - 1] + ' ' + ((Number(p[0]) + 543) % 100);
+}
+function pkTodayYmd(){
+  var d = new Date(), m = d.getMonth() + 1, dd = d.getDate();
+  return d.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (dd < 10 ? '0' : '') + dd;
+}
+function pkShiftYmd(n){
+  var d = new Date(); d.setDate(d.getDate() + n);
+  var m = d.getMonth() + 1, dd = d.getDate();
+  return d.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (dd < 10 ? '0' : '') + dd;
+}
+
+function pkLoad(opts){
+  var auth = currentAuth || loadAuth();
+  if (!auth) { showLogin(); return; }
+  setStatusBar('⏳ กำลังโหลดใบที่ลูกค้า/ขนส่งมารับเอง...', false, false);
+  var params = credParams(auth);
+  params.payload = JSON.stringify(opts || { days: PK_DEFAULT_DAYS });
+  api('dsp_pickuplist', params).then(function(data){
+    pkLoaded = true;
+    pkRows = (data && data.rows) || [];
+    pkMeta = data || {};
+    pkOpenDoc = null;
+    document.getElementById('pkLoadedNote').innerHTML = pkMeta.all
+      ? 'โหลดมาแล้ว: <b>ทั้งหมดเท่าที่มีในระบบ</b>'
+      : 'โหลดมาแล้ว: <b>' + pkThDate(pkMeta.from) + ' ถึงปัจจุบัน</b>';
+    document.getElementById('pkAllBtn').hidden = !!pkMeta.all;
+    pkRender();
+    setStatusBar('');
+  }).catch(function(err){
+    if (err && err.denied) { clearAuth(); showLogin('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่ค่ะ'); }
+    else setStatusBar('⚠ โหลดข้อมูลรับเองไม่สำเร็จ: ' + ((err && err.message) || 'ไม่ทราบสาเหตุ'), true, true);
+  });
+}
+function pkRefresh(){ pkLoad(pkMeta.all ? { all: true } : { days: PK_DEFAULT_DAYS }); }
+
+/* ---------- ตัวกรอง ---------- */
+function pkChipOn(el){
+  var box = el.parentNode.querySelectorAll('.chip[' + (el.hasAttribute('data-m') ? 'data-m' : el.hasAttribute('data-l') ? 'data-l' : 'data-d') + ']');
+  for (var i = 0; i < box.length; i++) box[i].classList.remove('on');
+  el.classList.add('on');
+}
+function pkSetMethod(m, el){ pkMethod = m; pkChipOn(el); pkOpenDoc = null; pkRender(); }
+function pkSetLoc(l, el){ pkLoc = l; pkChipOn(el); pkOpenDoc = null; pkRender(); }
+function pkToggleBad(el){ pkBad = !pkBad; el.classList.toggle('on', pkBad); pkOpenDoc = null; pkRender(); }
+function pkToggleMix(el){ pkMix = !pkMix; el.classList.toggle('on', pkMix); pkOpenDoc = null; pkRender(); }
+function pkSetRange(kind, el){
+  if (kind === 'all') { pkFrom = ''; pkTo = ''; }
+  else if (kind === 'thismonth') { pkFrom = pkTodayYmd().slice(0, 8) + '01'; pkTo = pkTodayYmd(); }
+  else { pkFrom = pkShiftYmd(-(Number(kind) - 1)); pkTo = pkTodayYmd(); }
+  document.getElementById('pkFrom').value = pkFrom;
+  document.getElementById('pkTo').value = pkTo;
+  pkChipOn(el); pkOpenDoc = null; pkRender();
+}
+function pkManualDate(){
+  pkFrom = document.getElementById('pkFrom').value;
+  pkTo = document.getElementById('pkTo').value;
+  var chips = document.querySelectorAll('#pickPane .chip[data-d]');
+  for (var i = 0; i < chips.length; i++) chips[i].classList.remove('on');
+  if (!pkFrom && !pkTo) chips[0].classList.add('on');
+  pkOpenDoc = null; pkRender();
+}
+function pkClearDate(){
+  pkFrom = ''; pkTo = '';
+  document.getElementById('pkFrom').value = '';
+  document.getElementById('pkTo').value = '';
+  var chips = document.querySelectorAll('#pickPane .chip[data-d]');
+  for (var i = 0; i < chips.length; i++) chips[i].classList.remove('on');
+  chips[0].classList.add('on');
+  pkOpenDoc = null; pkRender();
+}
+
+/* ---------- ตัวช่วย ---------- */
+function pkPickupDays(r){
+  var out = [];
+  (r.events || []).forEach(function(e){ if (e.kind === 'pickup' && e.at) out.push(e.at.slice(0, 10)); });
+  return out;
+}
+function pkInRange(r){
+  if (!pkFrom && !pkTo) return true;
+  var days = pkPickupDays(r);
+  for (var i = 0; i < days.length; i++) {
+    if ((!pkFrom || days[i] >= pkFrom) && (!pkTo || days[i] <= pkTo)) return true;
+  }
+  return false;
+}
+function pkEvInRange(e){
+  if (!pkFrom && !pkTo) return true;
+  if (!e.at) return true;
+  var d = e.at.slice(0, 10);
+  return (!pkFrom || d >= pkFrom) && (!pkTo || d <= pkTo);
+}
+function pkQuery(){ return (document.getElementById('pkQ').value || '').trim(); }
+function pkHits(r){
+  var q = pkQuery().toLowerCase();
+  if (!q) return [];
+  return (r.items || []).filter(function(it){
+    return ((it.name || '') + ' ' + (it.code || '')).toLowerCase().indexOf(q) >= 0;
+  });
+}
+function pkMatch(r){
+  var q = pkQuery().toLowerCase();
+  if (!q) return true;
+  if (String(r.doc).toLowerCase().indexOf(q) >= 0) return true;
+  var evs = r.events || [];
+  for (var i = 0; i < evs.length; i++) {
+    if ((evs[i].by || '').toLowerCase().indexOf(q) >= 0) return true;
+  }
+  return pkHits(r).length > 0;
+}
+function pkHl(s){
+  var q = pkQuery();
+  if (!q) return esc(s);
+  var i = String(s).toLowerCase().indexOf(q.toLowerCase());
+  if (i < 0) return esc(s);
+  return esc(String(s).slice(0, i)) + '<span class="pk-hit">' + esc(String(s).slice(i, i + q.length)) +
+         '</span>' + esc(String(s).slice(i + q.length));
+}
+function pkLocBadge(l){
+  return '<span class="badge ' + (l === 'store' ? 'b-store' : 'b-wh') + '" style="margin-right:4px">' +
+         esc(PK_LOCN[l] || l) + '</span>';
+}
+function pkMethodBadge(m){
+  return '<span class="badge ' + (m === 'ลูกค้า' ? 'b-self' : 'b-queue') + '" style="margin-right:4px">' +
+         (m === 'ลูกค้า' ? '🙋 ลูกค้า' : '🚛 บริษัทขนส่ง') + '</span>';
+}
+
+/* ---------- การ์ดสรุป (คิดตามช่วงวันที่ที่เลือกเท่านั้น) ---------- */
+function pkRenderStats(){
+  var inR = pkRows.filter(pkInRange);
+  function cnt(fn){ var n = 0; inR.forEach(function(r){ if (fn(r)) n++; }); return n; }
+  var cus = cnt(function(r){ return r.methods.indexOf('ลูกค้า') >= 0; });
+  var car = cnt(function(r){ return r.methods.indexOf('บริษัทขนส่ง') >= 0; });
+  var both = cnt(function(r){ return r.methods.length > 1; });
+  var st = cnt(function(r){ return r.locs.indexOf('store') >= 0; });
+  var wh = cnt(function(r){ return r.locs.indexOf('warehouse') >= 0; });
+  var bl = cnt(function(r){ return r.locs.length > 1; });
+  var bad = cnt(function(r){ return r.status === 'ไม่ครบ'; });
+  var mix = cnt(function(r){ return r.mixed; });
+
+  document.getElementById('pkStats').innerHTML =
+    '<div class="stat s-pick"><div class="k">🙋 รับของไปแล้ว</div>' +
+      '<div class="v">' + fmtNum(inR.length) + ' ใบ</div>' +
+      '<div class="n">ลูกค้ารับเอง ' + fmtNum(cus) + ' · บริษัทขนส่ง ' + fmtNum(car) +
+        (both ? ' (มีทั้งสองแบบ ' + fmtNum(both) + ')' : '') + '</div></div>' +
+    '<div class="stat s-loc"><div class="k">📍 ใบที่จ่ายของแต่ละจุดโหลด</div>' +
+      '<div class="split"><div><div class="v">' + fmtNum(st) + '</div><div class="lab">หน้าร้าน</div></div>' +
+      '<div class="vline"></div><div><div class="v">' + fmtNum(wh) + '</div><div class="lab">โกดัง</div></div></div>' +
+      '<div class="n">มี ' + fmtNum(bl) + ' ใบที่จ่ายของทั้ง 2 จุด (จึงถูกนับทั้งสองฝั่ง)</div></div>' +
+    '<div class="stat s-bad"><div class="k">⚠ รับไม่ครบ / มีปัญหา</div>' +
+      '<div class="v">' + fmtNum(bad) + ' ใบ</div>' +
+      '<div class="n">และอีก ' + fmtNum(mix) + ' ใบที่มีส่วนหนึ่งรถร้านเอาไปส่ง</div></div>';
+
+  document.getElementById('pkRangeLine').innerHTML = (pkFrom || pkTo)
+    ? '📅 ตัวเลขด้านล่างคิดเฉพาะใบที่มารับของช่วง <b>' + (pkFrom ? pkThDate(pkFrom) : 'เริ่มต้น') +
+      ' – ' + (pkTo ? pkThDate(pkTo) : 'ล่าสุด') + '</b>'
+    : '📅 ตัวเลขด้านล่างคิดจากข้อมูลทั้งหมดที่โหลดมา';
+}
+
+/* ---------- รายการสินค้า + ไทม์ไลน์ ---------- */
+function pkItemsHtml(r, hits){
+  var items = r.items || [];
+  if (!items.length) {
+    return '<div class="dbox soft" style="font-size:12.5px; color:#6B675C;">ยังไม่มีรายการสินค้าของใบนี้ในระบบ — ' +
+           'อาจยังไม่ได้นำเข้าไฟล์ ERP ที่ครอบคลุมวันนั้น หรือเลขที่เอกสารในไฟล์พิมพ์ต่างจากที่คลังสแกน</div>';
+  }
+  var keys = {};
+  (hits || []).forEach(function(h){ keys[(h.code || '') + '|' + (h.name || '')] = 1; });
+  var h = '<table class="itemtable"><thead><tr><th style="width:26px">#</th><th>สินค้า</th>' +
+          '<th class="num">จำนวน</th><th>หน่วย</th></tr></thead><tbody>';
+  items.forEach(function(it, i){
+    var on = keys[(it.code || '') + '|' + (it.name || '')];
+    h += '<tr' + (on ? ' style="background:#FFFBEC"' : '') + '><td>' + (i + 1) + '</td>' +
+         '<td><div class="pname">' + (on ? pkHl(it.name) : esc(it.name)) + '</div>' +
+         '<div class="pcode">' + esc(it.code) + '</div></td>' +
+         '<td class="num">' + fmtNum(it.qty) + '</td><td>' + esc(it.unit) + '</td></tr>';
+  });
+  return h + '</tbody></table>';
+}
+function pkIssueHtml(r){
+  var bad = (r.events || []).filter(function(e){ return e.status === 'ไม่ครบ'; });
+  if (!bad.length) return '';
+  return bad.map(function(e){
+    return '<div class="pk-issue"><div class="ih">⚠ จ่ายของไม่ครบ ที่' + esc(PK_LOCN[e.loc] || e.loc) +
+      ' · ' + esc(e.at) + '</div><dl>' +
+      (e.issue ? '<dt>หมายเหตุ / ของที่ค้าง</dt><dd>' + esc(e.issue) + '</dd>' : '') +
+      (e.reason ? '<dt>เหตุผล</dt><dd>' + esc(e.reason) + '</dd>' : '') +
+      (e.next ? '<dt>จะทำอย่างไรต่อไป</dt><dd><b>' + esc(e.next) + '</b></dd>'
+              : '<dt>จะทำอย่างไรต่อไป</dt><dd style="color:#9A8F7E">ยังไม่ได้ระบุ</dd>') +
+      '<dt>ผู้ยืนยัน</dt><dd>' + esc(e.by) + '</dd></dl></div>';
+  }).join('');
+}
+function pkTimelineHtml(r){
+  var h = '<div class="pk-tl">';
+  (r.events || []).forEach(function(e, i){
+    var isD = e.kind === 'delivery';
+    var out = (pkFrom || pkTo) && !pkEvInRange(e);
+    h += '<div class="pk-tlrow' + (isD ? ' dlv' : '') + (out ? ' out' : '') + '">' +
+      '<div class="pk-num">' + (i + 1) + '</div><div style="flex:1; min-width:0">' +
+      '<div>' + pkLocBadge(e.loc) +
+        (isD ? '<span class="badge b-mix" style="margin-right:4px">🚚 รถร้านส่ง · ' + esc(e.method) + '</span>'
+             : pkMethodBadge(e.method)) +
+        (e.status === 'ครบ' ? '<span class="badge b-done">✓ ครบ</span>'
+                            : '<span class="badge b-partial">⚠ ไม่ครบ</span>') +
+        (e.next ? ' <span class="badge b-next">→ ' + esc(e.next) + '</span>' : '') +
+        (out ? ' <span class="pk-sm" style="display:inline">(นอกช่วงวันที่ที่เลือก)</span>' : '') +
+      '</div>' +
+      '<div class="pk-tlmeta">' + esc(e.at) + ' · ยืนยันโดย ' + esc(e.by) +
+        (e.deliveredDate ? ' · วันที่ส่งมอบ ' + esc(e.deliveredDate) : '') +
+        (e.photo ? ' · <a href="' + esc(e.photo) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">📷 ดูรูป' +
+                   (e.photoCount > 1 ? ' (' + e.photoCount + ')' : '') + '</a>' : ' · ไม่มีรูป') +
+      '</div>' +
+      (e.issue ? '<div class="pk-tlmeta" style="color:#C0271B">หมายเหตุ: ' + esc(e.issue) +
+                 (e.reason ? ' · เหตุผล: ' + esc(e.reason) : '') + '</div>' : '') +
+      '</div></div>';
+  });
+  return h + '</div>';
+}
+
+/* ---------- ตารางหลัก ---------- */
+function pkRender(){
+  if (!pkLoaded) return;
+  pkRenderStats();
+
+  var q = pkQuery();
+  var list = pkRows.filter(function(r){
+    return pkInRange(r) &&
+      (!pkMethod || r.methods.indexOf(pkMethod) >= 0) &&
+      (!pkLoc || (pkLoc === 'both' ? r.locs.length > 1 : r.locs.indexOf(pkLoc) >= 0)) &&
+      (!pkBad || r.status === 'ไม่ครบ') && (!pkMix || r.mixed) && pkMatch(r);
+  });
+
+  document.getElementById('pkCount').textContent =
+    'แสดง ' + fmtNum(list.length) + ' ใบ จากที่โหลดมา ' + fmtNum(pkRows.length) + ' ใบ';
+
+  /* สรุปยอดสินค้าที่ค้นเจอ แยกตามหน่วย */
+  var findBox = document.getElementById('pkFind');
+  if (q) {
+    var perUnit = {}, hitDocs = 0, hitLines = 0;
+    list.forEach(function(r){
+      var hits = pkHits(r);
+      if (!hits.length) return;
+      hitDocs++; hitLines += hits.length;
+      hits.forEach(function(it){
+        var u = it.unit || '(ไม่ระบุหน่วย)', v = Number(it.qty);
+        if (!isNaN(v)) perUnit[u] = (perUnit[u] || 0) + v;
+      });
+    });
+    findBox.hidden = false;
+    if (hitDocs) {
+      var parts = Object.keys(perUnit).sort(function(a, b){ return perUnit[b] - perUnit[a]; })
+        .map(function(u){ return '<b>' + fmtNum(perUnit[u]) + '</b> ' + esc(u); });
+      findBox.innerHTML = '🔎 “<b>' + esc(q) + '</b>”' +
+        ((pkFrom || pkTo) ? ' ที่รับช่วง <b>' + (pkFrom ? pkThDate(pkFrom) : 'เริ่มต้น') + ' – ' +
+          (pkTo ? pkThDate(pkTo) : 'ล่าสุด') + '</b>' : '') +
+        ' เจอใน <b>' + fmtNum(hitDocs) + '</b> ใบ (' + fmtNum(hitLines) + ' รายการ) · รวมจำนวน ' + parts.join(' · ');
+    } else {
+      findBox.innerHTML = '🔎 ไม่พบสินค้าที่มีคำว่า “<b>' + esc(q) + '</b>”' +
+        ((pkFrom || pkTo) ? ' ในช่วงวันที่ที่เลือก' : '') + ' (ผลด้านล่างถ้ามี มาจากการค้นเลขที่เอกสาร/ชื่อผู้ยืนยัน)';
+    }
+  } else findBox.hidden = true;
+
+  var h = '';
+  list.forEach(function(r){
+    var open = pkOpenDoc === r.doc;
+    var evs = r.events || [], last = evs[evs.length - 1] || {};
+    var names = [], nexts = [];
+    evs.forEach(function(e){
+      if (e.by && names.indexOf(e.by) < 0) names.push(e.by);
+      if (e.status === 'ไม่ครบ' && e.next && nexts.indexOf(e.next) < 0) nexts.push(e.next);
+    });
+    var hits = pkHits(r), n = (r.items || []).length, itemCell;
+    if (hits.length) {
+      itemCell = hits.slice(0, 3).map(function(it){
+        return '<div class="pk-hitline">' + pkHl(it.name) + ' <b>' + fmtNum(it.qty) + '</b> ' +
+               '<span style="color:#9A8F7E">' + esc(it.unit) + '</span></div>';
+      }).join('') +
+      (hits.length > 3 ? '<div class="pk-sm">+ อีก ' + (hits.length - 3) + ' รายการที่ตรงกัน</div>' : '') +
+      '<div class="pk-sm">จากทั้งใบ ' + n + ' รายการ</div>';
+    } else {
+      itemCell = n ? n + ' รายการ' : '<span class="pending">ไม่มีข้อมูล</span>';
+    }
+
+    h += '<tr class="' + (open ? 'pk-open' : '') + '" onclick="pkToggleRow(\'' + esc(r.doc).replace(/'/g, "\\'") + '\')">' +
+      '<td class="doc-cell"><span class="pk-chev">▸</span> ' + esc(r.doc) + '</td>' +
+      '<td>' + r.methods.map(pkMethodBadge).join('') +
+        (r.mixed ? '<div class="pk-sm">🔀 มีรถร้านส่งด้วย</div>' : '') + '</td>' +
+      '<td>' + r.locs.map(pkLocBadge).join('') +
+        (r.locs.length > 1 ? '<div class="pk-sm">จ่าย ' + evs.length + ' ครั้ง</div>' : '') + '</td>' +
+      '<td class="when">' + esc(last.at || '') +
+        (evs.length > 1 ? '<div class="pk-sm">ครั้งแรก ' + esc(evs[0].at || '') + '</div>' : '') + '</td>' +
+      '<td class="driver-cell">' + esc(names[0] || '') +
+        (names.length > 1 ? '<div class="pk-sm">+ ' + esc(names.slice(1).join(', ')) + '</div>' : '') + '</td>' +
+      '<td>' + (r.status === 'ครบ' ? '<span class="badge b-done">✓ ครบ</span>'
+                                   : '<span class="badge b-partial">⚠ ไม่ครบ</span>' +
+          nexts.map(function(t){ return '<div style="margin-top:4px"><span class="badge b-next">→ ' + esc(t) + '</span></div>'; }).join('')) +
+      '</td>' +
+      '<td>' + itemCell + '</td></tr>';
+
+    if (open) {
+      h += '<tr class="pk-detail"><td colspan="7"><div class="pk-box">' +
+        pkIssueHtml(r) +
+        (r.locs.length > 1
+          ? '<div class="pk-hint">ℹ️ ใบนี้จ่ายของ ' + evs.length + ' ครั้ง ที่' +
+            r.locs.map(function(l){ return PK_LOCN[l] || l; }).join(' และ ') +
+            ' — รายการสินค้าด้านล่างเป็นของทั้งใบรวมกัน (ระบบยังไม่ได้แยกว่าแต่ละจุดจ่ายรายการไหน)</div>'
+          : '') +
+        '<div class="pk-head">🧾 ไทม์ไลน์การจ่ายของ <span class="n">' + evs.length + ' ครั้ง</span></div>' +
+        pkTimelineHtml(r) +
+        '<div class="pk-head">📦 รายการสินค้าตามใบเบิก <span class="n">' + n + ' รายการ' +
+          (hits.length ? ' · ตรงกับคำค้น ' + hits.length + ' รายการ' : '') + '</span></div>' +
+        pkItemsHtml(r, hits) +
+        '</div></td></tr>';
+    }
+  });
+
+  document.getElementById('pkTbody').innerHTML = h;
+  document.getElementById('pkEmpty').hidden = list.length > 0;
+}
+function pkToggleRow(doc){
+  pkOpenDoc = (pkOpenDoc === doc) ? null : doc;
+  pkRender();
 }
 </script>
 </body>
