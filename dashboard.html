@@ -216,6 +216,12 @@
   .pk-head .n{font-weight:400; font-size:12px; color:var(--faint);}
   .b-mix{background:#FFE9DC; color:#9A4A12;}
   .b-next{background:#EFEAF7; color:#463765;}
+  .b-late{background:#E1F5EE; color:#0F6E56;}
+  .pk-late{
+    background:#E9F5F0; border:1px solid #BFE0D4; color:#14503F; border-radius:10px;
+    padding:9px 12px; font-size:12.5px; margin-bottom:11px;
+  }
+  .pk-late b{color:#0B3B2E;}
   .b-wh{background:#E6EEF6; color:#1D3557;}
   @media (max-width:900px){ .pk-stats{grid-template-columns:1fr;} }
 
@@ -612,6 +618,7 @@
       <button class="chip" data-l="both" onclick="pkSetLoc('both', this)">จ่าย 2 จุด</button>
       <span class="pk-sep"></span>
       <button class="chip" id="pkBadChip" onclick="pkToggleBad(this)">⚠ เฉพาะไม่ครบ</button>
+      <button class="chip" id="pkStillChip" onclick="pkToggleStill(this)">⏳ ยังค้างอยู่จริง</button>
       <button class="chip" id="pkMixChip" onclick="pkToggleMix(this)">🔀 มีรถร้านส่งด้วย</button>
       <span class="count" id="pkCount"></span>
     </div>
@@ -1717,7 +1724,7 @@ if (URL_KEY) {
    ============================================================ */
 var PK_DEFAULT_DAYS = 60;
 var pkLoaded = false, pkRows = [], pkMeta = {};
-var pkMethod = '', pkLoc = '', pkBad = false, pkMix = false, pkFrom = '', pkTo = '', pkOpenDoc = null;
+var pkMethod = '', pkLoc = '', pkBad = false, pkStill = false, pkMix = false, pkFrom = '', pkTo = '', pkOpenDoc = null;
 var PK_LOCN = { store: 'หน้าร้าน', warehouse: 'โกดัง' };
 var PK_TH_M = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
 
@@ -1769,7 +1776,16 @@ function pkChipOn(el){
 }
 function pkSetMethod(m, el){ pkMethod = m; pkChipOn(el); pkOpenDoc = null; pkRender(); }
 function pkSetLoc(l, el){ pkLoc = l; pkChipOn(el); pkOpenDoc = null; pkRender(); }
-function pkToggleBad(el){ pkBad = !pkBad; el.classList.toggle('on', pkBad); pkOpenDoc = null; pkRender(); }
+function pkToggleBad(el){
+  pkBad = !pkBad; el.classList.toggle('on', pkBad);
+  if (pkBad) { pkStill = false; document.getElementById('pkStillChip').classList.remove('on'); }
+  pkOpenDoc = null; pkRender();
+}
+function pkToggleStill(el){
+  pkStill = !pkStill; el.classList.toggle('on', pkStill);
+  if (pkStill) { pkBad = false; document.getElementById('pkBadChip').classList.remove('on'); }
+  pkOpenDoc = null; pkRender();
+}
 function pkToggleMix(el){ pkMix = !pkMix; el.classList.toggle('on', pkMix); pkOpenDoc = null; pkRender(); }
 function pkSetRange(kind, el){
   if (kind === 'all') { pkFrom = ''; pkTo = ''; }
@@ -1810,6 +1826,22 @@ function pkInRange(r){
     if ((!pkFrom || days[i] >= pkFrom) && (!pkTo || days[i] <= pkTo)) return true;
   }
   return false;
+}
+/* ใบที่ "มารับของค้างเพิ่มภายหลัง"
+   = มีครั้งที่จ่ายไม่ครบ แล้วมีการมารับอีกครั้งใน "วันหลังจากนั้น"
+   (ถ้าเป็นวันเดียวกันถือว่าเป็นการจ่ายของหลายจุดในทริปเดียว ไม่ใช่การกลับมารับ)
+   คืน event ของครั้งที่มารับเพิ่ม หรือ null ถ้าไม่มี */
+function pkLateFill(r){
+  var evs = r.events || [], lastBadDay = '', lastBadIdx = -1;
+  for (var i = 0; i < evs.length; i++) {
+    if (evs[i].status === 'ไม่ครบ' && evs[i].at) { lastBadDay = evs[i].at.slice(0, 10); lastBadIdx = i; }
+  }
+  if (lastBadIdx < 0) return null;
+  for (var j = lastBadIdx + 1; j < evs.length; j++) {
+    var d = (evs[j].at || '').slice(0, 10);
+    if (d && d > lastBadDay) return evs[j];
+  }
+  return null;
 }
 function pkEvInRange(e){
   if (!pkFrom && !pkTo) return true;
@@ -1863,6 +1895,7 @@ function pkRenderStats(){
   var wh = cnt(function(r){ return r.locs.indexOf('warehouse') >= 0; });
   var bl = cnt(function(r){ return r.locs.length > 1; });
   var bad = cnt(function(r){ return r.status === 'ไม่ครบ'; });
+  var cleared = cnt(function(r){ return r.status === 'ไม่ครบ' && pkLateFill(r); });
   var mix = cnt(function(r){ return r.mixed; });
 
   document.getElementById('pkStats').innerHTML =
@@ -1876,7 +1909,8 @@ function pkRenderStats(){
       '<div class="n">มี ' + fmtNum(bl) + ' ใบที่จ่ายของทั้ง 2 จุด (จึงถูกนับทั้งสองฝั่ง)</div></div>' +
     '<div class="stat s-bad"><div class="k">⚠ รับไม่ครบ / มีปัญหา</div>' +
       '<div class="v">' + fmtNum(bad) + ' ใบ</div>' +
-      '<div class="n">และอีก ' + fmtNum(mix) + ' ใบที่มีส่วนหนึ่งรถร้านเอาไปส่ง</div></div>';
+      '<div class="n">ยังค้างอยู่ <b>' + fmtNum(bad - cleared) + '</b> ใบ · มารับเพิ่มภายหลังแล้ว ' + fmtNum(cleared) + ' ใบ' +
+        '<br>และอีก ' + fmtNum(mix) + ' ใบที่มีส่วนหนึ่งรถร้านเอาไปส่ง</div></div>';
 
   document.getElementById('pkRangeLine').innerHTML = (pkFrom || pkTo)
     ? '📅 ตัวเลขด้านล่างคิดเฉพาะใบที่มารับของช่วง <b>' + (pkFrom ? pkThDate(pkFrom) : 'เริ่มต้น') +
@@ -1907,7 +1941,13 @@ function pkItemsHtml(r, hits){
 function pkIssueHtml(r){
   var bad = (r.events || []).filter(function(e){ return e.status === 'ไม่ครบ'; });
   if (!bad.length) return '';
-  return bad.map(function(e){
+  var late = pkLateFill(r);
+  var lateBox = late
+    ? '<div class="pk-late">🔁 <b>มีการมารับเพิ่มภายหลัง</b> เมื่อ ' + esc(late.at) + ' ที่' + esc(PK_LOCN[late.loc] || late.loc) +
+      ' (ยืนยันโดย ' + esc(late.by) + ' · ครั้งนั้นขึ้นว่า ' + esc(late.status) + ') — ' +
+      'ระบบยังคงสถานะใบนี้เป็น "ไม่ครบ" ไว้ เพราะไม่มีข้อมูลยืนยันว่าของที่ค้างถูกรับครบแล้วหรือยัง</div>'
+    : '';
+  return lateBox + bad.map(function(e){
     return '<div class="pk-issue"><div class="ih">⚠ จ่ายของไม่ครบ ที่' + esc(PK_LOCN[e.loc] || e.loc) +
       ' · ' + esc(e.at) + '</div><dl>' +
       (e.issue ? '<dt>หมายเหตุ / ของที่ค้าง</dt><dd>' + esc(e.issue) + '</dd>' : '') +
@@ -1954,7 +1994,9 @@ function pkRender(){
     return pkInRange(r) &&
       (!pkMethod || r.methods.indexOf(pkMethod) >= 0) &&
       (!pkLoc || (pkLoc === 'both' ? r.locs.length > 1 : r.locs.indexOf(pkLoc) >= 0)) &&
-      (!pkBad || r.status === 'ไม่ครบ') && (!pkMix || r.mixed) && pkMatch(r);
+      (!pkBad || r.status === 'ไม่ครบ') &&
+      (!pkStill || (r.status === 'ไม่ครบ' && !pkLateFill(r))) &&
+      (!pkMix || r.mixed) && pkMatch(r);
   });
 
   document.getElementById('pkCount').textContent =
@@ -1996,6 +2038,7 @@ function pkRender(){
       if (e.by && names.indexOf(e.by) < 0) names.push(e.by);
       if (e.status === 'ไม่ครบ' && e.next && nexts.indexOf(e.next) < 0) nexts.push(e.next);
     });
+    var late = (r.status === 'ไม่ครบ') ? pkLateFill(r) : null;
     var hits = pkHits(r), n = (r.items || []).length, itemCell;
     if (hits.length) {
       itemCell = hits.slice(0, 3).map(function(it){
@@ -2020,6 +2063,8 @@ function pkRender(){
         (names.length > 1 ? '<div class="pk-sm">+ ' + esc(names.slice(1).join(', ')) + '</div>' : '') + '</td>' +
       '<td>' + (r.status === 'ครบ' ? '<span class="badge b-done">✓ ครบ</span>'
                                    : '<span class="badge b-partial">⚠ ไม่ครบ</span>' +
+          (late ? '<div style="margin-top:4px"><span class="badge b-late">🔁 มารับเพิ่ม ' +
+                  esc(pkThDate((late.at || '').slice(0, 10))) + '</span></div>' : '') +
           nexts.map(function(t){ return '<div style="margin-top:4px"><span class="badge b-next">→ ' + esc(t) + '</span></div>'; }).join('')) +
       '</td>' +
       '<td>' + itemCell + '</td></tr>';
