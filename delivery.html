@@ -66,6 +66,15 @@ background: #d9534f; color: #fff; font-size: 12px; line-height: 18px; text-align
 cursor: pointer; border: none; padding: 0;
 }
 .field-hint { font-size: 11.5px; color: #999; margin-top: 4px; text-align: left; }
+.depart-ask { background: #fff8e6; border: 1px solid #f0c766; border-radius: 10px; padding: 12px 14px; margin-top: 14px; text-align: left; }
+.depart-ask.err { background: #fdecea; border-color: #f0b4ac; }
+.depart-ask .depart-q { font-size: 14px; font-weight: 700; color: #8a5a00; }
+.depart-ask.err .depart-q { color: #c0271b; }
+.depart-ask .depart-why { font-size: 11.5px; color: #8a7a55; margin-top: 4px; line-height: 1.6; }
+.depart-ask label { color: #5c4a1e; }
+.depart-warn { font-size: 12px; color: #c0271b; font-weight: 700; margin-top: 8px; line-height: 1.6; }
+.depart-skip { display: inline-block; margin-top: 10px; font-size: 12px; color: #9a8c6a; text-decoration: underline; cursor: pointer; }
+.depart-skipped { background: #f1efe9; border: 1px dashed #cfc9ba; border-radius: 10px; padding: 11px 13px; margin-top: 14px; text-align: left; font-size: 12.5px; color: #6b675c; line-height: 1.6; }
 .toast {
 position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
 background: #222; color: #fff; padding: 10px 20px; border-radius: 20px;
@@ -422,6 +431,7 @@ return `
 <input type="time" id="deliveryTime" value="${timeVal}" style="flex:1;">
 </div>
 <div class="field-hint">เวลาเติมให้อัตโนมัติตอนเปิดหน้านี้ แก้ไขเองได้ถ้าไม่ตรง</div>
+<div id="departAskBox" style="display:none;"></div>
 
 <label class="required">รูปถ่าย (แนบได้หลายรูป)</label>
 <div style="display:flex; gap:8px; margin-top:6px;">
@@ -807,6 +817,8 @@ const rec = await fetchDispatchDoc_(currentDocNumber);
 currentDispatchInfo = rec;
 if (!rec) return; // ไม่มีในคิว / ต่อไม่ติด → เงียบ ไม่ต้องบอกอะไรพนักงาน
 
+maybeAskDepartTime_(rec); // ถามเวลารถออก ถ้าเที่ยวนี้ไม่มี — แยกอิสระจาก auto-fill ด้านล่าง
+
 const typeSelect = document.getElementById("methodType");
 const subSelect = document.getElementById("methodSub");
 if (!typeSelect || !subSelect) return;
@@ -846,6 +858,82 @@ renderDispatchHint_(dispatchHintBox_("#FFF8E1", "#F0D48A", "#7A5B00",
 }
 }
 // ================== จบส่วน auto-fill คนขับจากระบบจัดคิวรถ ==================
+
+// ============ ถามเวลารถออกจากร้าน ตอนคนขับปิดงาน (เฉพาะใบที่ไม่มีเวลาออก) ============
+// หลักกันพังเดียวกับบล็อก auto-fill: ห้าม throw ออกไปข้างนอกเด็ดขาด และห้ามบล็อกการปิดงาน
+function maybeAskDepartTime_(rec) {
+try {
+if (!rec) return;
+if (rec.cancelled) return;                       // ใบที่ยกเลิกแล้ว ไม่ต้องถาม
+if (dispatchIsSelfPickup_(rec)) return;          // ลูกค้ามารับเอง ไม่มีเที่ยวรถ
+if (!dispatchDriverName_(rec)) return;           // ยังไม่ได้จัดคนขับ
+if (String(rec.departAt || "").trim()) return;   // กดปุ่มไว้แล้ว → ไม่ถาม ไม่รบกวน 90% ที่ทำถูก
+renderDepartAsk_();
+} catch (err) {}
+}
+
+function renderDepartAsk_() {
+try {
+const box = document.getElementById("departAskBox");
+if (!box) return;
+box.style.display = "block";
+box.innerHTML =
+'<div class="depart-ask" id="departAskInner">' +
+'<div class="depart-q">🕐 รถออกจากร้านตอนกี่โมง?</div>' +
+'<div class="depart-why">เที่ยวนี้ไม่ได้กดปุ่ม "รถออกจากร้าน" ไว้ รบกวนใส่เวลาให้หน่อยค่ะ</div>' +
+'<label>เวลาที่ออกจากร้าน</label>' +
+'<input type="time" id="departTimeInput">' +
+'<div class="field-hint">กรอกคร่าว ๆ ได้ ไม่ต้องเป๊ะนาที</div>' +
+'<div class="depart-warn" id="departWarn" style="display:none;"></div>' +
+'<span class="depart-skip" id="departSkipLink">จำเวลาไม่ได้ ข้ามไปก่อน</span>' +
+'</div>';
+const inp = document.getElementById("departTimeInput");
+if (inp) inp.addEventListener("change", checkDepartSanity_);
+const skip = document.getElementById("departSkipLink");
+if (skip) skip.addEventListener("click", function () {
+box.innerHTML = '<div class="depart-skipped">⏭️ ข้ามการกรอกเวลาออก — ปิดงานได้ตามปกติ ระบบจะขึ้นว่า "ไม่ทราบเวลาออก" ในตารางเที่ยวรถ ให้คนจัดคิวเติมทีหลังได้</div>';
+});
+} catch (err) {}
+}
+
+// เตือนอย่างเดียว ไม่บล็อก — คนขับอาจส่งข้ามวัน หรือจำเวลาคลาดเคลื่อนก็ยังปิดงานได้
+function checkDepartSanity_() {
+try {
+const inp = document.getElementById("departTimeInput");
+const warn = document.getElementById("departWarn");
+const inner = document.getElementById("departAskInner");
+if (!inp || !warn) return;
+const v = String(inp.value || "");
+const handover = String((document.getElementById("deliveryTime") || {}).value || "");
+if (!v || !handover || v <= handover) {
+warn.style.display = "none";
+if (inner) inner.classList.remove("err");
+return;
+}
+warn.innerHTML = "⚠️ เวลาออก " + v + " อยู่หลังเวลาส่งมอบ " + handover + " — ตรวจอีกครั้งนะคะ";
+warn.style.display = "block";
+if (inner) inner.classList.add("err");
+} catch (err) {}
+}
+
+// ยิงแบบไม่ await โดยตั้งใจ — การปิดงานต้องไม่รอและต้องไม่พังเพราะ endpoint นี้
+// ฝั่ง backend เขียนเฉพาะตอนคอลัมน์เวลาออกยังว่างเท่านั้น ไม่ทับเวลาที่กดปุ่มจริง
+function saveDepartTimeIfNeeded_() {
+try {
+const inp = document.getElementById("departTimeInput");
+if (!inp || !inp.value) return;
+if (!DISPATCH_API_URL || !currentDocNumber) return;
+const payload = {
+doc: currentDocNumber,
+time: String(inp.value).slice(0, 5),
+date: String((document.getElementById("deliveryDate") || {}).value || ""),
+by: currentDisplayName || "",
+};
+const url = `${DISPATCH_API_URL}?action=dsp_setdepart&payload=${encodeURIComponent(JSON.stringify(payload))}`;
+fetchWithTimeout_(url, { method: "GET" }, 8000).catch(function () {});
+} catch (err) {}
+}
+// ============ จบส่วนถามเวลารถออกจากร้าน ============
 
 function validateCommonFields() {
 const method = getResolvedDeliveryMethod();
@@ -965,6 +1053,7 @@ deliveryDate: deliveryDate,
 deliveryTime: deliveryTime,
 photos: photos,
 };
+saveDepartTimeIfNeeded_();
 attemptSubmitConfirmation_(payload);
 }
 
