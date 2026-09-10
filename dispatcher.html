@@ -274,6 +274,7 @@
       <div class="label">🚚 รถออกจากร้านแล้ว</div>
       <div class="value" id="dDepartAt"></div>
       <div class="sub" id="dDepartBy"></div>
+      <div class="sub" id="dDepartNote"></div>
       <button class="selfpick-link hide" id="clearDepartBtn" style="margin-top:6px;padding:0">คนขับกดผิด? ล้างเวลานี้</button>
       <div class="hide" id="clearDepartBox">
         <textarea id="clearDepartReason" rows="2" style="width:100%;margin-top:8px;padding:10px;border:1px solid #DAD6CC;border-radius:8px;font:inherit;box-sizing:border-box" placeholder="จำเป็นต้องกรอก: ทำไมถึงล้าง เช่น คนขับกดผิด รถยังไม่ได้ออกจากร้าน"></textarea>
@@ -817,7 +818,7 @@ function renderDoc() {
   else { $('dNoteCard').classList.add('hide'); }
 
   if (d.confirmStatus) {
-    $('dDelivered').textContent = 'เอกสารนี้ยืนยันจ่ายของแล้ว (สถานะ: ' + d.confirmStatus + ')' +
+    $('dDelivered').textContent = 'คลังยืนยันจ่ายของแล้ว (สถานะ: ' + d.confirmStatus + ')' +
       (d.nextAction ? ('  ·  จะทำอย่างไรต่อไป: ' + d.nextAction) : '');
     $('dDelivered').classList.remove('hide');
   } else {
@@ -1161,6 +1162,8 @@ function renderDepart(d) {
   var st = String(d.status || '');
   var editable = (st === 'จัดคิวแล้ว' || st === 'รอจัดคิว' || st === 'ลูกค้ารับเอง');
   $('clearDepartBtn').classList.toggle('hide', !editable);
+  // บอกเหตุผลเมื่อแก้ไม่ได้ ดีกว่าซ่อนปุ่มเงียบๆ แล้วให้คนใช้เดาเอง
+  $('dDepartNote').textContent = editable ? '' : 'ของออกจากร้านแล้ว — แก้เวลานี้ไม่ได้';
 }
 
 function openClearDepartBox() {
