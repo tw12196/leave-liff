@@ -270,6 +270,18 @@
     <div id="dDelivered" class="warn-box hide" style="background:#E1F5EE;color:#085041;"></div>
 
     <!-- การ์ดไซต์ -->
+    <div class="card hide" id="dDepartCard">
+      <div class="label">🚚 รถออกจากร้านแล้ว</div>
+      <div class="value" id="dDepartAt"></div>
+      <div class="sub" id="dDepartBy"></div>
+      <button class="selfpick-link hide" id="clearDepartBtn" style="margin-top:6px;padding:0">คนขับกดผิด? ล้างเวลานี้</button>
+      <div class="hide" id="clearDepartBox">
+        <textarea id="clearDepartReason" rows="2" style="width:100%;margin-top:8px;padding:10px;border:1px solid #DAD6CC;border-radius:8px;font:inherit;box-sizing:border-box" placeholder="จำเป็นต้องกรอก: ทำไมถึงล้าง เช่น คนขับกดผิด รถยังไม่ได้ออกจากร้าน"></textarea>
+        <button class="btn danger" id="clearDepartConfirmBtn" style="margin-top:10px">ยืนยันล้างเวลารถออก</button>
+        <button class="btn ghost sm" id="clearDepartCancelBtn" style="margin-top:8px">ไม่ล้างแล้ว</button>
+      </div>
+    </div>
+
     <div class="card soft" id="dSiteCard">
       <div class="label">ไซต์จัดส่ง</div>
       <div class="site-row">
@@ -834,6 +846,7 @@ function renderDoc() {
   syncConfirmGate();
   renderSelfPickup(d);
   renderUnqueue(d);
+  renderDepart(d);
 }
 
 function renderCallLog(count, last) {
@@ -1127,6 +1140,75 @@ function syncConfirmGate() {
    ฝั่งเซิร์ฟเวอร์กันซ้ำอีกชั้น: รถออกไปแล้ว หรือยืนยันจ่ายของแล้ว = ยกเลิกไม่ได้
    เพราะการลบคนขับทิ้งเท่ากับลบร่องรอยเที่ยวรถที่เกิดขึ้นจริง */
 
+/* ---------- เวลารถออก + ล้างกรณีคนขับกดผิด (เพิ่ม 10 ก.ย. 2569) ----------
+   ปุ่ม "🚚 รถออกแล้ว" อยู่บนการ์ด LINE ของคนขับ กดพลาดง่ายมาก
+   ก่อนหน้านี้หน้าจัดคิวไม่โชว์เลยว่ารถออกไปหรือยัง และแก้ค่าที่ผิดไม่ได้เลย
+   ต้องเข้าไปลบในชีตเอง ซึ่งคนจัดคิวทำไม่ได้ แล้วยังทำให้ยกเลิกการจัดคิวไม่ได้ตามไปด้วย
+   ลิงก์แก้ไขจึงวางไว้ติดกับข้อมูลที่ผิด ไม่ใช่ซ่อนอยู่ที่อื่น */
+
+function renderDepart(d) {
+  var at = (d && d.departAt) ? String(d.departAt).trim() : '';
+  $('dDepartCard').classList.toggle('hide', !at);
+  $('clearDepartBox').classList.add('hide');
+  $('clearDepartReason').value = '';
+  if (!at) return;
+
+  $('dDepartAt').textContent = at;
+  var by = (d && d.departBy) ? String(d.departBy).trim() : '';
+  $('dDepartBy').textContent = by ? ('กดโดย ' + by) : '';
+
+  // ยืนยันจ่ายของไปแล้ว = รถออกไปจริง ไม่ต้องมีทางล้าง
+  var st = String(d.status || '');
+  var editable = (st === 'จัดคิวแล้ว' || st === 'รอจัดคิว' || st === 'ลูกค้ารับเอง');
+  $('clearDepartBtn').classList.toggle('hide', !editable);
+}
+
+function openClearDepartBox() {
+  $('clearDepartReason').value = '';
+  $('clearDepartBox').classList.remove('hide');
+  $('clearDepartBtn').classList.add('hide');
+  $('clearDepartReason').focus();
+}
+
+function closeClearDepartBox() {
+  $('clearDepartBox').classList.add('hide');
+  $('clearDepartReason').value = '';
+  $('clearDepartBtn').classList.remove('hide');
+}
+
+function onClearDepart() {
+  var d = state.doc;
+  if (!d || !d.doc) return;
+
+  var reason = $('clearDepartReason').value.trim();
+  if (!reason) {
+    toast('กรุณากรอกเหตุผลที่ล้างเวลารถออก', true);
+    $('clearDepartReason').focus();
+    return;
+  }
+
+  if (!window.confirm('ล้างเวลารถออกของใบ ' + d.doc + ' ?\n\nเวลาเดิม: ' + (d.departAt || '-')
+      + '\nเวลาเดิมจะถูกจดไว้ในหมายเหตุ ตามย้อนได้')) return;
+
+  var btn = $('clearDepartConfirmBtn');
+  btn.disabled = true;
+  btn.textContent = 'กำลังล้าง...';
+
+  api('dsp_cleardepart', { doc: d.doc, reason: reason, by: state.profile.displayName }).then(function () {
+    toast('ล้างเวลารถออกแล้ว');
+    return api('dsp_doc', { doc: d.doc });
+  }).then(function (res) {
+    state.doc = res;
+    renderDoc(res);
+    loadQueue();
+  }).catch(function (e) {
+    toast(e.message, true);
+  }).then(function () {
+    btn.disabled = false;
+    btn.textContent = 'ยืนยันล้างเวลารถออก';
+  });
+}
+
 function canUnqueue(d) {
   if (!d) return false;
   if (!d.driver && !d.driver2) return false;
@@ -1357,6 +1439,9 @@ document.addEventListener('DOMContentLoaded', function () {
   $('unqueueBtn').addEventListener('click', openUnqueueBox);
   $('unqueueConfirmBtn').addEventListener('click', onUnqueue);
   $('unqueueCancelBtn').addEventListener('click', closeUnqueueBox);
+  $('clearDepartBtn').addEventListener('click', openClearDepartBox);
+  $('clearDepartConfirmBtn').addEventListener('click', onClearDepart);
+  $('clearDepartCancelBtn').addEventListener('click', closeClearDepartBox);
   $('crConfirmed').addEventListener('change', syncConfirmGate);
   $('crNoAnswer').addEventListener('change', syncConfirmGate);
 
