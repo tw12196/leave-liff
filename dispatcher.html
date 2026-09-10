@@ -367,6 +367,18 @@
 
     <button class="btn" id="saveQueueBtn">บันทึกคิวรถ</button>
 
+    <div class="selfpick-row hide" id="unqueueRow">
+      <button class="selfpick-link" id="unqueueBtn">↩️ ยกเลิกการจัดคิวรถ</button>
+    </div>
+
+    <div class="card amber hide" id="unqueueBox">
+      <div class="label">ยกเลิกการจัดคิวรถ</div>
+      <div class="sub">ใบนี้จะกลับไปอยู่แท็บ “รอจัดคิว” และระบบจะแจ้ง LINE บอกคนขับที่จัดไว้ให้อัตโนมัติ</div>
+      <textarea id="unqueueReason" rows="2" style="width:100%;margin-top:8px;padding:10px;border:1px solid #DAD6CC;border-radius:8px;font:inherit;box-sizing:border-box" placeholder="จำเป็นต้องกรอก: ยกเลิกเพราะอะไร เช่น ลูกค้าเลื่อนวัน / หน้างานยังเข้าไม่ได้ / รถเสีย"></textarea>
+      <button class="btn danger" id="unqueueConfirmBtn" style="margin-top:10px">ยืนยันยกเลิกการจัดคิว</button>
+      <button class="btn ghost sm" id="unqueueCancelBtn" style="margin-top:8px">ไม่ยกเลิกแล้ว</button>
+    </div>
+
     <div class="selfpick-row">
       <button class="selfpick-link" id="selfPickBtn"></button>
     </div>
@@ -821,6 +833,7 @@ function renderDoc() {
 
   syncConfirmGate();
   renderSelfPickup(d);
+  renderUnqueue(d);
 }
 
 function renderCallLog(count, last) {
@@ -1109,6 +1122,75 @@ function syncConfirmGate() {
 
 /* ---------- ลูกค้าเปลี่ยนเป็นมารับเอง ---------- */
 
+/* ---------- ยกเลิกการจัดคิวรถ (เพิ่ม 10 ก.ย. 2569) ----------
+   ใช้ตอนจัดคิวไปแล้วแต่ต้องเลื่อน/เปลี่ยนแผน — ใบจะกลับไปแท็บ "รอจัดคิว"
+   ฝั่งเซิร์ฟเวอร์กันซ้ำอีกชั้น: รถออกไปแล้ว หรือยืนยันจ่ายของแล้ว = ยกเลิกไม่ได้
+   เพราะการลบคนขับทิ้งเท่ากับลบร่องรอยเที่ยวรถที่เกิดขึ้นจริง */
+
+function canUnqueue(d) {
+  if (!d) return false;
+  if (!d.driver && !d.driver2) return false;
+  var st = String(d.status || '');
+  return (st === 'จัดคิวแล้ว' || st === 'รอจัดคิว' || st === 'ลูกค้ารับเอง');
+}
+
+function renderUnqueue(d) {
+  var show = canUnqueue(d);
+  $('unqueueRow').classList.toggle('hide', !show);
+  if (!show) {
+    $('unqueueBox').classList.add('hide');
+    $('unqueueReason').value = '';
+  }
+}
+
+function openUnqueueBox() {
+  $('unqueueReason').value = '';
+  $('unqueueBox').classList.remove('hide');
+  $('unqueueRow').classList.add('hide');
+  $('unqueueReason').focus();
+}
+
+function closeUnqueueBox() {
+  $('unqueueBox').classList.add('hide');
+  $('unqueueReason').value = '';
+  if (canUnqueue(state.doc)) $('unqueueRow').classList.remove('hide');
+}
+
+function onUnqueue() {
+  var d = state.doc;
+  if (!d || !d.doc) return;
+
+  var reason = $('unqueueReason').value.trim();
+  if (!reason) {
+    toast('กรุณากรอกเหตุผลที่ยกเลิกการจัดคิว', true);
+    $('unqueueReason').focus();
+    return;
+  }
+
+  var names = [d.driver, d.driver2].filter(function (x) { return !!x; }).join(' + ');
+  if (!window.confirm('ยกเลิกการจัดคิวใบ ' + d.doc + ' ?\n\nคนขับที่จัดไว้: ' + names
+      + '\nระบบจะแจ้ง LINE บอกคนขับว่างานนี้ถูกยกเลิก')) return;
+
+  var btn = $('unqueueConfirmBtn');
+  btn.disabled = true;
+  btn.textContent = 'กำลังยกเลิก...';
+
+  api('dsp_unqueue', { doc: d.doc, reason: reason, by: state.profile.displayName }).then(function (res) {
+    toast('ยกเลิกการจัดคิวแล้ว' + (res && res.pushMessage ? (' · ' + res.pushMessage) : ''));
+    closeUnqueueBox();
+    return api('dsp_doc', { doc: d.doc });
+  }).then(function (res) {
+    state.doc = res;
+    renderDoc(res);
+    loadQueue();
+  }).catch(function (e) {
+    toast(e.message, true);
+  }).then(function () {
+    btn.disabled = false;
+    btn.textContent = 'ยืนยันยกเลิกการจัดคิว';
+  });
+}
+
 function renderSelfPickup(d) {
   var on   = !!(d && d.selfPickup);
   var btn  = $('selfPickBtn');
@@ -1272,6 +1354,9 @@ document.addEventListener('DOMContentLoaded', function () {
   $('saveNoteBtn').addEventListener('click', onSaveNote);
   $('saveQueueBtn').addEventListener('click', onSaveQueue);
   $('selfPickBtn').addEventListener('click', onToggleSelfPickup);
+  $('unqueueBtn').addEventListener('click', openUnqueueBox);
+  $('unqueueConfirmBtn').addEventListener('click', onUnqueue);
+  $('unqueueCancelBtn').addEventListener('click', closeUnqueueBox);
   $('crConfirmed').addEventListener('change', syncConfirmGate);
   $('crNoAnswer').addEventListener('change', syncConfirmGate);
 
