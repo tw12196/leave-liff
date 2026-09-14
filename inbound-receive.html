@@ -1,73 +1,69 @@
 <!DOCTYPE html>
-  <html lang="th">
-  <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-  <title>รับของเข้า</title>
-  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <style>
-    * { box-sizing: border-box; }
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>รับของเข้า</title>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  * { box-sizing: border-box; }
   body {
-        margin: 0;
+    margin: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Sarabun", sans-serif;
     background: #f4f5f7;
-        color: #1a1a1a;
+    color: #1a1a1a;
     padding: 16px;
-}
+  }
   h1 {
-        font-size: 20px;
+    font-size: 20px;
     margin: 0 0 16px;
-}
+  }
   .card {
-        background: #fff;
-            border-radius: 12px;
+    background: #fff;
+    border-radius: 12px;
     padding: 16px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     margin-bottom: 16px;
   }
   label {
-        display: block;
+    display: block;
     font-size: 14px;
     font-weight: 600;
     margin-bottom: 6px;
-}
-  input[type="text"], input[type="number"] {
+  }
+  input[type="text"], input[type="number"], select {
     width: 100%;
     padding: 12px;
     font-size: 16px;
     border: 1px solid #ccc;
     border-radius: 8px;
     margin-bottom: 4px;
-  }
-  #orderList {
-    max-height: 260px;
-    overflow-y: auto;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    margin-top: 4px;
-    display: none;
     background: #fff;
-    }
-  #orderList div {
-        padding: 10px 12px;
-    border-bottom: 1px solid #eee;
-    font-size: 14px;
-    cursor: pointer;
-}
-  #orderList div:last-child { border-bottom: none; }
-  #orderList div:active { background: #f0f0f0; }
+  }
+  select { appearance: auto; }
+  .or-divider {
+    text-align: center;
+    font-size: 12px;
+    color: #999;
+    margin: 10px 0;
+  }
+  .manual-label {
+    font-size: 13px;
+    font-weight: 400;
+    color: #666;
+  }
   .reference {
-        background: #f0f7ff;
-        border-radius: 8px;
+    background: #f0f7ff;
+    border-radius: 8px;
     padding: 12px;
     font-size: 14px;
     line-height: 1.6;
     margin-top: 8px;
     display: none;
-}
+  }
   .reference .row { display: flex; justify-content: space-between; }
   button {
-        width: 100%;
+    width: 100%;
     padding: 14px;
     font-size: 16px;
     font-weight: 600;
@@ -75,58 +71,63 @@
     border-radius: 8px;
     background: #06c755;
     color: #fff;
-        cursor: pointer;
-}
+    cursor: pointer;
+  }
   button:disabled { background: #aaa; }
-      .msg {
-        margin-top: 12px;
+  .msg {
+    margin-top: 12px;
     padding: 12px;
     border-radius: 8px;
     font-size: 14px;
     line-height: 1.5;
     display: none;
     white-space: pre-line;
-}
+  }
   .msg.ok { background: #e6f7ec; color: #0a6b32; display: block; }
-    .msg.err { background: #fdeaea; color: #a3231c; display: block; }
-    .msg.warn { background: #fff6e0; color: #8a5a00; display: block; }
-    .loading { text-align: center; padding: 40px 0; color: #888; }
+  .msg.err { background: #fdeaea; color: #a3231c; display: block; }
+  .msg.warn { background: #fff6e0; color: #8a5a00; display: block; }
+  .loading { text-align: center; padding: 40px 0; color: #888; }
 </style>
-  </head>
-  <body>
+</head>
+<body>
 
-  <h1>📦 รับของเข้า</h1>
+<h1>📦 รับของเข้า</h1>
 
-  <div id="loadingBox" class="loading">กำลังโหลด...</div>
+<div id="loadingBox" class="loading">กำลังโหลด...</div>
 
-  <div id="formBox" style="display:none">
-    <div class="card">
-      <label for="orderInput">เลขใบรับสินค้า</label>
-      <input type="text" id="orderInput" placeholder="พิมพ์หรือเลือกเลขใบรับสินค้า" autocomplete="off" />
-      <div id="orderList"></div>
+<div id="formBox" style="display:none">
+  <div class="card">
+    <label for="orderSelect">เลขใบรับสินค้า</label>
+    <select id="orderSelect">
+      <option value="">-- เลือกจากรายการที่รอของ --</option>
+    </select>
 
-      <div class="reference" id="referenceBox">
-        <div class="row"><span>สินค้า</span><strong id="refProduct">-</strong></div>
-        <div class="row"><span>จำนวนที่สั่ง</span><strong id="refQty">-</strong></div>
+    <div class="or-divider">หรือ</div>
+
+    <label for="orderInput" class="manual-label">พิมพ์เลขใบรับสินค้าเอง (กรณีไม่อยู่ในลิสต์)</label>
+    <input type="text" id="orderInput" placeholder="พิมพ์เลขใบรับสินค้าจากตั๋ว" autocomplete="off" />
+
+    <div class="reference" id="referenceBox">
+      <div class="row"><span>สินค้า</span><strong id="refProduct">-</strong></div>
+      <div class="row"><span>จำนวนที่สั่ง</span><strong id="refQty">-</strong></div>
     </div>
-    </div>
-
-    <div class="card">
-      <label for="actualQtyInput">จำนวนที่รับจริง</label>
-      <input type="number" id="actualQtyInput" inputmode="decimal" placeholder="กรอกจำนวนที่รับจริง" />
-    </div>
-
-    <button id="confirmBtn" disabled>ยืนยันรับของ</button>
-
-    <div class="msg" id="resultMsg"></div>
   </div>
 
+  <div class="card">
+    <label for="actualQtyInput">จำนวนที่รับจริง</label>
+    <input type="number" id="actualQtyInput" inputmode="decimal" placeholder="กรอกจำนวนที่รับจริง" />
+  </div>
 
-  <script>
-  /* ตั้งค่า 2 ค่านี้หลัง deploy โปรเจกต์ Apps Script "Inbound Receiving Backend" เสร็จ:
-     1. WEBAPP_URL = URL ที่ได้จาก Deploy > New deployment > Web app
-     2. LIFF_ID = LIFF ID ที่สร้างใน LINE Developers Console สำหรับหน้านี้โดยเฉพาะ */
-  var WEBAPP_URL = 'https://script.google.com/macros/s/AKfycby4DY-F8hmlnfbxcY2-a4SEGZ_hiGKXHaN6R78qaveUXtYRcBJdmRfIPQ2xXQ7343RavQ/exec';
+  <button id="confirmBtn" disabled>ยืนยันรับของ</button>
+
+  <div class="msg" id="resultMsg"></div>
+</div>
+
+<script>
+/* ตั้งค่า 2 ค่านี้หลัง deploy โปรเจกต์ Apps Script "Inbound Receiving Backend" เสร็จ:
+   1. WEBAPP_URL = URL ที่ได้จาก Deploy > New deployment > Web app
+   2. LIFF_ID = LIFF ID ที่สร้างใน LINE Developers Console สำหรับหน้านี้โดยเฉพาะ */
+var WEBAPP_URL = 'https://script.google.com/macros/s/AKfycby4DY-F8hmlnfbxcY2-a4SEGZ_hiGKXHaN6R78qaveUXtYRcBJdmRfIPQ2xXQ7343RavQ/exec';
 var LIFF_ID = '2010663561-mGKHkMfZ';
 
 var allOrders = [];
@@ -135,143 +136,135 @@ var lineUserId = '';
 
 function apiGet(action, params) {
   var url = WEBAPP_URL + '?action=' + encodeURIComponent(action);
-for (var key in params) {
-  if (params[key] !== undefined && params[key] !== null) {
-url += '&' + key + '=' + encodeURIComponent(params[key]);
+  for (var key in params) {
+    if (params[key] !== undefined && params[key] !== null) {
+      url += '&' + key + '=' + encodeURIComponent(params[key]);
+    }
   }
-}
-return fetch(url).then(function (res) { return res.json(); });
+  return fetch(url).then(function (res) { return res.json(); });
 }
 
 function showMsg(type, text) {
   var box = document.getElementById('resultMsg');
-box.className = 'msg ' + type;
-box.textContent = text;
+  box.className = 'msg ' + type;
+  box.textContent = text;
 }
 
-function renderOrderList(filterText) {
-  var listBox = document.getElementById('orderList');
-var q = (filterText || '').trim().toLowerCase();
-var matches = q
-? allOrders.filter(function (o) { return String(o.orderNo).toLowerCase().indexOf(q) !== -1; })
-: allOrders;
-
-if (matches.length === 0) {
-listBox.style.display = 'none';
-return;
-}
-
-listBox.innerHTML = '';
-  matches.slice(0, 30).forEach(function (o) {
-    var row = document.createElement('div');
-row.textContent = o.orderNo + '  —  ' + o.product;
-row.addEventListener('click', function () { selectOrder(o.orderNo); });
-listBox.appendChild(row);
+function renderOrderSelect() {
+  var select = document.getElementById('orderSelect');
+  select.innerHTML = '<option value="">-- เลือกจากรายการที่รอของ (' + allOrders.length + ' รายการ) --</option>';
+  allOrders.forEach(function (o) {
+    var opt = document.createElement('option');
+    opt.value = o.orderNo;
+    opt.textContent = o.orderNo + '  —  ' + o.product;
+    select.appendChild(opt);
   });
-listBox.style.display = 'block';
 }
 
 function selectOrder(orderNo) {
+  document.getElementById('orderSelect').value = orderNo;
   document.getElementById('orderInput').value = orderNo;
-document.getElementById('orderList').style.display = 'none';
-document.getElementById('resultMsg').style.display = 'none';
+  document.getElementById('resultMsg').style.display = 'none';
 
-apiGet('dsp_inb_getOrder', { orderNo: orderNo }).then(function (data) {
-  if (!data.ok) {
-showMsg('err', data.error || 'ไม่พบเลขใบรับสินค้านี้');
-selectedOrder = null;
-document.getElementById('confirmBtn').disabled = true;
-document.getElementById('referenceBox').style.display = 'none';
-return;
-  }
-selectedOrder = data;
-document.getElementById('refProduct').textContent = data.product;
-document.getElementById('refQty').textContent = data.qtyOrdered + ' ' + (data.unit || '');
-  document.getElementById('referenceBox').style.display = 'block';
-document.getElementById('actualQtyInput').value = data.qtyOrdered;
-document.getElementById('confirmBtn').disabled = false;
-}).catch(function () {
-showMsg('err', 'เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่');
+  apiGet('dsp_inb_getOrder', { orderNo: orderNo }).then(function (data) {
+    if (!data.ok) {
+      showMsg('err', data.error || 'ไม่พบเลขใบรับสินค้านี้');
+      selectedOrder = null;
+      document.getElementById('confirmBtn').disabled = true;
+      document.getElementById('referenceBox').style.display = 'none';
+      return;
+    }
+    selectedOrder = data;
+    document.getElementById('refProduct').textContent = data.product;
+    document.getElementById('refQty').textContent = data.qtyOrdered + ' ' + (data.unit || '');
+    document.getElementById('referenceBox').style.display = 'block';
+    document.getElementById('actualQtyInput').value = data.qtyOrdered;
+    document.getElementById('confirmBtn').disabled = false;
+  }).catch(function () {
+    showMsg('err', 'เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่');
   });
 }
 
 function confirmReceive() {
   if (!selectedOrder) return;
-var actualQty = document.getElementById('actualQtyInput').value;
-if (actualQty === '' || isNaN(Number(actualQty))) {
-  showMsg('err', 'กรุณากรอกจำนวนที่รับจริงเป็นตัวเลข');
-  return;
-}
+  var actualQty = document.getElementById('actualQtyInput').value;
+  if (actualQty === '' || isNaN(Number(actualQty))) {
+    showMsg('err', 'กรุณากรอกจำนวนที่รับจริงเป็นตัวเลข');
+    return;
+  }
 
-var btn = document.getElementById('confirmBtn');
-btn.disabled = true;
-btn.textContent = 'กำลังบันทึก...';
+  var btn = document.getElementById('confirmBtn');
+  btn.disabled = true;
+  btn.textContent = 'กำลังบันทึก...';
 
-apiGet('dsp_inb_confirmReceive', {
-  orderNo: selectedOrder.orderNo,
-  actualQty: actualQty,
-  lineUserId: lineUserId
+  apiGet('dsp_inb_confirmReceive', {
+    orderNo: selectedOrder.orderNo,
+    actualQty: actualQty,
+    lineUserId: lineUserId
   }).then(function (data) {
-  btn.textContent = 'ยืนยันรับของ';
-if (!data.ok) {
-showMsg('err', data.error || 'บันทึกไม่สำเร็จ');
-btn.disabled = false;
-return;
-}
-if (data.isComplete) {
-showMsg('ok', '✅ บันทึกสำเร็จ — ของครบตามที่สั่ง\nผู้รับของ: ' + data.receiverName);
-} else {
-showMsg('warn', '⚠️ บันทึกสำเร็จ — แต่จำนวนไม่ครบ\nสั่ง ' + data.qtyOrdered + ' / รับจริง ' + data.qtyActual + '\nผู้รับของ: ' + data.receiverName + '\nแจ้งจัดซื้อแล้ว');
-}
-selectedOrder = null;
-document.getElementById('orderInput').value = '';
-  document.getElementById('actualQtyInput').value = '';
+    btn.textContent = 'ยืนยันรับของ';
+    if (!data.ok) {
+      showMsg('err', data.error || 'บันทึกไม่สำเร็จ');
+      btn.disabled = false;
+      return;
+    }
+    if (data.isComplete) {
+      showMsg('ok', '✅ บันทึกสำเร็จ — ของครบตามที่สั่ง\nผู้รับของ: ' + data.receiverName);
+    } else {
+      showMsg('warn', '⚠️ บันทึกสำเร็จ — แต่จำนวนไม่ครบ\nสั่ง ' + data.qtyOrdered + ' / รับจริง ' + data.qtyActual + '\nผู้รับของ: ' + data.receiverName + '\nแจ้งจัดซื้อแล้ว');
+    }
+    // เคลียร์ฟอร์มพร้อมรับของชิ้นถัดไป
+    selectedOrder = null;
+    document.getElementById('orderSelect').value = '';
+    document.getElementById('orderInput').value = '';
+    document.getElementById('actualQtyInput').value = '';
     document.getElementById('referenceBox').style.display = 'none';
-loadPendingOrders();
-}).catch(function () {
-btn.textContent = 'ยืนยันรับของ';
-btn.disabled = false;
-showMsg('err', 'เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่');
-});
-             }
+    loadPendingOrders().then(renderOrderSelect);
+  }).catch(function () {
+    btn.textContent = 'ยืนยันรับของ';
+    btn.disabled = false;
+    showMsg('err', 'เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่');
+  });
+}
 
 function loadPendingOrders() {
   return apiGet('dsp_inb_listPending', {}).then(function (data) {
     allOrders = (data && data.orders) || [];
   }).catch(function () {
-      allOrders = [];
+    allOrders = [];
   });
 }
 
-document.getElementById('orderInput').addEventListener('input', function (e) {
-  renderOrderList(e.target.value);
-          });
-document.getElementById('orderInput').addEventListener('focus', function (e) {
-  renderOrderList(e.target.value);
-          });
-document.addEventListener('click', function (e) {
-  if (e.target.id !== 'orderInput') {
-document.getElementById('orderList').style.display = 'none';
+document.getElementById('orderSelect').addEventListener('change', function (e) {
+  if (e.target.value) selectOrder(e.target.value);
+});
+document.getElementById('orderInput').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter' && e.target.value.trim()) {
+    e.preventDefault();
+    selectOrder(e.target.value.trim());
   }
+});
+document.getElementById('orderInput').addEventListener('blur', function (e) {
+  if (e.target.value.trim()) selectOrder(e.target.value.trim());
 });
 document.getElementById('confirmBtn').addEventListener('click', confirmReceive);
 
 liff.init({ liffId: LIFF_ID }).then(function () {
   if (!liff.isLoggedIn()) {
-liff.login();
-return;
+    liff.login();
+    return;
   }
-return liff.getProfile().then(function (profile) {
-  lineUserId = profile.userId;
-return loadPendingOrders();
-});
+  return liff.getProfile().then(function (profile) {
+    lineUserId = profile.userId;
+    return loadPendingOrders().then(renderOrderSelect);
+  });
 }).then(function () {
-document.getElementById('loadingBox').style.display = 'none';
-document.getElementById('formBox').style.display = 'block';
+  document.getElementById('loadingBox').style.display = 'none';
+  document.getElementById('formBox').style.display = 'block';
 }).catch(function (err) {
-document.getElementById('loadingBox').textContent = 'เกิดข้อผิดพลาด: ' + err;
+  document.getElementById('loadingBox').textContent = 'เกิดข้อผิดพลาด: ' + err;
 });
 </script>
 
-  </body>
-  </html>
+</body>
+</html>
