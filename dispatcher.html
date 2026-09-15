@@ -502,17 +502,67 @@ function show(screen) {
   window.scrollTo(0, 0);
 }
 
+/* รายการคำสั่งที่ "อ่านอย่างเดียว" — ยิงซ้ำได้ ไม่ทำให้ข้อมูลซ้ำ
+   ส่วนคำสั่งที่เขียนลงชีต (dsp_save / dsp_unqueue / dsp_cleardepart / dsp_note /
+   dsp_call / dsp_selfpickup / dsp_bindsite / dsp_savesite) จะไม่ยิงซ้ำเด็ดขาด
+   เพราะถ้าเซิร์ฟเวอร์บันทึกสำเร็จแล้วแต่ตอบกลับไม่ทัน การยิงซ้ำจะกลายเป็นบันทึกสองรอบ */
+var API_SAFE_RETRY = {
+  dsp_access: 1, dsp_drivers: 1, dsp_queue: 1,
+  dsp_doc: 1, dsp_sites: 1, dsp_customers: 1
+};
+
 function api(action, payload) {
-  var url = API_URL + '?action=' + encodeURIComponent(action) + '&t=' + Date.now();
+  var base = API_URL + '?action=' + encodeURIComponent(action);
   // แนบ LINE User ID ไปให้เซิร์ฟเวอร์ตรวจสิทธิ์ (allowlist ชีต "ผู้จัดคิว")
-  if (state.profile && state.profile.userId) url += '&uid=' + encodeURIComponent(state.profile.userId);
-  if (payload) url += '&payload=' + encodeURIComponent(JSON.stringify(payload));
-  return fetch(url, { method: 'GET', redirect: 'follow' })
-    .then(function (r) { return r.json(); })
-    .then(function (j) {
-      if (!j || j.ok !== true) throw new Error((j && j.error) || 'เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
-      return j.data;
+  if (state.profile && state.profile.userId) base += '&uid=' + encodeURIComponent(state.profile.userId);
+  if (payload) base += '&payload=' + encodeURIComponent(JSON.stringify(payload));
+
+  /* Apps Script ตอบเป็น JSON พร้อม HTTP 200 เสมอ แม้ตอนมี error ก็ยังเป็น {"ok":false}
+     แต่ถ้าฝั่ง Google ตัดคำขอที่ช้าเกินไป จะส่ง "หน้า HTML" กลับมาแทน (เช่น HTTP 404)
+     โค้ดเดิมเรียก r.json() ทันทีโดยไม่ตรวจ พอเจอ HTML จึงโยน error ที่บน iOS
+     ขึ้นข้อความว่า "The string did not match the expected pattern." ซึ่งคนใช้อ่านไม่รู้เรื่อง
+     จึงเปลี่ยนมาอ่านเป็นข้อความก่อน แล้วตรวจว่าเป็น JSON จริงไหม ค่อยแปลง */
+  function once() {
+    return fetch(base + '&t=' + Date.now(), { method: 'GET', redirect: 'follow' })
+      .then(function (r) {
+        return r.text().then(function (body) {
+          var txt = (body || '').trim();
+          if (!r.ok || txt.charAt(0) !== '{') {
+            var e1 = new Error('เซิร์ฟเวอร์ตอบช้า กรุณาลองใหม่อีกครั้งค่ะ');
+            e1.transient = true;
+            throw e1;
+          }
+          var j;
+          try {
+            j = JSON.parse(txt);
+          } catch (err) {
+            var e2 = new Error('ข้อมูลที่ได้รับไม่สมบูรณ์ กรุณาลองใหม่อีกครั้งค่ะ');
+            e2.transient = true;
+            throw e2;
+          }
+          if (!j || j.ok !== true) throw new Error((j && j.error) || 'เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
+          return j.data;
+        });
+      }, function () {
+        // เน็ตหลุด / สัญญาณขาด — fetch reject ก่อนได้ response
+        var e3 = new Error('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาเช็กสัญญาณแล้วลองใหม่ค่ะ');
+        e3.transient = true;
+        throw e3;
+      });
+  }
+
+  // ลองใหม่อัตโนมัติสูงสุด 2 ครั้ง (หน่วง 1.2 วิ แล้ว 2.4 วิ) เฉพาะคำสั่งอ่านอย่างเดียว
+  function attempt(left) {
+    return once().catch(function (e) {
+      if (left > 0 && e.transient && API_SAFE_RETRY[action]) {
+        return new Promise(function (ok) { setTimeout(ok, left === 2 ? 1200 : 2400); })
+          .then(function () { return attempt(left - 1); });
+      }
+      throw e;
     });
+  }
+
+  return attempt(API_SAFE_RETRY[action] ? 2 : 0);
 }
 
 /* รวม "วันที่" กับ "เวลา" ที่ขอให้ส่ง เป็นข้อความเดียว เช่น "วันนี้  ·  ก่อน 11:00 น." */
@@ -698,7 +748,14 @@ function loadQueue() {
     if (partialChip) partialChip.classList.toggle('alert', state.queue.partial.length > 0);
     renderQueue();
   }).catch(function (e) {
-    $('queueList').innerHTML = '<div class="empty">โหลดคิวไม่สำเร็จ<br>' + esc(e.message) + '</div>';
+    // ให้มีปุ่มกดลองใหม่ตรงนี้เลย คนจัดคิวจะได้ไม่ต้องปิดแอปเปิดใหม่
+    $('queueList').innerHTML = '<div class="empty">โหลดคิวไม่สำเร็จ<br>' + esc(e.message) +
+      '<br><br><button class="btn orange sm" id="retryQueueBtn">ลองใหม่อีกครั้ง</button></div>';
+    var rb = $('retryQueueBtn');
+    if (rb) rb.addEventListener('click', function () {
+      $('queueList').innerHTML = '<div class="loading">กำลังโหลด…</div>';
+      loadQueue();
+    });
   });
 }
 
