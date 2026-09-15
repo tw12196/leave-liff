@@ -65,6 +65,8 @@
   }
   .badge.complete { background: #e6f7ec; color: #0a6b32; }
   .badge.incomplete { background: #fff6e0; color: #8a5a00; }
+  .badge.special { background: #f3e8ff; color: #7c3aed; }
+  .special-line { font-size: 12px; color: #7c3aed; font-weight: 600; margin-top: 4px; }
   .history-item-row {
     padding: 10px 0;
     border-bottom: 1px solid #eee;
@@ -223,7 +225,8 @@
   <button class="back-btn" id="backBtn">‹ กลับไปหน้ารายการ</button>
   <div class="card">
     <div class="orderNo" style="font-size:16px; font-weight:700;" id="detailOrderNo"></div>
-    <div class="carrier" id="detailCarrier" style="font-size:13px; color:#888; margin-top:2px; margin-bottom:8px;"></div>
+    <div class="carrier" id="detailCarrier" style="font-size:13px; color:#888; margin-top:2px; margin-bottom:6px;"></div>
+    <div class="special-line" id="detailSpecial" style="display:none; margin:0 0 8px;"></div>
     <div id="itemsList"></div>
   </div>
   <button class="primary" id="confirmBtn">ยืนยันรับของ</button>
@@ -235,7 +238,8 @@
   <div class="card">
     <div class="orderNo" style="font-size:16px; font-weight:700;" id="historyDetailOrderNo"></div>
     <div class="meta-line" id="historyDetailCarrier"></div>
-    <div class="meta-line" id="historyDetailMeta" style="margin-bottom:8px;"></div>
+    <div class="meta-line" id="historyDetailMeta"></div>
+    <div class="special-line" id="historyDetailSpecial" style="display:none; margin-bottom:8px;"></div>
     <div id="historyItemsList"></div>
   </div>
 </div>
@@ -310,6 +314,7 @@ function renderOrderCard(o) {
     '<div>' +
       '<div class="orderNo">' + o.orderNo + '</div>' +
       '<div class="category">' + (o.categorySummary || '-') + '</div>' +
+      (o.customer ? '<div class="special-line">🎯 สั่งพิเศษ · ' + o.customer + '</div>' : '') +
     '</div>' +
     '<div style="display:flex; align-items:center;">' +
       '<div class="eta' + (o.isToday ? ' today' : '') + '">' + (o.eta || 'ไม่ระบุวันที่') + '</div>' +
@@ -397,6 +402,7 @@ function renderHistoryCard(o) {
       '<div class="orderNo">' + o.orderNo + '</div>' +
       '<div class="category">' + (o.categorySummary || '-') + ' · รับโดย ' + (o.receiverName || '-') + '</div>' +
       '<div class="category">' + (o.receivedAt || '-') + '</div>' +
+      (o.customer ? '<div class="special-line">🎯 สั่งพิเศษ · ' + o.customer + '</div>' : '') +
     '</div>' +
     '<div style="display:flex; align-items:center; gap:6px;">' +
       '<span class="badge ' + (o.isComplete ? 'complete">ครบ' : 'incomplete">ไม่ครบ') + '</span>' +
@@ -429,6 +435,13 @@ function openHistoryOrder(orderNo) {
     document.getElementById('historyDetailOrderNo').textContent = 'เลขใบรับสินค้า: ' + data.orderNo;
     document.getElementById('historyDetailCarrier').textContent = 'ขนส่ง: ' + (data.carrier || 'ไม่ระบุ');
     document.getElementById('historyDetailMeta').textContent = 'รับโดย ' + (data.receiverName || '-') + ' เมื่อ ' + (data.receivedAt || '-');
+    var historySpecialBox = document.getElementById('historyDetailSpecial');
+    if (data.customer) {
+      historySpecialBox.textContent = '🎯 สั่งพิเศษ · ลูกค้า: ' + data.customer;
+      historySpecialBox.style.display = 'block';
+    } else {
+      historySpecialBox.style.display = 'none';
+    }
     var box = document.getElementById('historyItemsList');
     box.innerHTML = '';
     data.items.forEach(function (it) {
@@ -475,6 +488,13 @@ function openOrder(orderNo) {
     currentItems = data.items;
     document.getElementById('detailOrderNo').textContent = 'เลขใบรับสินค้า: ' + currentOrderNo;
     document.getElementById('detailCarrier').textContent = 'ขนส่ง: ' + (data.carrier || 'ไม่ระบุ');
+    var specialBox = document.getElementById('detailSpecial');
+    if (data.customer) {
+      specialBox.textContent = '🎯 สั่งพิเศษ · ลูกค้า: ' + data.customer;
+      specialBox.style.display = 'block';
+    } else {
+      specialBox.style.display = 'none';
+    }
     renderItemsList();
     showDetailView();
   }).catch(function () {
