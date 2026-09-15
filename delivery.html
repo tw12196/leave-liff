@@ -66,15 +66,6 @@ background: #d9534f; color: #fff; font-size: 12px; line-height: 18px; text-align
 cursor: pointer; border: none; padding: 0;
 }
 .field-hint { font-size: 11.5px; color: #999; margin-top: 4px; text-align: left; }
-.depart-ask { background: #fff8e6; border: 1px solid #f0c766; border-radius: 10px; padding: 12px 14px; margin-top: 14px; text-align: left; }
-.depart-ask.err { background: #fdecea; border-color: #f0b4ac; }
-.depart-ask .depart-q { font-size: 14px; font-weight: 700; color: #8a5a00; }
-.depart-ask.err .depart-q { color: #c0271b; }
-.depart-ask .depart-why { font-size: 11.5px; color: #8a7a55; margin-top: 4px; line-height: 1.6; }
-.depart-ask label { color: #5c4a1e; }
-.depart-warn { font-size: 12px; color: #c0271b; font-weight: 700; margin-top: 8px; line-height: 1.6; }
-.depart-skip { display: inline-block; margin-top: 10px; font-size: 12px; color: #9a8c6a; text-decoration: underline; cursor: pointer; }
-.depart-skipped { background: #f1efe9; border: 1px dashed #cfc9ba; border-radius: 10px; padding: 11px 13px; margin-top: 14px; text-align: left; font-size: 12.5px; color: #6b675c; line-height: 1.6; }
 .toast {
 position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
 background: #222; color: #fff; padding: 10px 20px; border-radius: 20px;
@@ -93,7 +84,7 @@ font-size: 14px; z-index: 30; max-width: 90%;
 <script>
 // ==================== ตั้งค่า (แก้ 2 บรรทัดนี้) ====================
 const LIFF_ID = "2010663561-6mmF990p"; // เอามากาก LINE Developers Console
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbye5zAWnEGLDgTQpGdmMd1cmfHOEmMsOkqd6mMJogU861PJvQU4Nd9SREEdbGscaWQ2/exec"; // URL หลัง deploy Apps Script
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzzpYfVTGBt036Firn6PUOuCz05LjRUEFiSCUJOVaPn4ACWxOibTeafEL5ydPatJf7X/exec"; // URL หลัง deploy Apps Script
 // URL /exec ของ Apps Script "Delivery Sales WebApp" (ระบบจัดคิวรถ Step 1)
 // ใช้ถามว่าเอกสารใบนี้ถูกจัดคิวให้คนขับคนไหนไว้แล้ว เพื่อ auto-fill ช่อง "วิธีการจัดส่ง"
 // ถ้าตั้งเป็นค่าว่าง "" ระบบ auto-fill จะปิดตัวเองทั้งหมด ฟอร์มกลับไปทำงานแบบเดิมทุกประการ
@@ -431,7 +422,6 @@ return `
 <input type="time" id="deliveryTime" value="${timeVal}" style="flex:1;">
 </div>
 <div class="field-hint">เวลาเติมให้อัตโนมัติตอนเปิดหน้านี้ แก้ไขเองได้ถ้าไม่ตรง</div>
-<div id="departAskBox" style="display:none;"></div>
 
 <label class="required">รูปถ่าย (แนบได้หลายรูป)</label>
 <div style="display:flex; gap:8px; margin-top:6px;">
@@ -817,8 +807,6 @@ const rec = await fetchDispatchDoc_(currentDocNumber);
 currentDispatchInfo = rec;
 if (!rec) return; // ไม่มีในคิว / ต่อไม่ติด → เงียบ ไม่ต้องบอกอะไรพนักงาน
 
-maybeAskDepartTime_(rec); // ถามเวลารถออก ถ้าเที่ยวนี้ไม่มี — แยกอิสระจาก auto-fill ด้านล่าง
-
 const typeSelect = document.getElementById("methodType");
 const subSelect = document.getElementById("methodSub");
 if (!typeSelect || !subSelect) return;
@@ -859,82 +847,6 @@ renderDispatchHint_(dispatchHintBox_("#FFF8E1", "#F0D48A", "#7A5B00",
 }
 // ================== จบส่วน auto-fill คนขับจากระบบจัดคิวรถ ==================
 
-// ============ ถามเวลารถออกจากร้าน ตอนคนขับปิดงาน (เฉพาะใบที่ไม่มีเวลาออก) ============
-// หลักกันพังเดียวกับบล็อก auto-fill: ห้าม throw ออกไปข้างนอกเด็ดขาด และห้ามบล็อกการปิดงาน
-function maybeAskDepartTime_(rec) {
-try {
-if (!rec) return;
-if (rec.cancelled) return;                       // ใบที่ยกเลิกแล้ว ไม่ต้องถาม
-if (dispatchIsSelfPickup_(rec)) return;          // ลูกค้ามารับเอง ไม่มีเที่ยวรถ
-if (!dispatchDriverName_(rec)) return;           // ยังไม่ได้จัดคนขับ
-if (String(rec.departAt || "").trim()) return;   // กดปุ่มไว้แล้ว → ไม่ถาม ไม่รบกวน 90% ที่ทำถูก
-renderDepartAsk_();
-} catch (err) {}
-}
-
-function renderDepartAsk_() {
-try {
-const box = document.getElementById("departAskBox");
-if (!box) return;
-box.style.display = "block";
-box.innerHTML =
-'<div class="depart-ask" id="departAskInner">' +
-'<div class="depart-q">🕐 รถออกจากร้านตอนกี่โมง?</div>' +
-'<div class="depart-why">เที่ยวนี้ไม่ได้กดปุ่ม "รถออกจากร้าน" ไว้ รบกวนใส่เวลาให้หน่อยค่ะ</div>' +
-'<label>เวลาที่ออกจากร้าน</label>' +
-'<input type="time" id="departTimeInput">' +
-'<div class="field-hint">กรอกคร่าว ๆ ได้ ไม่ต้องเป๊ะนาที</div>' +
-'<div class="depart-warn" id="departWarn" style="display:none;"></div>' +
-'<span class="depart-skip" id="departSkipLink">จำเวลาไม่ได้ ข้ามไปก่อน</span>' +
-'</div>';
-const inp = document.getElementById("departTimeInput");
-if (inp) inp.addEventListener("change", checkDepartSanity_);
-const skip = document.getElementById("departSkipLink");
-if (skip) skip.addEventListener("click", function () {
-box.innerHTML = '<div class="depart-skipped">⏭️ ข้ามการกรอกเวลาออก — ปิดงานได้ตามปกติ ระบบจะขึ้นว่า "ไม่ทราบเวลาออก" ในตารางเที่ยวรถ ให้คนจัดคิวเติมทีหลังได้</div>';
-});
-} catch (err) {}
-}
-
-// เตือนอย่างเดียว ไม่บล็อก — คนขับอาจส่งข้ามวัน หรือจำเวลาคลาดเคลื่อนก็ยังปิดงานได้
-function checkDepartSanity_() {
-try {
-const inp = document.getElementById("departTimeInput");
-const warn = document.getElementById("departWarn");
-const inner = document.getElementById("departAskInner");
-if (!inp || !warn) return;
-const v = String(inp.value || "");
-const handover = String((document.getElementById("deliveryTime") || {}).value || "");
-if (!v || !handover || v <= handover) {
-warn.style.display = "none";
-if (inner) inner.classList.remove("err");
-return;
-}
-warn.innerHTML = "⚠️ เวลาออก " + v + " อยู่หลังเวลาส่งมอบ " + handover + " — ตรวจอีกครั้งนะคะ";
-warn.style.display = "block";
-if (inner) inner.classList.add("err");
-} catch (err) {}
-}
-
-// ยิงแบบไม่ await โดยตั้งใจ — การปิดงานต้องไม่รอและต้องไม่พังเพราะ endpoint นี้
-// ฝั่ง backend เขียนเฉพาะตอนคอลัมน์เวลาออกยังว่างเท่านั้น ไม่ทับเวลาที่กดปุ่มจริง
-function saveDepartTimeIfNeeded_() {
-try {
-const inp = document.getElementById("departTimeInput");
-if (!inp || !inp.value) return;
-if (!DISPATCH_API_URL || !currentDocNumber) return;
-const payload = {
-doc: currentDocNumber,
-time: String(inp.value).slice(0, 5),
-date: String((document.getElementById("deliveryDate") || {}).value || ""),
-by: currentDisplayName || "",
-};
-const url = `${DISPATCH_API_URL}?action=dsp_setdepart&payload=${encodeURIComponent(JSON.stringify(payload))}`;
-fetchWithTimeout_(url, { method: "GET" }, 8000).catch(function () {});
-} catch (err) {}
-}
-// ============ จบส่วนถามเวลารถออกจากร้าน ============
-
 function validateCommonFields() {
 const method = getResolvedDeliveryMethod();
 if (!method) return "กรุณาเลือกวิธีการจัดส่งให้ครบทั้ง 2 ช่องก่อนกดยืนยัน";
@@ -942,69 +854,6 @@ const date = document.getElementById("deliveryDate").value;
 if (!date) return "กรุณาระบุวันที่ส่งมอบจริงก่อนกดยืนยัน";
 if (!currentPhotoList.length) return "กรุณาแนบรูปถ่ายอย่างน้อย 1 รูปก่อนกดยืนยัน";
 return null;
-}
-
-// ถามระบบจัดคิวรถว่าเอกสารใบนี้มีบิลอื่นของ "คนขับคนเดียวกัน + ไซต์เดียวกัน" ที่จัดคิวไว้แล้วแต่ยังไม่ยืนยันหรือไม่
-// คืน array ของ {doc, site, queuedAt} ถ้าเจอ, คืน [] ทุกกรณีที่เหลือ — ห้าม throw ออกไปข้างนอกเด็ดขาด
-async function fetchRelatedDocs_(docNumber) {
-try {
-if (!DISPATCH_API_URL || !docNumber) return [];
-const payload = encodeURIComponent(JSON.stringify({ doc: docNumber }));
-const url = `${DISPATCH_API_URL}?action=dsp_relateddocs&payload=${payload}`;
-const res = await fetchWithTimeout_(url, { method: "GET" }, 8000);
-if (!res || !res.ok) return [];
-const data = await res.json();
-if (!data) return [];
-// รองรับได้ทั้ง {ok, related:[...]} ตรงๆ หรือห่อไว้ใน {ok, data:{ok, related:[...]}}
-const inner = (data.data && typeof data.data === "object") ? data.data : data;
-if (!inner || inner.ok === false) return [];
-return Array.isArray(inner.related) ? inner.related : [];
-} catch (err) {
-return [];
-}
-}
-
-// หลังยืนยันสำเร็จ 1 ใบ เช็คว่าลูกค้ารายนี้ (คนขับ+ไซต์เดียวกัน) มีบิลอื่นที่จัดคิวไว้แล้วแต่ยังไม่ยืนยันค้างอยู่ไหม
-// ถ้ามี ต่อกล่องเตือนท้ายการ์ดสำเร็จ พร้อมปุ่มพาไปยืนยันใบถัดไปได้เลยโดยไม่ต้องปิดหน้า/พิมพ์เลขเอง
-// ห้าม throw ออกไปข้างนอกเด็ดขาด — ทำงานหลังบันทึกสำเร็จแล้ว ถ้าพังตรงนี้ต้องไม่ทำให้พนักงานเข้าใจผิดว่ายืนยันไม่สำเร็จ
-async function showRelatedDocsPrompt_(justConfirmedDoc) {
-try {
-const related = await fetchRelatedDocs_(justConfirmedDoc);
-if (!related.length) return; // กรณีปกติส่วนใหญ่ — ไม่มีอะไรค้าง หน้าตาเหมือนเดิมทุกประการ
-
-const card = document.querySelector("#app .card");
-if (!card) return;
-
-const next = related[0];
-const moreLine = related.length > 1 ? `<br>(และอีก ${related.length - 1} ใบ)` : "";
-
-const box = document.createElement("div");
-box.className = "already";
-box.innerHTML = `📦 ลูกค้ารายนี้มีอีก <b>${related.length} ใบ</b> ที่ยังไม่ได้ยืนยัน<br>(<b>${next.doc}</b>${moreLine})<br>ต้องการยืนยันต่อเลยไหม?`;
-
-const btnNext = document.createElement("button");
-btnNext.className = "btn btn-full";
-btnNext.textContent = "✅ ยืนยันใบถัดไปเลย";
-btnNext.onclick = async () => {
-currentDocNumber = next.doc;
-await checkStatus();
-};
-
-const btnClose = document.createElement("button");
-btnClose.className = "change-loc";
-btnClose.textContent = "ไม่ต้อง ปิดหน้านี้";
-btnClose.onclick = () => {
-box.remove();
-btnNext.remove();
-btnClose.remove();
-};
-
-card.appendChild(box);
-card.appendChild(btnNext);
-card.appendChild(btnClose);
-} catch (err) {
-// เงียบ ไม่ทำให้การ์ดสำเร็จที่แสดงไปแล้วพัง
-}
 }
 
 async function attemptSubmitConfirmation_(payload) {
@@ -1020,7 +869,6 @@ const data = await res.json();
 if (data.ok) {
 showToast(payload.status === "ครบ" ? "ยืนยันสำเร็จ ✅" : "บันทึกแล้ว แจ้งเตือนพี่บุ้งกี๋แล้ว ⚠️");
 appDiv.innerHTML = `<div class = "card"><div class = "doc-number">${currentDocNumber}</div>${locBadgeHtml()}<div class = "hint">บันทึกเรียบร้อยแล้ว ปิดหน้านี้ได้เลย</div></div>`;
-await showRelatedDocsPrompt_(currentDocNumber);
 } else {
 const errMsg = "เกิดข้อผิดพลาด: " + (data.message || "กรุณาลองใหม่อีกครั้ง");
 notifyError_(errMsg);
@@ -1053,7 +901,6 @@ deliveryDate: deliveryDate,
 deliveryTime: deliveryTime,
 photos: photos,
 };
-saveDepartTimeIfNeeded_();
 attemptSubmitConfirmation_(payload);
 }
 
