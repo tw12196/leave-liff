@@ -18,51 +18,143 @@
     font-size: 20px;
     margin: 0 0 16px;
   }
+  h2 {
+    font-size: 15px;
+    color: #666;
+    margin: 20px 0 8px;
+  }
   .card {
     background: #fff;
     border-radius: 12px;
     padding: 16px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    margin-bottom: 16px;
+    margin-bottom: 12px;
   }
-  label {
-    display: block;
+  .order-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+  }
+  .order-card:active { background: #f0f0f0; }
+  .order-card .orderNo { font-weight: 700; font-size: 16px; }
+  .order-card .category { font-size: 13px; color: #666; margin-top: 4px; }
+  .order-card .eta { font-size: 12px; color: #999; text-align: right; white-space: nowrap; margin-left: 12px; }
+  .order-card .eta.today { color: #06c755; font-weight: 700; }
+  .arrow { color: #ccc; margin-left: 8px; }
+  .empty-msg { text-align: center; color: #999; padding: 20px 0; font-size: 14px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .tab {
+    flex: 1;
+    padding: 10px;
     font-size: 14px;
     font-weight: 600;
-    margin-bottom: 6px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background: #fff;
+    color: #666;
+    cursor: pointer;
   }
-  input[type="text"], input[type="number"], select {
-    width: 100%;
+  .tab.active { background: #06c755; border-color: #06c755; color: #fff; }
+  .badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .badge.complete { background: #e6f7ec; color: #0a6b32; }
+  .badge.incomplete { background: #fff6e0; color: #8a5a00; }
+  .history-item-row {
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+  }
+  .history-item-row:last-child { border-bottom: none; }
+  .history-item-row .product { font-size: 14px; font-weight: 600; }
+  .history-item-row .compare {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    color: #666;
+    margin-top: 3px;
+  }
+  .meta-line { font-size: 13px; color: #888; margin-top: 2px; }
+  .chip-row {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    margin-bottom: 16px;
+  }
+  .chip {
+    flex-shrink: 0;
+    padding: 7px 14px;
+    font-size: 13px;
+    border: 1px solid #ccc;
+    border-radius: 999px;
+    background: #fff;
+    color: #555;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .chip.active {
+    background: #06c755;
+    border-color: #06c755;
+    color: #fff;
+    font-weight: 600;
+  }
+  .manual-box {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .manual-box input {
+    flex: 1;
     padding: 12px;
     font-size: 16px;
     border: 1px solid #ccc;
     border-radius: 8px;
-    margin-bottom: 4px;
-    background: #fff;
   }
-  select { appearance: auto; }
-  .or-divider {
-    text-align: center;
-    font-size: 12px;
-    color: #999;
-    margin: 10px 0;
-  }
-  .manual-label {
-    font-size: 13px;
-    font-weight: 400;
-    color: #666;
-  }
-  .reference {
-    background: #f0f7ff;
-    border-radius: 8px;
-    padding: 12px;
+  .manual-box button {
+    padding: 0 16px;
     font-size: 14px;
-    line-height: 1.6;
-    margin-top: 8px;
-    display: none;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background: #fff;
+    color: #333;
   }
-  .reference .row { display: flex; justify-content: space-between; }
-  button {
+  .back-btn {
+    background: none;
+    border: none;
+    color: #06c755;
+    font-size: 16px;
+    font-weight: 600;
+    padding: 0 0 12px;
+    cursor: pointer;
+  }
+  .item-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid #eee;
+    gap: 12px;
+  }
+  .item-row:last-child { border-bottom: none; }
+  .item-info { flex: 1; min-width: 0; }
+  .item-info .product { font-size: 14px; font-weight: 600; }
+  .item-info .ordered { font-size: 13px; color: #888; margin-top: 2px; }
+  .item-actual { width: 90px; flex-shrink: 0; }
+  .item-actual input {
+    width: 100%;
+    padding: 10px;
+    font-size: 16px;
+    text-align: center;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+  }
+  button.primary {
     width: 100%;
     padding: 14px;
     font-size: 16px;
@@ -72,8 +164,9 @@
     background: #06c755;
     color: #fff;
     cursor: pointer;
+    margin-top: 8px;
   }
-  button:disabled { background: #aaa; }
+  button.primary:disabled { background: #aaa; }
   .msg {
     margin-top: 12px;
     padding: 12px;
@@ -95,32 +188,56 @@
 
 <div id="loadingBox" class="loading">กำลังโหลด...</div>
 
-<div id="formBox" style="display:none">
-  <div class="card">
-    <label for="orderSelect">เลขใบรับสินค้า</label>
-    <select id="orderSelect">
-      <option value="">-- เลือกจากรายการที่รอของ --</option>
-    </select>
+<div id="tabsBox" class="tabs" style="display:none">
+  <button class="tab active" id="tabPending">รอของ</button>
+  <button class="tab" id="tabHistory">ประวัติ</button>
+</div>
 
-    <div class="or-divider">หรือ</div>
-
-    <label for="orderInput" class="manual-label">พิมพ์เลขใบรับสินค้าเอง (กรณีไม่อยู่ในลิสต์)</label>
-    <input type="text" id="orderInput" placeholder="พิมพ์เลขใบรับสินค้าจากตั๋ว" autocomplete="off" />
-
-    <div class="reference" id="referenceBox">
-      <div class="row"><span>สินค้า</span><strong id="refProduct">-</strong></div>
-      <div class="row"><span>จำนวนที่สั่ง</span><strong id="refQty">-</strong></div>
-    </div>
+<div id="listView" style="display:none">
+  <div class="manual-box">
+    <input type="text" id="manualInput" placeholder="พิมพ์เลขใบรับสินค้าจากตั๋ว" autocomplete="off" />
+    <button id="manualBtn">ค้นหา</button>
   </div>
 
-  <div class="card">
-    <label for="actualQtyInput">จำนวนที่รับจริง</label>
-    <input type="number" id="actualQtyInput" inputmode="decimal" placeholder="กรอกจำนวนที่รับจริง" />
+  <div class="chip-row" id="categoryChips"></div>
+
+  <div id="todaySection" style="display:none">
+    <h2>วันนี้</h2>
+    <div id="todayList"></div>
   </div>
 
-  <button id="confirmBtn" disabled>ยืนยันรับของ</button>
+  <div id="otherSection" style="display:none">
+    <h2>รอของ (วันอื่น)</h2>
+    <div id="otherList"></div>
+  </div>
 
+  <div id="emptyMsg" class="empty-msg" style="display:none">ไม่มีรายการที่รอของ</div>
+</div>
+
+<div id="historyListView" style="display:none">
+  <div id="historyList"></div>
+  <div id="historyEmptyMsg" class="empty-msg" style="display:none">ยังไม่มีประวัติการรับของ</div>
+</div>
+
+<div id="detailView" style="display:none">
+  <button class="back-btn" id="backBtn">‹ กลับไปหน้ารายการ</button>
+  <div class="card">
+    <div class="orderNo" style="font-size:16px; font-weight:700;" id="detailOrderNo"></div>
+    <div class="carrier" id="detailCarrier" style="font-size:13px; color:#888; margin-top:2px; margin-bottom:8px;"></div>
+    <div id="itemsList"></div>
+  </div>
+  <button class="primary" id="confirmBtn">ยืนยันรับของ</button>
   <div class="msg" id="resultMsg"></div>
+</div>
+
+<div id="historyDetailView" style="display:none">
+  <button class="back-btn" id="historyBackBtn">‹ กลับไปหน้าประวัติ</button>
+  <div class="card">
+    <div class="orderNo" style="font-size:16px; font-weight:700;" id="historyDetailOrderNo"></div>
+    <div class="meta-line" id="historyDetailCarrier"></div>
+    <div class="meta-line" id="historyDetailMeta" style="margin-bottom:8px;"></div>
+    <div id="historyItemsList"></div>
+  </div>
 </div>
 
 <script>
@@ -131,8 +248,12 @@ var WEBAPP_URL = 'https://script.google.com/macros/s/AKfycby4DY-F8hmlnfbxcY2-a4S
 var LIFF_ID = '2010663561-mGKHkMfZ';
 
 var allOrders = [];
-var selectedOrder = null;
+var historyOrders = [];
+var currentOrderNo = null;
+var currentItems = [];
 var lineUserId = '';
+var activeCategory = '';
+var activeTab = 'pending';
 
 function apiGet(action, params) {
   var url = WEBAPP_URL + '?action=' + encodeURIComponent(action);
@@ -150,76 +271,245 @@ function showMsg(type, text) {
   box.textContent = text;
 }
 
-function renderOrderSelect() {
-  var select = document.getElementById('orderSelect');
-  select.innerHTML = '<option value="">-- เลือกจากรายการที่รอของ (' + allOrders.length + ' รายการ) --</option>';
-  allOrders.forEach(function (o) {
-    var opt = document.createElement('option');
-    opt.value = o.orderNo;
-    opt.textContent = o.orderNo + '  —  ' + o.product;
-    select.appendChild(opt);
+function showTabsView() {
+  document.getElementById('detailView').style.display = 'none';
+  document.getElementById('historyDetailView').style.display = 'none';
+  document.getElementById('tabsBox').style.display = 'flex';
+  document.getElementById('listView').style.display = activeTab === 'pending' ? 'block' : 'none';
+  document.getElementById('historyListView').style.display = activeTab === 'history' ? 'block' : 'none';
+  document.getElementById('resultMsg').style.display = 'none';
+}
+
+function showDetailView() {
+  document.getElementById('tabsBox').style.display = 'none';
+  document.getElementById('listView').style.display = 'none';
+  document.getElementById('historyListView').style.display = 'none';
+  document.getElementById('detailView').style.display = 'block';
+}
+
+function showHistoryDetailView() {
+  document.getElementById('tabsBox').style.display = 'none';
+  document.getElementById('listView').style.display = 'none';
+  document.getElementById('historyListView').style.display = 'none';
+  document.getElementById('historyDetailView').style.display = 'block';
+}
+
+function switchTab(tab) {
+  activeTab = tab;
+  document.getElementById('tabPending').classList.toggle('active', tab === 'pending');
+  document.getElementById('tabHistory').classList.toggle('active', tab === 'history');
+  document.getElementById('listView').style.display = tab === 'pending' ? 'block' : 'none';
+  document.getElementById('historyListView').style.display = tab === 'history' ? 'block' : 'none';
+  if (tab === 'history' && historyOrders.length === 0) loadHistoryOrders();
+}
+
+function renderOrderCard(o) {
+  var card = document.createElement('div');
+  card.className = 'card order-card';
+  card.innerHTML =
+    '<div>' +
+      '<div class="orderNo">' + o.orderNo + '</div>' +
+      '<div class="category">' + (o.categorySummary || '-') + '</div>' +
+    '</div>' +
+    '<div style="display:flex; align-items:center;">' +
+      '<div class="eta' + (o.isToday ? ' today' : '') + '">' + (o.eta || 'ไม่ระบุวันที่') + '</div>' +
+      '<div class="arrow">›</div>' +
+    '</div>';
+  card.addEventListener('click', function () { openOrder(o.orderNo); });
+  return card;
+}
+
+function orderCategories(o) {
+  return (o.categorySummary || '').split(',').map(function (c) { return c.trim(); }).filter(Boolean);
+}
+
+function renderCategoryChips() {
+  var box = document.getElementById('categoryChips');
+  var cats = {};
+  allOrders.forEach(function (o) { orderCategories(o).forEach(function (c) { cats[c] = true; }); });
+  var catList = Object.keys(cats).sort();
+
+  // ถ้าหมวดหมู่ที่เลือกไว้ไม่มีในลิสต์ปัจจุบันแล้ว (ของหมด) ให้กลับไปโชว์ทั้งหมด
+  if (activeCategory && catList.indexOf(activeCategory) === -1) activeCategory = '';
+
+  box.innerHTML = '';
+  if (catList.length <= 1) { box.style.display = 'none'; return; }
+  box.style.display = 'flex';
+
+  var allChip = document.createElement('div');
+  allChip.className = 'chip' + (activeCategory === '' ? ' active' : '');
+  allChip.textContent = 'ทั้งหมด';
+  allChip.addEventListener('click', function () { activeCategory = ''; renderCategoryChips(); renderOrderList(); });
+  box.appendChild(allChip);
+
+  catList.forEach(function (c) {
+    var chip = document.createElement('div');
+    chip.className = 'chip' + (activeCategory === c ? ' active' : '');
+    chip.textContent = c;
+    chip.addEventListener('click', function () { activeCategory = c; renderCategoryChips(); renderOrderList(); });
+    box.appendChild(chip);
   });
 }
 
-function selectOrder(orderNo) {
-  document.getElementById('orderSelect').value = orderNo;
-  document.getElementById('orderInput').value = orderNo;
-  document.getElementById('resultMsg').style.display = 'none';
+function renderOrderList() {
+  var todaySection = document.getElementById('todaySection');
+  var otherSection = document.getElementById('otherSection');
+  var todayList = document.getElementById('todayList');
+  var otherList = document.getElementById('otherList');
+  var emptyMsg = document.getElementById('emptyMsg');
 
+  todayList.innerHTML = '';
+  otherList.innerHTML = '';
+
+  var visibleOrders = activeCategory
+    ? allOrders.filter(function (o) { return orderCategories(o).indexOf(activeCategory) !== -1; })
+    : allOrders;
+
+  var todayOrders = visibleOrders.filter(function (o) { return o.isToday; });
+  var otherOrders = visibleOrders.filter(function (o) { return !o.isToday; });
+
+  todaySection.style.display = todayOrders.length ? 'block' : 'none';
+  todayOrders.forEach(function (o) { todayList.appendChild(renderOrderCard(o)); });
+
+  otherSection.style.display = otherOrders.length ? 'block' : 'none';
+  otherOrders.forEach(function (o) { otherList.appendChild(renderOrderCard(o)); });
+
+  emptyMsg.style.display = visibleOrders.length === 0 ? 'block' : 'none';
+}
+
+function loadPendingOrders() {
+  return apiGet('dsp_inb_listPending', {}).then(function (data) {
+    allOrders = (data && data.orders) || [];
+    renderCategoryChips();
+    renderOrderList();
+  }).catch(function () {
+    allOrders = [];
+    renderCategoryChips();
+    renderOrderList();
+  });
+}
+
+function renderHistoryCard(o) {
+  var card = document.createElement('div');
+  card.className = 'card order-card';
+  card.innerHTML =
+    '<div>' +
+      '<div class="orderNo">' + o.orderNo + '</div>' +
+      '<div class="category">' + (o.categorySummary || '-') + ' · รับโดย ' + (o.receiverName || '-') + '</div>' +
+      '<div class="category">' + (o.receivedAt || '-') + '</div>' +
+    '</div>' +
+    '<div style="display:flex; align-items:center; gap:6px;">' +
+      '<span class="badge ' + (o.isComplete ? 'complete">ครบ' : 'incomplete">ไม่ครบ') + '</span>' +
+      '<div class="arrow">›</div>' +
+    '</div>';
+  card.addEventListener('click', function () { openHistoryOrder(o.orderNo); });
+  return card;
+}
+
+function renderHistoryList() {
+  var box = document.getElementById('historyList');
+  box.innerHTML = '';
+  historyOrders.forEach(function (o) { box.appendChild(renderHistoryCard(o)); });
+  document.getElementById('historyEmptyMsg').style.display = historyOrders.length === 0 ? 'block' : 'none';
+}
+
+function loadHistoryOrders() {
+  return apiGet('dsp_inb_listHistory', {}).then(function (data) {
+    historyOrders = (data && data.orders) || [];
+    renderHistoryList();
+  }).catch(function () {
+    historyOrders = [];
+    renderHistoryList();
+  });
+}
+
+function openHistoryOrder(orderNo) {
+  apiGet('dsp_inb_getHistory', { orderNo: orderNo }).then(function (data) {
+    if (!data.ok) return;
+    document.getElementById('historyDetailOrderNo').textContent = 'เลขใบรับสินค้า: ' + data.orderNo;
+    document.getElementById('historyDetailCarrier').textContent = 'ขนส่ง: ' + (data.carrier || 'ไม่ระบุ');
+    document.getElementById('historyDetailMeta').textContent = 'รับโดย ' + (data.receiverName || '-') + ' เมื่อ ' + (data.receivedAt || '-');
+    var box = document.getElementById('historyItemsList');
+    box.innerHTML = '';
+    data.items.forEach(function (it) {
+      var row = document.createElement('div');
+      row.className = 'history-item-row';
+      row.innerHTML =
+        '<div class="product">' + it.product + '</div>' +
+        '<div class="compare">' +
+          '<span>สั่ง ' + it.qtyOrdered + ' / รับจริง ' + it.qtyActual + ' ' + (it.unit || '') + '</span>' +
+          '<span class="badge ' + (it.isComplete ? 'complete">ครบ' : 'incomplete">ไม่ครบ') + '</span>' +
+        '</div>';
+      box.appendChild(row);
+    });
+    showHistoryDetailView();
+  });
+}
+
+function renderItemsList() {
+  var box = document.getElementById('itemsList');
+  box.innerHTML = '';
+  currentItems.forEach(function (it, idx) {
+    var row = document.createElement('div');
+    row.className = 'item-row';
+    row.innerHTML =
+      '<div class="item-info">' +
+        '<div class="product">' + it.product + '</div>' +
+        '<div class="ordered">สั่ง ' + it.qtyOrdered + ' ' + (it.unit || '') + '</div>' +
+      '</div>' +
+      '<div class="item-actual">' +
+        '<input type="number" inputmode="decimal" id="actual_' + idx + '" value="' + it.qtyOrdered + '" />' +
+      '</div>';
+    box.appendChild(row);
+  });
+}
+
+function openOrder(orderNo) {
+  document.getElementById('resultMsg').style.display = 'none';
   apiGet('dsp_inb_getOrder', { orderNo: orderNo }).then(function (data) {
     if (!data.ok) {
       showMsg('err', data.error || 'ไม่พบเลขใบรับสินค้านี้');
-      selectedOrder = null;
-      document.getElementById('confirmBtn').disabled = true;
-      document.getElementById('referenceBox').style.display = 'none';
       return;
     }
-    selectedOrder = data;
-    document.getElementById('refProduct').textContent = data.product;
-    document.getElementById('refQty').textContent = data.qtyOrdered + ' ' + (data.unit || '');
-    document.getElementById('referenceBox').style.display = 'block';
-    document.getElementById('actualQtyInput').value = data.qtyOrdered;
-    document.getElementById('confirmBtn').disabled = false;
+    currentOrderNo = data.orderNo;
+    currentItems = data.items;
+    document.getElementById('detailOrderNo').textContent = 'เลขใบรับสินค้า: ' + currentOrderNo;
+    document.getElementById('detailCarrier').textContent = 'ขนส่ง: ' + (data.carrier || 'ไม่ระบุ');
+    renderItemsList();
+    showDetailView();
   }).catch(function () {
     showMsg('err', 'เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่');
   });
 }
 
 function confirmReceive() {
-  if (!selectedOrder) return;
-  var actualQty = document.getElementById('actualQtyInput').value;
-  if (actualQty === '' || isNaN(Number(actualQty))) {
-    showMsg('err', 'กรุณากรอกจำนวนที่รับจริงเป็นตัวเลข');
-    return;
-  }
+  var items = currentItems.map(function (it, idx) {
+    var val = document.getElementById('actual_' + idx).value;
+    return { rowIndex: it.rowIndex, actualQty: val };
+  });
 
   var btn = document.getElementById('confirmBtn');
   btn.disabled = true;
   btn.textContent = 'กำลังบันทึก...';
 
   apiGet('dsp_inb_confirmReceive', {
-    orderNo: selectedOrder.orderNo,
-    actualQty: actualQty,
+    orderNo: currentOrderNo,
+    items: JSON.stringify(items),
     lineUserId: lineUserId
   }).then(function (data) {
     btn.textContent = 'ยืนยันรับของ';
+    btn.disabled = false;
     if (!data.ok) {
       showMsg('err', data.error || 'บันทึกไม่สำเร็จ');
-      btn.disabled = false;
       return;
     }
     if (data.isComplete) {
-      showMsg('ok', '✅ บันทึกสำเร็จ — ของครบตามที่สั่ง\nผู้รับของ: ' + data.receiverName);
+      showMsg('ok', '✅ บันทึกสำเร็จ — ของครบตามที่สั่งทุกรายการ\nผู้รับของ: ' + data.receiverName);
     } else {
-      showMsg('warn', '⚠️ บันทึกสำเร็จ — แต่จำนวนไม่ครบ\nสั่ง ' + data.qtyOrdered + ' / รับจริง ' + data.qtyActual + '\nผู้รับของ: ' + data.receiverName + '\nแจ้งจัดซื้อแล้ว');
+      showMsg('warn', '⚠️ บันทึกสำเร็จ — แต่มีรายการไม่ครบ\nผู้รับของ: ' + data.receiverName + '\nแจ้งจัดซื้อแล้ว');
     }
-    // เคลียร์ฟอร์มพร้อมรับของชิ้นถัดไป
-    selectedOrder = null;
-    document.getElementById('orderSelect').value = '';
-    document.getElementById('orderInput').value = '';
-    document.getElementById('actualQtyInput').value = '';
-    document.getElementById('referenceBox').style.display = 'none';
-    loadPendingOrders().then(renderOrderSelect);
+    loadPendingOrders();
+    setTimeout(showTabsView, 1500);
   }).catch(function () {
     btn.textContent = 'ยืนยันรับของ';
     btn.disabled = false;
@@ -227,27 +517,21 @@ function confirmReceive() {
   });
 }
 
-function loadPendingOrders() {
-  return apiGet('dsp_inb_listPending', {}).then(function (data) {
-    allOrders = (data && data.orders) || [];
-  }).catch(function () {
-    allOrders = [];
-  });
-}
-
-document.getElementById('orderSelect').addEventListener('change', function (e) {
-  if (e.target.value) selectOrder(e.target.value);
+document.getElementById('manualBtn').addEventListener('click', function () {
+  var v = document.getElementById('manualInput').value.trim();
+  if (v) openOrder(v);
 });
-document.getElementById('orderInput').addEventListener('keydown', function (e) {
+document.getElementById('manualInput').addEventListener('keydown', function (e) {
   if (e.key === 'Enter' && e.target.value.trim()) {
     e.preventDefault();
-    selectOrder(e.target.value.trim());
+    openOrder(e.target.value.trim());
   }
 });
-document.getElementById('orderInput').addEventListener('blur', function (e) {
-  if (e.target.value.trim()) selectOrder(e.target.value.trim());
-});
+document.getElementById('backBtn').addEventListener('click', showTabsView);
+document.getElementById('historyBackBtn').addEventListener('click', showTabsView);
 document.getElementById('confirmBtn').addEventListener('click', confirmReceive);
+document.getElementById('tabPending').addEventListener('click', function () { switchTab('pending'); });
+document.getElementById('tabHistory').addEventListener('click', function () { switchTab('history'); });
 
 liff.init({ liffId: LIFF_ID }).then(function () {
   if (!liff.isLoggedIn()) {
@@ -256,11 +540,11 @@ liff.init({ liffId: LIFF_ID }).then(function () {
   }
   return liff.getProfile().then(function (profile) {
     lineUserId = profile.userId;
-    return loadPendingOrders().then(renderOrderSelect);
+    return loadPendingOrders();
   });
 }).then(function () {
   document.getElementById('loadingBox').style.display = 'none';
-  document.getElementById('formBox').style.display = 'block';
+  showTabsView();
 }).catch(function (err) {
   document.getElementById('loadingBox').textContent = 'เกิดข้อผิดพลาด: ' + err;
 });
