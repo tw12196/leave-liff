@@ -308,6 +308,50 @@ await new Promise((r) => setTimeout(r, 1500));
 throw lastErr;
 }
 
+// สำหรับคำขอที่ "เขียนข้อมูล" แบบไม่ idempotent อย่างยืนยัน/แก้ไข/เติมของ (มีอัปโหลดรูปแนบด้วย จึงใช้
+// เวลานานกว่าคำขออ่านข้อมูลทั่วไปมาก) — ยิงแค่ครั้งเดียวด้วย timeout ที่ยาวพอ ไม่ auto-retry ซ้อนกันเองแบบ
+// fetchWithRetry_() เพราะถ้าคำขอเดิมกำลังประมวลผลอยู่เบื้องหลัง (บันทึกชีต+อัปโหลดรูป+ส่ง LINE) แล้วเรา
+// ยิงซ้ำไปอีกก่อนจะรู้ผล ผู้ใช้จะเจอ "ไม่สำเร็จ" ทั้งที่จริงบันทึกไปแล้ว แล้วพอกดลองใหม่ก็ไปเจอ "บันทึกแล้ว" งง
+function fetchWriteOnce_(url, options, timeoutMs) {
+return fetchWithTimeout_(url, options, timeoutMs === undefined ? 55000 : timeoutMs);
+}
+
+// พอคำขอบันทึก (ยืนยัน/แก้ไข/เติมของ) หลุดไทม์เอาต์หรือเชื่อมต่อไม่สำเร็จ อย่าเพิ่งฟันธงว่า "ไม่สำเร็จ" ทันที
+// เพราะฝั่ง backend อาจยังทำงานต่อจนเสร็จอยู่เบื้องหลัง (โดยเฉพาะตอนอัปโหลดรูปหลายรูป ซึ่งเป็นสาเหตุหลักที่
+// เคยทำให้ผู้ใช้เจอ "ไม่สำเร็จ" แล้วกดลองใหม่ไปเจอ "ใบนี้ถูกบันทึกแล้ว") ให้เช็คสถานะเอกสารอีกทีก่อน ถ้าพบว่า
+// บันทึกไปแล้วจริง ก็ถือว่าสำเร็จเลย ไม่ต้องให้ผู้ใช้กดลองใหม่ให้สับสนหรือเสี่ยงอัปโหลดรูปซ้ำโดยเปล่าประโยชน์
+async function recoverAfterSubmitTimeout_(payload, retryFn) {
+const appDiv = document.getElementById("app");
+appDiv.innerHTML = '<div class="loading">การเชื่อมต่อช้ากว่าปกติ กำลังตรวจสอบว่าบันทึกไปแล้วหรือยัง...</div>';
+try {
+const checkUrl = `${APPS_SCRIPT_URL}?action=status&doc=${encodeURIComponent(payload.docNumber)}&loc=${encodeURIComponent(payload.loc)}&lineUserId=${encodeURIComponent(payload.lineUserId)}`;
+const res = await fetchWithTimeout_(checkUrl, undefined, 20000);
+const data = await res.json();
+if (data.ok && data.alreadyConfirmed) {
+// เอกสารนี้ถูกบันทึกไปแล้วจริง (คำขอเดิมสำเร็จอยู่เบื้องหลัง แค่ตอบกลับมาช้ากว่าที่เบราว์เซอร์รอไหว)
+showToast("บันทึกเรียบร้อยแล้ว ✅ (ระบบตอบกลับช้ากว่าปกตินิดหน่อย แต่บันทึกสำเร็จแล้วค่ะ)");
+appDiv.innerHTML = `<div class="card"><div class="doc-number">${payload.docNumber}</div>${locBadgeHtml()}<div class="hint">บันทึกเรียบร้อยแล้ว ปิดหน้านี้ได้เลย</div></div>`;
+await showRelatedDocsPrompt_(payload.docNumber);
+return;
+}
+} catch (checkErr) {
+// เช็คสถานะไม่สำเร็จเหมือนกัน — ปล่อยผ่านไปแสดงข้อความ error ปกติด้านล่างแทน
+}
+const errMsg = "เชื่อมต่อช้าเกินไป กรุณาลองใหม่อีกครั้ง (ถ้ากดแล้วระบบแจ้งว่าบันทึกไปแล้ว แปลว่าที่บันทึกไว้ก่อนหน้านี้สำเร็จแล้วค่ะ ไม่ต้องกังวลนะคะ)";
+notifyError_(errMsg);
+showMessage(errMsg, retryFn);
+}
+
+// สำหรับ "แก้ไข"/"เติมของ" ที่หลุดไทม์เอาต์ — เอกสารนี้ถูกยืนยันไว้แล้วอยู่ก่อนหน้าการกระทำนี้เสมอ
+// (alreadyConfirmed เป็น true อยู่แล้วไม่ว่ารอบนี้จะสำเร็จหรือไม่) จึงใช้วิธีเช็ค alreadyConfirmed แบบ
+// recoverAfterSubmitTimeout_() ด้านบนบอกไม่ได้ว่ารอบนี้สำเร็จหรือเปล่า ให้โหลดข้อมูลล่าสุดขึ้นมาแสดงแทน
+// (ผ่าน refreshFn ที่ส่งเข้ามา เช่น checkStatus) จะได้เห็นด้วยตาว่าที่แก้ไข/เติมของไปบันทึกจริงหรือยัง
+// ก่อนตัดสินใจว่าจะลองส่งซ้ำไหม แทนที่จะเดาสุ่มแล้วเสี่ยงอัปโหลดรูปซ้ำโดยเปล่าประโยชน์
+async function refreshAfterWriteTimeout_(refreshFn) {
+notifyError_("เชื่อมต่อช้าเกินไป กำลังโหลดข้อมูลล่าสุดให้ตรวจสอบว่าบันทึกไปแล้วหรือยัง...");
+await refreshFn();
+}
+
 // [ปรับปรุงความเร็ว] รวม checkAuth() + checkStatus() เดิมเป็นคำขอเดียว (action=init)
 // ถ้ารู้จุดโหลดแล้ว (มาจาก QR) จะส่ง doc+loc ไปพร้อมกันเลย backend จะเช็คสิทธิ์ + เช็คสถานะเอกสาร
 // ในการเปิดสเปรดชีตครั้งเดียว แทนที่จะเปิด 2 รอบเหมือนเดิม คืนค่า data ทั้งก้อนถ้าผ่าน (และตั้ง
@@ -1028,9 +1072,9 @@ card.appendChild(btnClose);
 
 async function attemptSubmitConfirmation_(payload) {
 const appDiv = document.getElementById("app");
-appDiv.innerHTML = `<div class = "loading">กำลังอัปโหลดรูป (${payload.photos.length} รูป) และบันทึกข้อมูล...</div>`;
+appDiv.innerHTML = `<div class = "loading">กำลังอัปโหลดรูป (${payload.photos.length} รูป) และบันทึกข้อมูล... (ถ้ามีหลายรูปอาจใช้เวลาถึง 1 นาที กรุณาอย่าปิดหน้านี้ระหว่างนี้นะคะ)</div>`;
 try {
-const res = await fetchWithRetry_(APPS_SCRIPT_URL, {
+const res = await fetchWriteOnce_(APPS_SCRIPT_URL, {
 method: "POST",
 headers: { "Content-Type": "text/plain;charset = utf-8" },
 body: JSON.stringify(payload),
@@ -1046,9 +1090,7 @@ notifyError_(errMsg);
 showMessage(errMsg, () => attemptSubmitConfirmation_(payload));
 }
 } catch (err) {
-const errMsg = ((err.name === "TimeoutError" || err.name === "AbortError")) ? "เชื่อมต่อช้าเกินไป กรุณาลองใหม่อีกครั้ง" : "เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่อีกครั้ง";
-notifyError_(errMsg);
-showMessage(errMsg, () => attemptSubmitConfirmation_(payload));
+await recoverAfterSubmitTimeout_(payload, () => attemptSubmitConfirmation_(payload));
 }
 }
 
@@ -1098,9 +1140,9 @@ return null;
 
 async function attemptSubmitEdit_(payload) {
 const appDiv = document.getElementById("app");
-appDiv.innerHTML = `<div class = "loading">กำลังบันทึกการแก้ไข...</div>`;
+appDiv.innerHTML = `<div class = "loading">กำลังบันทึกการแก้ไข... (ถ้ามีรูปแนบหลายรูปอาจใช้เวลาถึง 1 นาที กรุณาอย่าปิดหน้านี้ระหว่างนี้นะคะ)</div>`;
 try {
-const res = await fetchWithRetry_(APPS_SCRIPT_URL, {
+const res = await fetchWriteOnce_(APPS_SCRIPT_URL, {
 method: "POST",
 headers: { "Content-Type": "text/plain;charset = utf-8" },
 body: JSON.stringify(payload),
@@ -1115,9 +1157,10 @@ notifyError_(errMsg);
 showMessage(errMsg, () => attemptSubmitEdit_(payload));
 }
 } catch (err) {
-const errMsg = ((err.name === "TimeoutError" || err.name === "AbortError")) ? "เชื่อมต่อช้าเกินไป กรุณาลองใหม่อีกครั้ง" : "เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่อีกครั้ง";
-notifyError_(errMsg);
-showMessage(errMsg, () => attemptSubmitEdit_(payload));
+// หมายเหตุ: เอกสารนี้ถูกยืนยันไว้แล้วอยู่ก่อนหน้าการแก้ไขครั้งนี้ (alreadyConfirmed เป็น true อยู่แล้ว
+// ไม่ว่าการแก้ไขครั้งนี้จะสำเร็จหรือไม่) จึงเช็คแค่สถานะ "ยืนยันแล้วหรือยัง" แบบตอนกดยืนยันครั้งแรกไม่ได้
+// ให้โหลดข้อมูลล่าสุดขึ้นมาแสดงแทน จะได้เห็นด้วยตาว่าที่แก้ไขไปบันทึกจริงหรือยังก่อนตัดสินใจลองซ้ำ
+await refreshAfterWriteTimeout_(checkStatus);
 }
 }
 
@@ -1146,9 +1189,9 @@ attemptSubmitEdit_(payload);
 
 async function attemptSubmitTopUp_(payload) {
 const appDiv = document.getElementById("app");
-appDiv.innerHTML = `<div class = "loading">กำลังบันทึกของที่ส่ง/รับเพิ่มเติม...</div>`;
+appDiv.innerHTML = `<div class = "loading">กำลังบันทึกของที่ส่ง/รับเพิ่มเติม... (ถ้ามีรูปแนบหลายรูปอาจใช้เวลาถึง 1 นาที กรุณาอย่าปิดหน้านี้ระหว่างนี้นะคะ)</div>`;
 try {
-const res = await fetchWithRetry_(APPS_SCRIPT_URL, {
+const res = await fetchWriteOnce_(APPS_SCRIPT_URL, {
 method: "POST",
 headers: { "Content-Type": "text/plain;charset = utf-8" },
 body: JSON.stringify(payload),
@@ -1163,9 +1206,9 @@ notifyError_(errMsg);
 showMessage(errMsg, () => attemptSubmitTopUp_(payload));
 }
 } catch (err) {
-const errMsg = ((err.name === "TimeoutError" || err.name === "AbortError")) ? "เชื่อมต่อช้าเกินไป กรุณาลองใหม่อีกครั้ง" : "เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่อีกครั้ง";
-notifyError_(errMsg);
-showMessage(errMsg, () => attemptSubmitTopUp_(payload));
+// หมายเหตุ: เหมือนกับ attemptSubmitEdit_ — alreadyConfirmed เป็น true อยู่แล้วตั้งแต่ก่อนเติมของรอบนี้
+// เช็คสถานะแบบเดิมไม่ช่วยบอกว่ารอบนี้สำเร็จหรือไม่ ให้โหลดข้อมูล/ประวัติล่าสุดมาแสดงแทนให้ตรวจสอบเอง
+await refreshAfterWriteTimeout_(checkStatus);
 }
 }
 
