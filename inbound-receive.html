@@ -67,6 +67,7 @@
   .badge.incomplete { background: #fff6e0; color: #8a5a00; }
   .badge.special { background: #f3e8ff; color: #7c3aed; }
   .special-line { font-size: 12px; color: #7c3aed; font-weight: 600; margin-top: 4px; }
+  .note-line { font-size: 12px; color: #888; margin-top: 4px; }
   .history-item-row {
     padding: 10px 0;
     border-bottom: 1px solid #eee;
@@ -257,6 +258,12 @@ var lineUserId = '';
 var activeCategory = '';
 var activeTab = 'pending';
 
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
 function apiGet(action, params) {
   var url = WEBAPP_URL + '?action=' + encodeURIComponent(action);
   for (var key in params) {
@@ -312,6 +319,7 @@ function renderOrderCard(o) {
     '<div>' +
       '<div class="orderNo">' + o.orderNo + '</div>' +
       '<div class="category">' + (o.categorySummary || '-') + '</div>' +
+      (o.note ? '<div class="note-line">📝 ' + escapeHtml(o.note) + '</div>' : '') +
       (o.hasSpecial ? '<div class="special-line">🎯 มีสินค้าสั่งพิเศษ</div>' : '') +
     '</div>' +
     '<div style="display:flex; align-items:center;">' +
@@ -399,6 +407,7 @@ function renderHistoryCard(o) {
     '<div>' +
       '<div class="orderNo">' + o.orderNo + '</div>' +
       '<div class="category">' + (o.categorySummary || '-') + ' · รับโดย ' + (o.receiverName || '-') + '</div>' +
+      (o.note ? '<div class="note-line">📝 ' + escapeHtml(o.note) + '</div>' : '') +
       '<div class="category">' + (o.receivedAt || '-') + '</div>' +
       (o.hasSpecial ? '<div class="special-line">🎯 มีสินค้าสั่งพิเศษ</div>' : '') +
     '</div>' +
