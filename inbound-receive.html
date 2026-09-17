@@ -243,6 +243,20 @@
   </div>
 </div>
 
+<div id="pickupView" style="display:none">
+  <h1>🚚 ยืนยันลูกค้ามารับของ</h1>
+  <div class="card">
+    <div class="orderNo" style="font-size:16px; font-weight:700;" id="pickupOrderNo"></div>
+    <div id="pickupItemsList"></div>
+    <div style="margin-top:12px">
+      <label style="font-size:13px; color:#666; display:block; margin-bottom:6px;">วันที่ลูกค้ามารับ</label>
+      <input type="date" id="pickupDateInput" style="width:100%; padding:10px; font-size:16px; border:1px solid #ccc; border-radius:8px; box-sizing:border-box;" />
+    </div>
+  </div>
+  <button class="primary" id="pickupConfirmBtn">ยืนยันลูกค้ามารับของแล้ว</button>
+  <div class="msg" id="pickupResultMsg"></div>
+</div>
+
 <script>
 /* ตั้งค่า 2 ค่านี้หลัง deploy โปรเจกต์ Apps Script "Inbound Receiving Backend" เสร็จ:
    1. WEBAPP_URL = URL ที่ได้จาก Deploy > New deployment > Web app
@@ -257,6 +271,13 @@ var currentItems = [];
 var lineUserId = '';
 var activeCategory = '';
 var activeTab = 'pending';
+
+// ลิงก์เข้ามาจากปุ่ม "ลูกค้ามารับแล้ว" บนการ์ด Flex ที่ส่งให้เซลล์ (ดู inbBuildSalesFlexBubble_
+// ใน inbound.gs) — มี ?mode=pickup&orderNo=... ต่อท้าย ถ้าไม่ใช่โหมดนี้ให้เข้าหน้าปกติ
+var urlParams = new URLSearchParams(location.search);
+var liffMode = urlParams.get('mode');
+var liffOrderNo = urlParams.get('orderNo');
+var pickupItems = [];
 
 function escapeHtml(s) {
   return String(s || '').replace(/[&<>"']/g, function (c) {
@@ -460,6 +481,96 @@ function openHistoryOrder(orderNo) {
   });
 }
 
+function showPickupView() {
+  document.getElementById('tabsBox').style.display = 'none';
+  document.getElementById('listView').style.display = 'none';
+  document.getElementById('historyListView').style.display = 'none';
+  document.getElementById('detailView').style.display = 'none';
+  document.getElementById('historyDetailView').style.display = 'none';
+  document.getElementById('pickupView').style.display = 'block';
+}
+
+function showPickupMsg(type, text) {
+  var box = document.getElementById('pickupResultMsg');
+  box.className = 'msg ' + type;
+  box.textContent = text;
+}
+
+function renderPickupItems() {
+  var box = document.getElementById('pickupItemsList');
+  box.innerHTML = '';
+  pickupItems.forEach(function (it) {
+    var row = document.createElement('div');
+    row.className = 'history-item-row';
+    row.innerHTML =
+      '<div class="product">' + it.product + '</div>' +
+      '<div class="special-line">🎯 ลูกค้า ' + escapeHtml(it.customer) + '</div>' +
+      '<div class="compare"><span>' + it.qtyActual + ' ' + (it.unit || '') + '</span></div>';
+    box.appendChild(row);
+  });
+}
+
+function todayDateStr_() {
+  var d = new Date();
+  var mm = String(d.getMonth() + 1).padStart(2, '0');
+  var dd = String(d.getDate()).padStart(2, '0');
+  return d.getFullYear() + '-' + mm + '-' + dd;
+}
+
+function loadPickupItems() {
+  document.getElementById('pickupOrderNo').textContent = 'เลขใบรับสินค้า: ' + liffOrderNo;
+  document.getElementById('pickupDateInput').value = todayDateStr_();
+  document.getElementById('pickupDateInput').max = todayDateStr_(); // กันเลือกวันที่ในอนาคต
+  apiGet('dsp_inb_getPickupItems', { orderNo: liffOrderNo, lineUserId: lineUserId }).then(function (data) {
+    if (!data.ok) {
+      showPickupMsg('err', data.error || 'ไม่สามารถโหลดรายการได้');
+      document.getElementById('pickupConfirmBtn').style.display = 'none';
+      return;
+    }
+    pickupItems = data.items || [];
+    renderPickupItems();
+    if (pickupItems.length === 0) {
+      showPickupMsg('ok', 'ไม่มีรายการที่ต้องยืนยัน (อาจยืนยันไปแล้ว หรือยังไม่ได้รับของเข้าร้าน)');
+      document.getElementById('pickupConfirmBtn').style.display = 'none';
+    }
+  }).catch(function () {
+    showPickupMsg('err', 'เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่');
+  });
+}
+
+function confirmPickup() {
+  var pickupDate = document.getElementById('pickupDateInput').value;
+  if (!pickupDate) {
+    showPickupMsg('err', 'กรุณาเลือกวันที่ลูกค้ามารับ');
+    return;
+  }
+
+  var btn = document.getElementById('pickupConfirmBtn');
+  btn.disabled = true;
+  btn.textContent = 'กำลังบันทึก...';
+  var rowIndexes = pickupItems.map(function (it) { return it.rowIndex; });
+
+  apiGet('dsp_inb_confirmPickup', {
+    orderNo: liffOrderNo,
+    rowIndexes: JSON.stringify(rowIndexes),
+    pickupDate: pickupDate,
+    lineUserId: lineUserId
+  }).then(function (data) {
+    btn.textContent = 'ยืนยันลูกค้ามารับของแล้ว';
+    if (!data.ok) {
+      btn.disabled = false;
+      showPickupMsg('err', data.error || 'บันทึกไม่สำเร็จ');
+      return;
+    }
+    showPickupMsg('ok', '✅ บันทึกแล้ว — ลูกค้ามารับของเมื่อ ' + data.pickupAt);
+    btn.style.display = 'none';
+  }).catch(function () {
+    btn.disabled = false;
+    btn.textContent = 'ยืนยันลูกค้ามารับของแล้ว';
+    showPickupMsg('err', 'เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่');
+  });
+}
+
 function renderItemsList() {
   var box = document.getElementById('itemsList');
   box.innerHTML = '';
@@ -547,6 +658,7 @@ document.getElementById('historyBackBtn').addEventListener('click', showTabsView
 document.getElementById('confirmBtn').addEventListener('click', confirmReceive);
 document.getElementById('tabPending').addEventListener('click', function () { switchTab('pending'); });
 document.getElementById('tabHistory').addEventListener('click', function () { switchTab('history'); });
+document.getElementById('pickupConfirmBtn').addEventListener('click', confirmPickup);
 
 liff.init({ liffId: LIFF_ID }).then(function () {
   if (!liff.isLoggedIn()) {
@@ -555,11 +667,17 @@ liff.init({ liffId: LIFF_ID }).then(function () {
   }
   return liff.getProfile().then(function (profile) {
     lineUserId = profile.userId;
+    if (liffMode === 'pickup' && liffOrderNo) return null;
     return loadPendingOrders();
   });
 }).then(function () {
   document.getElementById('loadingBox').style.display = 'none';
-  showTabsView();
+  if (liffMode === 'pickup' && liffOrderNo) {
+    showPickupView();
+    loadPickupItems();
+  } else {
+    showTabsView();
+  }
 }).catch(function (err) {
   document.getElementById('loadingBox').textContent = 'เกิดข้อผิดพลาด: ' + err;
 });
