@@ -67,6 +67,7 @@
   .badge.incomplete { background: #fff6e0; color: #8a5a00; }
   .badge.special { background: #f3e8ff; color: #7c3aed; }
   .special-line { font-size: 12px; color: #7c3aed; font-weight: 600; margin-top: 4px; }
+  .expired-line { font-size: 12px; color: #a3231c; font-weight: 700; margin-top: 4px; }
   .note-line { font-size: 12px; color: #888; margin-top: 4px; }
   .history-item-row {
     padding: 10px 0;
@@ -340,6 +341,7 @@ function renderOrderCard(o) {
     '<div>' +
       '<div class="orderNo">' + o.orderNo + '</div>' +
       '<div class="category">' + (o.categorySummary || '-') + '</div>' +
+      (o.isExpired ? '<div class="expired-line">⛔ ตั๋วหมดอายุแล้ว (หมดอายุ ' + escapeHtml(o.ticketExp) + ')</div>' : '') +
       (o.note ? '<div class="note-line">📝 ' + escapeHtml(o.note) + '</div>' : '') +
       (o.hasSpecial ? '<div class="special-line">🎯 มีสินค้าสั่งพิเศษ</div>' : '') +
     '</div>' +
