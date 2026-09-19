@@ -258,6 +258,17 @@
   <div class="msg" id="pickupResultMsg"></div>
 </div>
 
+<div id="whoamiView" style="display:none">
+  <h1>🪪 LINE User ID ของฉัน</h1>
+  <div class="card">
+    <div style="font-size:13px; color:#666; margin-bottom:4px;">ชื่อที่แสดงบน LINE บัญชีนี้</div>
+    <div id="whoamiDisplayName" style="font-size:16px; font-weight:700; margin-bottom:16px;"></div>
+    <div style="font-size:13px; color:#666; margin-bottom:4px;">LINE User ID (กดค้างเพื่อคัดลอก)</div>
+    <div id="whoamiUserId" style="font-size:15px; font-weight:700; word-break:break-all; background:#f4f5f7; padding:12px; border-radius:8px; user-select:all;"></div>
+  </div>
+  <div class="note-line" style="text-align:center; margin-top:8px;">ส่งข้อความนี้ให้ผู้ดูแลระบบ เพื่อผูกกับชื่อของคุณในชีต</div>
+</div>
+
 <script>
 /* ตั้งค่า 2 ค่านี้หลัง deploy โปรเจกต์ Apps Script "Inbound Receiving Backend" เสร็จ:
    1. WEBAPP_URL = URL ที่ได้จาก Deploy > New deployment > Web app
@@ -279,6 +290,7 @@ var urlParams = new URLSearchParams(location.search);
 var liffMode = urlParams.get('mode');
 var liffOrderNo = urlParams.get('orderNo');
 var pickupItems = [];
+var liffDisplayName = '';
 
 function escapeHtml(s) {
   return String(s || '').replace(/[&<>"']/g, function (c) {
@@ -483,6 +495,18 @@ function openHistoryOrder(orderNo) {
   });
 }
 
+function showWhoamiView() {
+  document.getElementById('tabsBox').style.display = 'none';
+  document.getElementById('listView').style.display = 'none';
+  document.getElementById('historyListView').style.display = 'none';
+  document.getElementById('detailView').style.display = 'none';
+  document.getElementById('historyDetailView').style.display = 'none';
+  document.getElementById('pickupView').style.display = 'none';
+  document.getElementById('whoamiView').style.display = 'block';
+  document.getElementById('whoamiDisplayName').textContent = liffDisplayName || '(ไม่มีชื่อแสดง)';
+  document.getElementById('whoamiUserId').textContent = lineUserId;
+}
+
 function showPickupView() {
   document.getElementById('tabsBox').style.display = 'none';
   document.getElementById('listView').style.display = 'none';
@@ -669,7 +693,9 @@ liff.init({ liffId: LIFF_ID }).then(function () {
   }
   return liff.getProfile().then(function (profile) {
     lineUserId = profile.userId;
+    liffDisplayName = profile.displayName || '';
     if (liffMode === 'pickup' && liffOrderNo) return null;
+    if (liffMode === 'whoami') return null;
     return loadPendingOrders();
   });
 }).then(function () {
@@ -677,6 +703,8 @@ liff.init({ liffId: LIFF_ID }).then(function () {
   if (liffMode === 'pickup' && liffOrderNo) {
     showPickupView();
     loadPickupItems();
+  } else if (liffMode === 'whoami') {
+    showWhoamiView();
   } else {
     showTabsView();
   }
