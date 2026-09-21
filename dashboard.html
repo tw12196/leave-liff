@@ -1488,14 +1488,16 @@ function addDays(iso, delta){
 // เก็บรายละเอียดแยกตามจุดส่งจริง (ไซต์ + เลขที่เอกสาร + เวลาออกของจุดนั้นๆ) —
 // ส่วน "เข้า" (เวลาปิดงาน/กลับถึง) ใช้ค่าเดียวกันของทั้งเที่ยว เพราะกดปิดงานพร้อมกันจริง
 function stopBlocksHtml(t, isDone, wrapInfo){
-  var stops = (t.stops && t.stops.length) ? t.stops : [{ site: t.site, docs: t.docs, out: t.out, outMissing: t.outMissing }];
+  var stops = (t.stops && t.stops.length) ? t.stops : [{ site: t.site, docs: t.docs, out: t.out, outMissing: t.outMissing, in: t.in }];
   return stops.map(function(s){
     var sDocsLabel = (s.docs || []).join(', ');
     var sMultiTag = (s.docs && s.docs.length > 1) ? ' <span class="multidoc">(' + s.docs.length + ' บิล)</span>' : '';
     var sOutLabel = s.outMissing ? '⚠ ไม่ทราบเวลาออก' : ('ออก ' + esc(s.out));
+    // แต่ละจุดส่ง (stop) โชว์เวลาเข้าของตัวเอง ไม่ใช้เวลารวมของทั้งเที่ยว (แก้ 21 ก.ย. 2569)
+    var sIsDone = !!s.in;
     var sInHtml = t.failed
       ? '<span class="in failed">⚠️ ส่งไม่สำเร็จ' + (t.failReason ? ' · ' + esc(t.failReason) : '') + '</span>'
-      : '<span class="in ' + (isDone ? '' : 'pending') + '">' + (isDone ? 'เข้า ' + esc(t.in) : '⏳ ยังไม่กลับ') + '</span>';
+      : '<span class="in ' + (sIsDone ? '' : 'pending') + '">' + (sIsDone ? 'เข้า ' + esc(s.in) : '⏳ ยังไม่กลับ') + '</span>';
     var timesHtml = '<div class="times">' +
         '<span class="out' + (s.outMissing ? ' unknown' : '') + '">' + sOutLabel + '</span>' +
         sInHtml +
