@@ -161,16 +161,21 @@
 
   /* หลายจุดส่งในเที่ยวเดียว: โชว์ออก/เข้าแยกรายจุด (แก้ 21 ก.ย. 2569) */
   .cell .stoplist{ margin-top:4px; display:flex; flex-direction:column; gap:3px; }
-  .cell .stoplist .stopline{ display:flex; justify-content:space-between; align-items:baseline; gap:6px; font-size:10px; border-top:1px dashed var(--line); padding-top:3px; }
+  .cell .stoplist .stopline{ display:flex; flex-direction:column; gap:1px; font-size:10px; border-top:1px dashed var(--line); padding-top:4px; }
+  .cell .stoplist .stopsite{ font-weight:600; }
+  .cell .stoplist .stoptimes{ display:flex; justify-content:space-between; gap:6px; }
   .cell .stoplist .stopline:first-child{ border-top:none; padding-top:0; }
-  .cell .stoplist .stopdoc{ color:var(--faint); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cell .stoplist .stopdoc{ color:var(--faint); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .cell .stoplist .out{ color:var(--muted); flex:none; }
   .cell .stoplist .in{ color:var(--done-fg); font-weight:700; flex:none; }
   .cell .stoplist .in.pending{ color:var(--transit-fg); font-weight:700; }
   .cell .stoplist .out.unknown{ color:var(--transit-fg); font-style:italic; }
   .triprow-list .info .stoplist{ display:flex; flex-direction:column; gap:2px; margin-top:2px; }
-  .triprow-list .info .stoplist .stopline{ display:flex; align-items:center; gap:8px; font-size:10.5px; }
-  .triprow-list .info .stoplist .stopdoc{ color:var(--faint); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .triprow-list .info .stoplist .stopline{ display:flex; flex-direction:column; gap:1px; font-size:10.5px; border-top:1px dashed var(--line); padding-top:4px; }
+  .triprow-list .info .stoplist .stopline:first-child{ border-top:none; padding-top:0; }
+  .triprow-list .info .stoplist .stopsite{ font-weight:600; }
+  .triprow-list .info .stoplist .stoptimes{ display:flex; justify-content:space-between; gap:8px; }
+  .triprow-list .info .stoplist .stopdoc{ color:var(--faint); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .triprow-list .info .stoplist .out{ color:var(--muted); flex:none; }
   .triprow-list .info .stoplist .in{ color:var(--done-fg); font-weight:700; flex:none; }
   .triprow-list .info .stoplist .in.pending{ color:var(--transit-fg); font-weight:700; }
@@ -591,6 +596,7 @@ function render(){
         var stops = (t.stops && t.stops.length > 1) ? t.stops : null;
         var bodyHtml;
         if (stops) {
+          // แต่ละจุดส่งขึ้นบรรทัดของตัวเอง: ชื่อหน้างาน / เลขบิล / เวลาออก-เข้า คั่นด้วยเส้นประ (แก้ 22 ก.ย. 2569)
           bodyHtml = '<div class="stoplist">' + stops.map(function(s){
             var sIsDone = !!s.in;
             var sInHtml = t.failed
@@ -598,9 +604,12 @@ function render(){
               : '<span class="in ' + (sIsDone ? '' : 'pending') + '">' + (sIsDone ? 'เข้า ' + esc(s.in) : '⏳ ยังไม่กลับ') + '</span>';
             var sOutLabel = s.outMissing ? '⚠ ไม่ทราบเวลาออก' : ('ออก ' + esc(s.out));
             return '<div class="stopline">' +
-              '<span class="stopdoc">' + esc((s.docs || []).join(', ')) + '</span>' +
-              '<span class="out' + (s.outMissing ? ' unknown' : '') + '">' + sOutLabel + '</span>' +
-              sInHtml +
+              '<div class="stopsite">' + esc(s.site || '(ไม่ระบุไซต์)') + '</div>' +
+              '<div class="stopdoc">' + esc((s.docs || []).join(', ')) + '</div>' +
+              '<div class="stoptimes">' +
+                '<span class="out' + (s.outMissing ? ' unknown' : '') + '">' + sOutLabel + '</span>' +
+                sInHtml +
+              '</div>' +
             '</div>';
           }).join('') + '</div>';
         } else {
@@ -608,14 +617,14 @@ function render(){
             ? '<span class="in failed">⚠️ ส่งไม่สำเร็จ' + (t.failReason ? ' · ' + esc(t.failReason) : '') + '</span>'
             : '<span class="in ' + (isDone ? '' : 'pending') + '">' + (isDone ? 'เข้า ' + esc(t.in) : '⏳ ยังไม่กลับ') + '</span>';
           var outLabel = t.outMissing ? '⚠ ไม่ทราบเวลาออก' : ('ออก ' + esc(t.out));
-          bodyHtml = '<div class="doc">' + esc(docsLabel) + multiTag + '</div>' +
+          bodyHtml = '<div class="site">' + esc(t.site || '(ไม่ระบุไซต์)') + '</div>' +
+            '<div class="doc">' + esc(docsLabel) + multiTag + '</div>' +
             '<div class="times">' +
               '<span class="out' + (t.outMissing ? ' unknown' : '') + '">' + outLabel + '</span>' +
               inHtml +
             '</div>';
         }
         html += '<div class="cell filled ' + (t.failed ? 'failedtrip' : (isDone ? 'done' : 'transit')) + '" data-doc="' + esc(docsCsv) + '" data-site="' + esc(t.site) + '">' +
-          '<div class="site">' + esc(t.site || '(ไม่ระบุไซต์)') + '</div>' +
           bodyHtml +
         '</div>';
       }
@@ -645,22 +654,22 @@ function render(){
         var stops = (t.stops && t.stops.length > 1) ? t.stops : null;
         var infoTimesHtml;
         if (stops) {
-          var stoplistHtml = '<div class="stoplist">' + stops.map(function(s){
+          // แต่ละจุดส่งขึ้นบรรทัดของตัวเอง: ชื่อหน้างาน / เลขบิล / เวลาออก-เข้า คั่นด้วยเส้นประ (แก้ 22 ก.ย. 2569)
+          infoTimesHtml = '<div class="info"><div class="stoplist">' + stops.map(function(s){
             var sIsDone = !!s.in;
             var sInHtml = t.failed
               ? '<span class="in failed">⚠️ ส่งไม่สำเร็จ' + (t.failReason ? ' · ' + esc(t.failReason) : '') + '</span>'
               : '<span class="in ' + (sIsDone ? '' : 'pending') + '">' + (sIsDone ? 'เข้า ' + esc(s.in) : '⏳ ยังไม่กลับ') + '</span>';
             var sOutLabel = s.outMissing ? '⚠ ไม่ทราบเวลาออก' : ('ออก ' + esc(s.out));
             return '<div class="stopline">' +
-              '<span class="stopdoc">' + esc((s.docs || []).join(', ')) + '</span>' +
-              '<span class="out' + (s.outMissing ? ' unknown' : '') + '">' + sOutLabel + '</span>' +
-              sInHtml +
+              '<div class="stopsite">' + esc(s.site || '(ไม่ระบุไซต์)') + '</div>' +
+              '<div class="stopdoc">' + esc((s.docs || []).join(', ')) + '</div>' +
+              '<div class="stoptimes">' +
+                '<span class="out' + (s.outMissing ? ' unknown' : '') + '">' + sOutLabel + '</span>' +
+                sInHtml +
+              '</div>' +
             '</div>';
-          }).join('') + '</div>';
-          infoTimesHtml = '<div class="info">' +
-              '<div class="site">' + esc(t.site || '(ไม่ระบุไซต์)') + '</div>' +
-              stoplistHtml +
-            '</div>';
+          }).join('') + '</div></div>';
         } else {
           var inHtml = t.failed
             ? '<span class="in failed">⚠️ ส่งไม่สำเร็จ' + (t.failReason ? ' · ' + esc(t.failReason) : '') + '</span>'
