@@ -1002,6 +1002,11 @@ document.getElementById('reasonOther').addEventListener('input', clearEditMsg);
   }
 })();
 
+// ⚡ แก้ความช้า 26 ก.ย. 2569: รายการ "รอของ" ไม่ต้องใช้ LINE User ID จึงยิงขอข้อมูล
+// ตั้งแต่เปิดหน้า คู่ขนานไปกับ liff.init/getProfile แทนการรอ login เสร็จก่อนค่อยเริ่มโหลด
+var isNormalMode = !(liffMode === 'pickup' && liffOrderNo) && liffMode !== 'whoami';
+var firstPendingLoad = isNormalMode ? loadPendingOrders() : null;
+
 liff.init({ liffId: LIFF_ID }).then(function () {
   if (!liff.isLoggedIn()) {
     liff.login();
@@ -1012,7 +1017,7 @@ liff.init({ liffId: LIFF_ID }).then(function () {
     liffDisplayName = profile.displayName || '';
     if (liffMode === 'pickup' && liffOrderNo) return null;
     if (liffMode === 'whoami') return null;
-    return loadPendingOrders();
+    return firstPendingLoad;
   });
 }).then(function () {
   document.getElementById('loadingBox').style.display = 'none';
@@ -1023,6 +1028,8 @@ liff.init({ liffId: LIFF_ID }).then(function () {
     showWhoamiView();
   } else {
     showTabsView();
+    // โหลดประวัติรอไว้เบื้องหลัง พอคลังกดแท็บ "ประวัติ" จะขึ้นทันทีไม่ต้องรอ
+    if (historyOrders.length === 0) loadHistoryOrders();
   }
 }).catch(function (err) {
   document.getElementById('loadingBox').textContent = 'เกิดข้อผิดพลาด: ' + err;
