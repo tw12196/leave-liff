@@ -185,6 +185,60 @@
   .msg.err { background: #fdeaea; color: #a3231c; display: block; }
   .msg.warn { background: #fff6e0; color: #8a5a00; display: block; }
   .loading { text-align: center; padding: 40px 0; color: #888; }
+  /* แก้ไขการรับของ (เพิ่ม 26 ก.ย. 2569) */
+  .badge.edited { background: #eaf2fd; color: #1d6fe0; }
+  button.edit-btn {
+    width: 100%;
+    padding: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    border: 1.5px solid #1d6fe0;
+    border-radius: 8px;
+    background: #fff;
+    color: #1d6fe0;
+    cursor: pointer;
+    margin-top: 4px;
+  }
+  button.secondary {
+    width: 100%;
+    padding: 12px;
+    font-size: 15px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background: #fff;
+    color: #333;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+  .lock-note { font-size: 12px; color: #888; text-align: center; margin-top: 6px; }
+  .edit-log { font-size: 12px; color: #555; line-height: 1.6; }
+  .edit-log div { padding: 6px 0; border-bottom: 1px dashed #eee; }
+  .edit-log div:last-child { border-bottom: none; }
+  .item-actual input.changed { border-color: #ffa000; background: #fff6e0; font-weight: 700; }
+  .item-actual input:disabled { background: #f4f5f7; color: #999; }
+  .locked-line { font-size: 12px; color: #a3231c; margin-top: 2px; }
+  .reason-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .reason-chips .chip { font-size: 14px; }
+  .reason-other {
+    width: 100%;
+    margin-top: 10px;
+    padding: 10px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    box-sizing: border-box;
+  }
+  .change-box {
+    background: #fff6e0;
+    color: #8a5a00;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    font-size: 14px;
+  }
+  .change-box .product { font-weight: 700; }
+  .change-box .old { text-decoration: line-through; color: #a3231c; }
+  .change-box .new { font-weight: 700; color: #1d6fe0; }
 </style>
 </head>
 <body>
@@ -243,6 +297,48 @@
     <div class="meta-line" id="historyDetailMeta"></div>
     <div id="historyItemsList"></div>
   </div>
+  <div class="card" id="historyEditLogCard" style="display:none">
+    <div style="font-size:13px; font-weight:600; color:#1d6fe0; margin-bottom:6px;">✏️ ประวัติการแก้ไข</div>
+    <div class="edit-log" id="historyEditLog"></div>
+  </div>
+  <button class="edit-btn" id="editBtn" style="display:none">✏️ แก้ไขจำนวนที่รับ</button>
+  <div class="lock-note" id="editLockNote"></div>
+</div>
+
+<!-- แก้ไขการรับของ: ขั้นที่ 1 แก้ตัวเลข + เลือกเหตุผล -->
+<div id="editView" style="display:none">
+  <button class="back-btn" id="editBackBtn">‹ ยกเลิก กลับไปหน้ารายละเอียด</button>
+  <div class="card">
+    <div style="font-size:16px; font-weight:700;" id="editOrderNo"></div>
+    <div class="meta-line">แก้เฉพาะช่องที่ผิด ช่องที่แก้แล้วจะเป็นสีส้ม</div>
+    <div id="editItemsList"></div>
+  </div>
+  <div class="card">
+    <div style="font-size:14px; font-weight:600;">เหตุผลที่แก้ไข <span style="color:#a3231c">*</span></div>
+    <div class="reason-chips" id="reasonChips">
+      <div class="chip" data-reason="นับผิด">นับผิด</div>
+      <div class="chip" data-reason="พิมพ์ตัวเลขผิด">พิมพ์ตัวเลขผิด</div>
+      <div class="chip" data-reason="อื่นๆ">อื่นๆ</div>
+    </div>
+    <input type="text" class="reason-other" id="reasonOther" placeholder="ระบุเหตุผล" maxlength="200" style="display:none" />
+  </div>
+  <button class="primary" id="editReviewBtn">ตรวจสอบก่อนบันทึก</button>
+  <div class="msg" id="editMsg"></div>
+</div>
+
+<!-- แก้ไขการรับของ: ขั้นที่ 2 สรุปก่อนยืนยัน -->
+<div id="editConfirmView" style="display:none">
+  <div style="font-size:17px; font-weight:700; margin:0 0 12px;">✏️ ยืนยันการแก้ไข</div>
+  <div class="card">
+    <div style="font-size:14px; font-weight:700; margin-bottom:10px;" id="editConfirmOrderNo"></div>
+    <div id="editChangesList"></div>
+    <div class="meta-line" id="editConfirmReason"></div>
+    <div class="meta-line" id="editConfirmStatus" style="margin-top:6px;"></div>
+    <div class="meta-line" style="margin-top:6px;">🔔 ระบบจะแจ้งจัดซื้อทันทีหลังกดยืนยัน</div>
+  </div>
+  <button class="primary" id="editSubmitBtn">ยืนยันแก้ไข</button>
+  <button class="secondary" id="editBackToFormBtn">กลับไปแก้</button>
+  <div class="msg" id="editConfirmMsg"></div>
 </div>
 
 <div id="pickupView" style="display:none">
@@ -315,7 +411,13 @@ function showMsg(type, text) {
   box.textContent = text;
 }
 
+function hideEditViews() {
+  document.getElementById('editView').style.display = 'none';
+  document.getElementById('editConfirmView').style.display = 'none';
+}
+
 function showTabsView() {
+  hideEditViews();
   document.getElementById('detailView').style.display = 'none';
   document.getElementById('historyDetailView').style.display = 'none';
   document.getElementById('tabsBox').style.display = 'flex';
@@ -332,6 +434,7 @@ function showDetailView() {
 }
 
 function showHistoryDetailView() {
+  hideEditViews();
   document.getElementById('tabsBox').style.display = 'none';
   document.getElementById('listView').style.display = 'none';
   document.getElementById('historyListView').style.display = 'none';
@@ -448,6 +551,7 @@ function renderHistoryCard(o) {
       (o.hasSpecial ? '<div class="special-line">🎯 มีสินค้าสั่งพิเศษ</div>' : '') +
     '</div>' +
     '<div style="display:flex; align-items:center; gap:6px;">' +
+      (o.isEdited ? '<span class="badge edited">แก้ไขแล้ว</span>' : '') +
       '<span class="badge ' + (o.isComplete ? 'complete">ครบ' : 'incomplete">ไม่ครบ') + '</span>' +
       '<div class="arrow">›</div>' +
     '</div>';
@@ -492,7 +596,206 @@ function openHistoryOrder(orderNo) {
         '</div>';
       box.appendChild(row);
     });
+    currentHistory = data;
+    renderEditSection(data);
     showHistoryDetailView();
+  });
+}
+
+/* ================= แก้ไขการรับของ (เพิ่ม 26 ก.ย. 2569) =================
+ * ปุ่มอยู่ท้ายหน้ารายละเอียดประวัติ → หน้าแก้ไข (ตัวเลข + เหตุผล)
+ * → หน้าสรุปก่อนยืนยัน → dsp_inb_correctReceive
+ * กฎจริงทั้งหมด (สิทธิ์, วันเดียวกัน, ลูกค้ามารับแล้ว) เช็คซ้ำที่ inbound.gs เสมอ
+ * ฝั่งหน้าเว็บแค่ซ่อน/โชว์ปุ่มให้คลังไม่งง */
+var currentHistory = null;
+var editReason = '';
+var pendingChanges = [];
+
+function renderEditSection(data) {
+  var logCard = document.getElementById('historyEditLogCard');
+  var logBox = document.getElementById('historyEditLog');
+  logBox.innerHTML = '';
+  if (data.editLog && data.editLog.length) {
+    data.editLog.forEach(function (line) {
+      var div = document.createElement('div');
+      div.textContent = line;
+      logBox.appendChild(div);
+    });
+    logCard.style.display = 'block';
+  } else {
+    logCard.style.display = 'none';
+  }
+  var btn = document.getElementById('editBtn');
+  var note = document.getElementById('editLockNote');
+  if (data.canEdit) {
+    btn.style.display = 'block';
+    note.textContent = 'แก้ได้ถึง 23:59 น. ของวันที่รับของ';
+  } else {
+    btn.style.display = 'none';
+    note.textContent = data.lockReason || '';
+  }
+}
+
+function showEditView() {
+  document.getElementById('historyDetailView').style.display = 'none';
+  document.getElementById('editConfirmView').style.display = 'none';
+  document.getElementById('editView').style.display = 'block';
+  window.scrollTo(0, 0);
+}
+
+function openEditForm() {
+  if (!currentHistory) return;
+  document.getElementById('editOrderNo').textContent = 'แก้ไข ' + currentHistory.orderNo;
+  var box = document.getElementById('editItemsList');
+  box.innerHTML = '';
+  currentHistory.items.forEach(function (it, idx) {
+    var row = document.createElement('div');
+    row.className = 'item-row';
+    row.innerHTML =
+      '<div class="item-info">' +
+        '<div class="product">' + escapeHtml(it.product) + '</div>' +
+        '<div class="ordered">สั่ง ' + it.qtyOrdered + ' · รับไว้เดิม ' + it.qtyActual + ' ' + escapeHtml(it.unit) + '</div>' +
+        (it.customer ? '<div class="special-line">🎯 สั่งพิเศษ · ' + escapeHtml(it.customer) + '</div>' : '') +
+        (it.isLocked ? '<div class="locked-line">🔒 ลูกค้ามารับแล้ว แก้ไม่ได้</div>' : '') +
+      '</div>' +
+      '<div class="item-actual">' +
+        '<input type="number" inputmode="decimal" min="0" id="edit_' + idx + '" value="' + it.qtyActual + '"' + (it.isLocked ? ' disabled' : '') + ' />' +
+      '</div>';
+    box.appendChild(row);
+    var input = row.querySelector('input');
+    input.addEventListener('input', function () {
+      input.classList.toggle('changed', input.value !== '' && Number(input.value) !== Number(it.qtyActual));
+      clearEditMsg();
+    });
+  });
+  setReason('');
+  document.getElementById('reasonOther').value = '';
+  clearEditMsg();
+  showEditView();
+}
+
+function setReason(reason) {
+  editReason = reason;
+  var chips = document.querySelectorAll('#reasonChips .chip');
+  for (var i = 0; i < chips.length; i++) {
+    chips[i].classList.toggle('active', chips[i].getAttribute('data-reason') === reason);
+  }
+  var other = document.getElementById('reasonOther');
+  other.style.display = reason === 'อื่นๆ' ? 'block' : 'none';
+  if (reason === 'อื่นๆ') other.focus();
+}
+
+function finalReason() {
+  if (editReason === 'อื่นๆ') return document.getElementById('reasonOther').value.trim();
+  return editReason;
+}
+
+function showEditMsg(type, text) {
+  var box = document.getElementById('editMsg');
+  box.className = 'msg ' + type;
+  box.textContent = text;
+}
+
+function clearEditMsg() {
+  var box = document.getElementById('editMsg');
+  box.className = 'msg';
+  box.textContent = '';
+}
+
+function reviewEdit() {
+  pendingChanges = [];
+  var invalid = false;
+  currentHistory.items.forEach(function (it, idx) {
+    if (it.isLocked) return;
+    var raw = document.getElementById('edit_' + idx).value;
+    if (raw === '' || isNaN(Number(raw)) || Number(raw) < 0) { invalid = true; return; }
+    var newQty = Number(raw);
+    if (newQty !== Number(it.qtyActual)) {
+      pendingChanges.push({ rowIndex: it.rowIndex, newQty: newQty, item: it });
+    }
+  });
+  if (invalid) { showEditMsg('err', 'กรอกจำนวนเป็นตัวเลขตั้งแต่ 0 ขึ้นไปให้ครบทุกช่อง'); return; }
+  if (pendingChanges.length === 0) { showEditMsg('err', 'ยังไม่ได้แก้ตัวเลขช่องไหนเลย'); return; }
+  if (!editReason) { showEditMsg('err', 'เลือกเหตุผลที่แก้ไขก่อน'); return; }
+  if (!finalReason()) { showEditMsg('err', 'พิมพ์เหตุผลในช่อง "อื่นๆ" ก่อน'); return; }
+
+  // คำนวณสถานะใหม่ของทั้งใบ ให้คลังเห็นก่อนกดยืนยันว่าจะกลายเป็นครบ/ไม่ครบ
+  var byRow = {};
+  pendingChanges.forEach(function (c) { byRow[c.rowIndex] = c.newQty; });
+  var wasComplete = currentHistory.items.every(function (it) { return it.isComplete; });
+  var willComplete = currentHistory.items.every(function (it) {
+    var q = byRow[it.rowIndex] !== undefined ? byRow[it.rowIndex] : Number(it.qtyActual);
+    return q === Number(it.qtyOrdered);
+  });
+
+  document.getElementById('editConfirmOrderNo').textContent = 'เลขใบรับสินค้า: ' + currentHistory.orderNo;
+  var list = document.getElementById('editChangesList');
+  list.innerHTML = '';
+  pendingChanges.forEach(function (c) {
+    var div = document.createElement('div');
+    div.className = 'change-box';
+    div.innerHTML =
+      '<div class="product">' + escapeHtml(c.item.product) + '</div>' +
+      '<div><span class="old">' + c.item.qtyActual + '</span> → <span class="new">' + c.newQty + ' ' + escapeHtml(c.item.unit) + '</span>' +
+      ' <span style="color:#888">(สั่ง ' + c.item.qtyOrdered + ')</span></div>';
+    list.appendChild(div);
+  });
+  document.getElementById('editConfirmReason').textContent = 'เหตุผล: ' + finalReason();
+  var st = (wasComplete ? 'ครบ' : 'ไม่ครบ') + ' → ' + (willComplete ? 'ครบ' : 'ไม่ครบ');
+  document.getElementById('editConfirmStatus').textContent = 'สถานะใบนี้: ' + (wasComplete === willComplete ? (willComplete ? 'ครบ (ไม่เปลี่ยน)' : 'ไม่ครบ (ไม่เปลี่ยน)') : st);
+
+  var msg = document.getElementById('editConfirmMsg');
+  msg.className = 'msg';
+  var btn = document.getElementById('editSubmitBtn');
+  btn.style.display = 'block';
+  btn.disabled = false;
+  btn.textContent = 'ยืนยันแก้ไข';
+  document.getElementById('editBackToFormBtn').style.display = 'block';
+
+  document.getElementById('editView').style.display = 'none';
+  document.getElementById('editConfirmView').style.display = 'block';
+  window.scrollTo(0, 0);
+}
+
+function submitEdit() {
+  var btn = document.getElementById('editSubmitBtn');
+  var backBtn = document.getElementById('editBackToFormBtn');
+  var msg = document.getElementById('editConfirmMsg');
+  btn.disabled = true;
+  btn.textContent = 'กำลังบันทึก...';
+  backBtn.style.display = 'none';
+
+  apiGet('dsp_inb_correctReceive', {
+    orderNo: currentHistory.orderNo,
+    items: JSON.stringify(pendingChanges.map(function (c) { return { rowIndex: c.rowIndex, newQty: c.newQty }; })),
+    reason: finalReason(),
+    lineUserId: lineUserId
+  }).then(function (data) {
+    if (!data.ok) {
+      btn.disabled = false;
+      btn.textContent = 'ยืนยันแก้ไข';
+      backBtn.style.display = 'block';
+      msg.className = 'msg err';
+      msg.textContent = data.error || 'บันทึกไม่สำเร็จ';
+      return;
+    }
+    btn.style.display = 'none';
+    var text = '✅ แก้ไขแล้ว ' + data.changed + ' รายการ — แจ้งจัดซื้อแล้ว\nสถานะใบนี้ตอนนี้: ' + (data.isComplete ? 'ครบ' : 'ไม่ครบ');
+    if (data.skipped && data.skipped.length) {
+      text += '\n⚠️ บางรายการแก้ไม่ได้: ' + data.skipped.map(function (s) { return (s.product || 'แถว ' + s.rowIndex) + ' (' + s.reason + ')'; }).join(', ');
+    }
+    msg.className = 'msg ' + (data.skipped && data.skipped.length ? 'warn' : 'ok');
+    msg.textContent = text;
+    historyOrders = [];
+    loadHistoryOrders();
+    var orderNo = currentHistory.orderNo;
+    setTimeout(function () { openHistoryOrder(orderNo); }, 1500);
+  }).catch(function () {
+    btn.disabled = false;
+    btn.textContent = 'ยืนยันแก้ไข';
+    backBtn.style.display = 'block';
+    msg.className = 'msg err';
+    msg.textContent = 'เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่';
   });
 }
 
@@ -686,6 +989,18 @@ document.getElementById('confirmBtn').addEventListener('click', confirmReceive);
 document.getElementById('tabPending').addEventListener('click', function () { switchTab('pending'); });
 document.getElementById('tabHistory').addEventListener('click', function () { switchTab('history'); });
 document.getElementById('pickupConfirmBtn').addEventListener('click', confirmPickup);
+document.getElementById('editBtn').addEventListener('click', openEditForm);
+document.getElementById('editBackBtn').addEventListener('click', showHistoryDetailView);
+document.getElementById('editReviewBtn').addEventListener('click', reviewEdit);
+document.getElementById('editBackToFormBtn').addEventListener('click', showEditView);
+document.getElementById('editSubmitBtn').addEventListener('click', submitEdit);
+document.getElementById('reasonOther').addEventListener('input', clearEditMsg);
+(function () {
+  var chips = document.querySelectorAll('#reasonChips .chip');
+  for (var i = 0; i < chips.length; i++) {
+    chips[i].addEventListener('click', function () { setReason(this.getAttribute('data-reason')); clearEditMsg(); });
+  }
+})();
 
 liff.init({ liffId: LIFF_ID }).then(function () {
   if (!liff.isLoggedIn()) {
