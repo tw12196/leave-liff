@@ -402,13 +402,24 @@
       canvases.forEach(function (c) { container.appendChild(c); });
       body.appendChild(container);
       document.getElementById('pdfHint').style.display = '';
+      // คืนหน่วยความจำของ pdf.js ทันทีหลังวาดเสร็จ (ภาพบน canvas ยังอยู่ครบ)
+      try { pdfDoc.cleanup(); } catch (e) {}
+    }).catch(function (err) {
+      body.innerHTML = '<div class="pw-card"><div class="icon">⚠️</div><h3>แสดงสลิปไม่สำเร็จ</h3><p>' + (err && err.message ? err.message : err) + '</p></div>';
     });
   }
 
   function renderPage(pdfDoc, pageNum) {
     return pdfDoc.getPage(pageNum).then(function (page) {
-      // เรนเดอร์ความละเอียดสูงขึ้นเพื่อให้ภาพคมชัดตอนซูมเข้าไปอ่านตัวเลข
-      const scale = Math.min(4, (window.devicePixelRatio || 1) * 2.5);
+      // เรนเดอร์ความละเอียดสูงเพื่อให้ซูมอ่านตัวเลขได้ชัด แต่จำกัดจำนวนพิกเซลต่อหน้า
+      // (เดิม scale สูงสุด 4 = ภาพ ~8 ล้านพิกเซล/หน้า ใช้แรม ~32MB ทำให้มือถือแรมน้อย
+      //  ปิด LINE in-app browser ทิ้งกลางคัน = อาการ "รอโหลดแล้วเด้งออก")
+      const base = page.getViewport({ scale: 1 });
+      const lowMem = (navigator.deviceMemory && navigator.deviceMemory <= 3);
+      const MAX_PIXELS = lowMem ? 2000000 : 4000000;
+      const wanted = Math.min(4, (window.devicePixelRatio || 1) * 2.5);
+      const capByPixels = Math.sqrt(MAX_PIXELS / (base.width * base.height));
+      const scale = Math.max(1, Math.min(wanted, capByPixels));
       const viewport = page.getViewport({ scale: scale });
       const canvas = document.createElement('canvas');
       canvas.className = 'pdf-page-canvas';
