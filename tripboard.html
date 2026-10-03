@@ -802,7 +802,9 @@ function confirmLinkPick(){
       setTimeout(function(){ setStatusBar(''); }, 2500);
     })
     .catch(function(err){
-      if (err && err.denied) { clearAuth(); showLogin('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่ค่ะ'); return; }
+      // ชื่อ/PIN ผิดจริง → เซสชันค้างคาใช้ไม่ได้แล้ว ให้ล็อกอินใหม่
+      // แต่ denied ก็เกิดได้จากกรณี "ชื่อถูก แต่ไม่ใช่ผู้จัดคิว" (ดู dspIsDispatcherName_) ซึ่งล็อกอินใหม่ด้วยชื่อเดิมก็จะโดนบล็อกซ้ำเหมือนเดิม — กรณีนี้ไม่ต้อง logout แค่โชว์เหตุผลจริงจากระบบ
+      if (err && err.denied && /PIN/.test((err && err.message) || '')) { clearAuth(); showLogin('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่ค่ะ'); return; }
       setStatusBar('⚠ ' + ((err && err.message) || 'เชื่อมเที่ยวไม่สำเร็จ'), true, false);
     })
     .finally(function(){
@@ -826,7 +828,7 @@ function onUnlinkClick(doc){
       setTimeout(function(){ setStatusBar(''); }, 2500);
     })
     .catch(function(err){
-      if (err && err.denied) { clearAuth(); showLogin('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่ค่ะ'); return; }
+      if (err && err.denied && /PIN/.test((err && err.message) || '')) { clearAuth(); showLogin('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่ค่ะ'); return; }
       setStatusBar('⚠ ' + ((err && err.message) || 'ยกเลิกเชื่อมเที่ยวไม่สำเร็จ'), true, false);
     });
 }
