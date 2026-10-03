@@ -248,6 +248,24 @@
     border-radius:8px; padding:9px 12px; font-size:12.5px; margin-bottom:14px;
   }
 
+  /* 🔗 เชื่อมเที่ยว */
+  .linktag{ display:inline-block; background:#E8F0FF; color:var(--navy); font-size:10px; font-weight:800; border-radius:6px; padding:1px 6px; margin:0 6px 4px 0; }
+  .unlinkbtn{
+    border:1px solid var(--danger-line); background:#fff; color:var(--danger-fg); border-radius:7px;
+    padding:3px 8px; font-size:10.5px; font-weight:700; cursor:pointer; margin-bottom:4px;
+  }
+  .linkpick{ display:flex; align-items:center; gap:5px; font-size:10.5px; color:var(--muted); margin-bottom:4px; cursor:pointer; }
+  .linkpick input{ width:14px; height:14px; cursor:pointer; }
+  .linkbar{
+    position:fixed; left:50%; bottom:18px; transform:translateX(-50%); max-width:92vw;
+    background:var(--navy); color:#fff; border-radius:12px; padding:10px 16px;
+    display:flex; align-items:center; gap:12px; font-size:12.5px; box-shadow:0 6px 20px rgba(0,0,0,.18); z-index:70;
+  }
+  .linkbar button{ border:0; border-radius:8px; padding:8px 14px; font-size:12.5px; font-weight:700; cursor:pointer; }
+  .linkbar #linkBarConfirm{ background:#FFD166; color:var(--navy); }
+  .linkbar #linkBarConfirm:disabled{ opacity:.5; cursor:default; }
+  .linkbar #linkBarCancel{ background:rgba(255,255,255,.18); color:#fff; }
+
   @media (max-width:1100px){
     .stats{grid-template-columns:repeat(3,1fr);}
   }
@@ -330,6 +348,12 @@
   </div>
 </div>
 
+<div class="linkbar" id="linkBar" hidden>
+  <span id="linkBarText"></span>
+  <button id="linkBarConfirm" disabled>🔗 เชื่อมเที่ยว</button>
+  <button id="linkBarCancel">ยกเลิก</button>
+</div>
+
 <div class="scrim" id="scrim" onclick="closeItemDrawer()"></div>
 <div class="drawer" id="itemDrawer">
   <div class="dh">
@@ -353,11 +377,13 @@ function esc(s){
 }
 function fmtNum(n){ return Number(n).toLocaleString('th-TH', {maximumFractionDigits:2}); }
 
-function api(action, params){
+function api(action, params, payload){
   var url = API_URL + '?action=' + encodeURIComponent(action) + '&t=' + Date.now();
   Object.keys(params || {}).forEach(function(k){
     url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
   });
+  // payload แยกต่างหาก (JSON) — ใช้กับ action ที่ dispatch.gs อ่านค่าจาก payload.xxx โดยตรง เช่น dsp_linktrip
+  if (payload) url += '&payload=' + encodeURIComponent(JSON.stringify(payload));
   return fetch(url, { method: 'GET', redirect: 'follow' })
     .then(function(r){ return r.json(); })
     .then(function(j){
@@ -427,6 +453,7 @@ var currentAuth = null;
 var curDate = '';
 var MAX_DATE = '';
 var viewMode = 'grid';
+var linkPick = [];    // 🔗 เอกสารที่เลือกไว้เพื่อเชื่อมเที่ยว (สูงสุด 2 ใบ ของรถคันเดียวกัน)
 var THAI_MONTHS = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
 var THAI_DOW = ["อาทิตย์","จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์"];
 
@@ -531,6 +558,7 @@ function addDays(iso, delta){
 /* ---------------- วาดหน้าจอ ---------------- */
 function render(){
   if (!TRIP) return;
+  linkPick = [];  // ข้อมูลเที่ยวรถชุดใหม่แล้ว เลือกเชื่อมเที่ยวค้างไว้จากรอบก่อนไม่มีความหมายอีกต่อไป
   document.getElementById('datePicker').value = curDate;
   if (MAX_DATE) document.getElementById('datePicker').max = MAX_DATE;
   document.getElementById('curDateLabel').innerHTML = esc(fmtDateLabel(curDate)) + ' <span class="dow">' + esc(dowOf(curDate)) + '</span>';
@@ -625,7 +653,7 @@ function render(){
             '</div>';
         }
         html += '<div class="cell filled ' + (t.failed ? 'failedtrip' : (isDone ? 'done' : 'transit')) + '" data-doc="' + esc(docsCsv) + '" data-site="' + esc(t.site) + '">' +
-          bodyHtml +
+          linkCtrlHtml(t, v.plate) + bodyHtml +
         '</div>';
       }
     });
@@ -687,6 +715,7 @@ function render(){
         rowsHtml +=
           '<div class="triprow-list" data-doc="' + esc(docsCsv) + '" data-site="' + esc(t.site) + '">' +
             '<div class="tnum">' + (idx + 1) + '</div>' +
+            linkCtrlHtml(t, v.plate) +
             infoTimesHtml +
           '</div>';
       });
@@ -696,6 +725,110 @@ function render(){
     }
     boardList.appendChild(sec);
   });
+}
+
+/* ---------------- 🔗 เชื่อม/ยกเลิกเชื่อมเที่ยว ----------------
+   เลือกเชื่อมได้เฉพาะเที่ยวที่มีเอกสารใบเดียว (ยังไม่ถูกรวมโดยตรรกะเวลาเดิมหรือเชื่อมไว้ก่อนแล้ว)
+   ของรถคันเดียวกันเท่านั้น — เขียนคอลัมน์เดียวกับที่ Step 1 เขียน (dsp_linktrip/dsp_unlinktrip) */
+function linkCtrlHtml(t, plate){
+  if (t.linked) {
+    return '<div><span class="linktag">🔗 เชื่อมเที่ยว</span>' +
+      '<button class="unlinkbtn" onclick="event.stopPropagation(); onUnlinkClick(\'' + esc(t.docs[0]) + '\')">ยกเลิกเชื่อม</button></div>';
+  }
+  if (t.docs && t.docs.length === 1 && !t.failed) {
+    var doc = t.docs[0];
+    var checked = linkPick.some(function(p){ return p.doc === doc; }) ? ' checked' : '';
+    return '<label class="linkpick" onclick="event.stopPropagation()">' +
+      '<input type="checkbox" class="linkchk" data-plate="' + esc(plate) + '" data-doc="' + esc(doc) + '"' + checked + ' onchange="onLinkCheck(this)"> เลือกเพื่อเชื่อมเที่ยว' +
+    '</label>';
+  }
+  return '';
+}
+
+function syncLinkCheckboxes(){
+  document.querySelectorAll('.linkchk').forEach(function(cb){
+    cb.checked = linkPick.some(function(p){ return p.doc === cb.dataset.doc; });
+  });
+  renderLinkBar();
+}
+
+function onLinkCheck(cb){
+  var plate = cb.dataset.plate, doc = cb.dataset.doc;
+  if (cb.checked) {
+    if (linkPick.length && linkPick[0].plate !== plate) {
+      setStatusBar('เลือกได้เฉพาะ 2 เอกสารของรถคันเดียวกันค่ะ', true, false);
+      cb.checked = false;
+      return;
+    }
+    if (linkPick.length >= 2) { cb.checked = false; return; }
+    linkPick.push({ plate: plate, doc: doc });
+    setStatusBar('');
+  } else {
+    linkPick = linkPick.filter(function(p){ return p.doc !== doc; });
+  }
+  syncLinkCheckboxes();
+}
+
+function renderLinkBar(){
+  var bar = document.getElementById('linkBar');
+  var txt = document.getElementById('linkBarText');
+  var btn = document.getElementById('linkBarConfirm');
+  if (!linkPick.length) { bar.hidden = true; return; }
+  bar.hidden = false;
+  txt.textContent = linkPick.map(function(p){ return p.doc; }).join('  +  ') + (linkPick.length < 2 ? '  (เลือกอีก 1 ใบ)' : '');
+  btn.disabled = (linkPick.length !== 2);
+  btn.textContent = '🔗 เชื่อมเที่ยว';
+}
+
+function cancelLinkPick(){
+  linkPick = [];
+  syncLinkCheckboxes();
+}
+
+function confirmLinkPick(){
+  if (linkPick.length !== 2) return;
+  var auth = currentAuth || loadAuth();
+  if (!auth) { showLogin(); return; }
+  var btn = document.getElementById('linkBarConfirm');
+  btn.disabled = true; btn.textContent = 'กำลังเชื่อม…';
+  api('dsp_linktrip', { name: auth.name, pin: auth.pin }, { doc: linkPick[0].doc, linkDoc: linkPick[1].doc, by: auth.name })
+    .then(function(){
+      linkPick = [];
+      setStatusBar('🔗 เชื่อมเที่ยวแล้วค่ะ');
+      return loadTripboard(auth.name, auth.pin, curDate);
+    })
+    .then(function(){
+      render();
+      setTimeout(function(){ setStatusBar(''); }, 2500);
+    })
+    .catch(function(err){
+      if (err && err.denied) { clearAuth(); showLogin('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่ค่ะ'); return; }
+      setStatusBar('⚠ ' + ((err && err.message) || 'เชื่อมเที่ยวไม่สำเร็จ'), true, false);
+    })
+    .finally(function(){
+      btn.disabled = false; btn.textContent = '🔗 เชื่อมเที่ยว';
+    });
+}
+
+function onUnlinkClick(doc){
+  if (!doc) return;
+  if (!window.confirm('ยกเลิกเชื่อมเที่ยวของ ' + doc + ' ?')) return;
+  var auth = currentAuth || loadAuth();
+  if (!auth) { showLogin(); return; }
+  setStatusBar('⏳ กำลังยกเลิกเชื่อมเที่ยว...', false, false);
+  api('dsp_unlinktrip', { name: auth.name, pin: auth.pin }, { doc: doc, by: auth.name })
+    .then(function(){
+      setStatusBar('ยกเลิกเชื่อมเที่ยวแล้วค่ะ');
+      return loadTripboard(auth.name, auth.pin, curDate);
+    })
+    .then(function(){
+      render();
+      setTimeout(function(){ setStatusBar(''); }, 2500);
+    })
+    .catch(function(err){
+      if (err && err.denied) { clearAuth(); showLogin('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่ค่ะ'); return; }
+      setStatusBar('⚠ ' + ((err && err.message) || 'ยกเลิกเชื่อมเที่ยวไม่สำเร็จ'), true, false);
+    });
 }
 
 /* ---------------- แผงรายการสินค้า ---------------- */
@@ -768,6 +901,9 @@ document.getElementById('nextDay').addEventListener('click', function(){ goDate(
 document.getElementById('todayBtn').addEventListener('click', function(){ goDate(MAX_DATE || curDate); });
 document.getElementById('datePicker').addEventListener('change', function(e){ goDate(e.target.value); });
 document.getElementById('refreshBtn').addEventListener('click', refreshCurrent);
+
+document.getElementById('linkBarConfirm').addEventListener('click', confirmLinkPick);
+document.getElementById('linkBarCancel').addEventListener('click', cancelLinkPick);
 
 document.getElementById('loginPin').addEventListener('keydown', function(e){ if (e.key === 'Enter') doLogin(); });
 document.getElementById('loginName').addEventListener('keydown', function(e){ if (e.key === 'Enter') document.getElementById('loginPin').focus(); });
