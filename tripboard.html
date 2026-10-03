@@ -256,6 +256,11 @@
   }
   .linkpick{ display:flex; align-items:center; gap:5px; font-size:10.5px; color:var(--muted); margin-bottom:4px; cursor:pointer; }
   .linkpick input{ width:14px; height:14px; cursor:pointer; }
+  .linkmodebtn{
+    border:1px solid var(--line); background:var(--surface); color:var(--navy); font-size:12.5px; font-weight:700;
+    padding:7px 14px; border-radius:10px; cursor:pointer; display:flex; align-items:center; gap:6px;
+  }
+  .linkmodebtn.active{ background:#FFD166; border-color:#FFD166; color:var(--navy); }
   .linkbar{
     position:fixed; left:50%; bottom:18px; transform:translateX(-50%); max-width:92vw;
     background:var(--navy); color:#fff; border-radius:12px; padding:10px 16px;
@@ -323,7 +328,8 @@
   </div>
 
   <div class="boardwrap">
-    <div style="display:flex; justify-content:flex-end; margin-bottom:12px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:10px; flex-wrap:wrap;">
+      <button id="btnLinkMode" class="linkmodebtn">🔗 เชื่อมเที่ยว</button>
       <div class="viewToggle">
         <button id="btnGridView" class="active">🔲 มุมมองตาราง</button>
         <button id="btnListView">📋 มุมมองรายการ</button>
@@ -454,6 +460,7 @@ var curDate = '';
 var MAX_DATE = '';
 var viewMode = 'grid';
 var linkPick = [];    // 🔗 เอกสารที่เลือกไว้เพื่อเชื่อมเที่ยว (สูงสุด 2 ใบ ของรถคันเดียวกัน)
+var linkMode = false; // true = กำลังอยู่ในโหมดเชื่อมเที่ยว (กดปุ่ม "🔗 เชื่อมเที่ยว" แล้ว) — ถึงจะโชว์ช่องติ๊กเลือก
 var THAI_MONTHS = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
 var THAI_DOW = ["อาทิตย์","จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์"];
 
@@ -735,7 +742,7 @@ function linkCtrlHtml(t, plate){
     return '<div><span class="linktag">🔗 เชื่อมเที่ยว</span>' +
       '<button class="unlinkbtn" onclick="event.stopPropagation(); onUnlinkClick(\'' + esc(t.docs[0]) + '\')">ยกเลิกเชื่อม</button></div>';
   }
-  if (t.docs && t.docs.length === 1 && !t.failed) {
+  if (linkMode && t.docs && t.docs.length === 1 && !t.failed) {
     var doc = t.docs[0];
     var checked = linkPick.some(function(p){ return p.doc === doc; }) ? ' checked' : '';
     return '<label class="linkpick" onclick="event.stopPropagation()">' +
@@ -743,6 +750,14 @@ function linkCtrlHtml(t, plate){
     '</label>';
   }
   return '';
+}
+
+function setLinkMode(on){
+  linkMode = !!on;
+  var btn = document.getElementById('btnLinkMode');
+  if (btn) btn.classList.toggle('active', linkMode);
+  if (!linkMode) { linkPick = []; renderLinkBar(); }
+  render();
 }
 
 function syncLinkCheckboxes(){
@@ -896,6 +911,7 @@ function applyViewMode(){
 }
 document.getElementById('btnGridView').addEventListener('click', function(){ viewMode = 'grid'; applyViewMode(); });
 document.getElementById('btnListView').addEventListener('click', function(){ viewMode = 'list'; applyViewMode(); });
+document.getElementById('btnLinkMode').addEventListener('click', function(){ setLinkMode(!linkMode); });
 
 /* ---------------- แถบวันที่ ---------------- */
 document.getElementById('prevDay').addEventListener('click', function(){ goDate(addDays(curDate, -1)); });
