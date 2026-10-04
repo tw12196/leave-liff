@@ -173,6 +173,9 @@
   .cr-warn  { background: #FCF0D8; border-color: #F1DFAE; }
   .cr-warn input { accent-color: #A8721A; }
   .cr-warn span  { color: #7A5200; }
+  .sib-opt { background: #F0F4FC; border-color: #CFE0F7; }
+  .sib-opt input { accent-color: #2F6FE0; }
+  .sib-opt .sib-sub { font-weight: 400; font-size: 12px; color: #6B6B68; }
   .need-confirm {
     margin-top: 8px; padding: 9px 11px; border-radius: 8px;
     background: #FCF0D8; border: 1px solid #F1DFAE;
@@ -338,20 +341,10 @@
       </div>
     </div>
 
-    <!-- 🔗 เชื่อมเที่ยว — ใบนี้ไปเที่ยวเดียวกับอีกใบที่จัดคิวไว้แล้ว (ไม่บังคับ ข้ามได้ถ้าใบนี้ไปจุดเดียว) -->
-    <div class="card hide" id="dLinkedCard">
-      <div class="label">🔗 เชื่อมเที่ยวกับ</div>
-      <div class="value" id="dLinkedDoc"></div>
-      <button class="link-btn" id="unlinkTripBtn">✕ ยกเลิกเชื่อมเที่ยว</button>
-    </div>
-    <button class="btn ghost hide" id="addLinkBtn" style="margin-bottom:14px;">🔗 เชื่อมเที่ยวกับเอกสารที่จัดคิวไว้แล้ว</button>
-    <div id="linkBox" class="hide" style="margin-bottom:14px;">
-      <div class="field">
-        <label>เลือกเอกสารที่จัดคิวไว้แล้ว (ไปเที่ยวเดียวกัน) — ถ้าไม่เจอเพราะยังไม่ถูกจัดคิว ข้ามไปก่อน แล้วย้อนมาเชื่อมที่แท็บ "เที่ยวรถ" ทีหลังได้</label>
-        <input id="linkSearch" placeholder="พิมพ์เลขที่เอกสาร หรือชื่อไซต์ค้นหา" />
-        <div id="linkResults"></div>
-        <button class="link-btn" id="cancelLinkBtn">ยกเลิก</button>
-      </div>
+    <!-- 📦 ใบอื่นไซต์เดียวกัน รอจัดคิว — เลือกจัดคิวไปพร้อมกันได้เลย (v137 แทนปุ่มเชื่อมเที่ยวแบบเดิม) -->
+    <div class="field hide" id="siblingCard">
+      <label>📦 ไซต์นี้มีใบอื่นรอจัดคิวอยู่ — ติ๊กใบที่จะไปพร้อมกัน (ไม่ติ๊กไว้ก็จัดคิวเฉพาะใบนี้ใบเดียวได้)</label>
+      <div id="siblingList"></div>
     </div>
 
     <!-- เบอร์ติดต่อ + ปุ่มโทร -->
@@ -921,123 +914,38 @@ function renderDoc() {
   renderSelfPickup(d);
   renderUnqueue(d);
   renderDepart(d);
-  renderLinkTrip(d);
+  renderSiteSiblings(d);
 }
 
-/* ---------- 🔗 เชื่อมเที่ยว ---------- */
-
-function renderLinkTrip(d) {
-  var linked = !!(d && d.linkDoc);
-  $('dLinkedCard').classList.toggle('hide', !linked);
-  if (linked) {
-    $('dLinkedDoc').textContent = d.linkDoc + (d.linkedBy ? ('  ·  เชื่อมโดย ' + d.linkedBy) : '');
-  }
-  var hasSite = !!(d && d.site && d.site.trim());
-  $('addLinkBtn').classList.toggle('hide', !hasSite || linked);
-  closeLinkBox();
-}
-
-/* เอกสารที่เป็นตัวเลือกให้เชื่อมเที่ยวด้วย — ต้องจัดคิวแล้ว (มีคนขับ) ไม่ใช่ใบนี้เอง ไม่ยกเลิก
-   และไม่ได้เชื่อมกับใบอื่นอยู่ก่อนแล้ว (คู่ 1:1 เท่านั้น) — ถ้าเลือกคนขับของใบนี้ไว้แล้ว กรองให้แคบลงเหลือคันเดียวกันก่อน */
-function linkCandidates() {
-  var q = ($('linkSearch').value || '').trim().toLowerCase();
-  var meDoc = state.doc.doc;
-  var meDriver = $('dDriver').value;
-  var list = (state.queue.done || []).filter(function (o) {
-    if (!o.driver) return false;
-    if (o.doc === meDoc) return false;
-    if (o.cancelled) return false;
-    if (o.linkDoc && o.linkDoc !== meDoc) return false;
-    return true;
-  });
-  if (meDriver) {
-    var sameDriver = list.filter(function (o) { return o.driver === meDriver; });
-    if (sameDriver.length) list = sameDriver;
-  }
-  if (q) {
-    list = list.filter(function (o) {
-      return (o.doc || '').toLowerCase().indexOf(q) >= 0 || (o.site || '').toLowerCase().indexOf(q) >= 0;
-    });
-  }
-  return list.slice(0, 20);
-}
-
-function renderLinkResults() {
-  var list = linkCandidates();
-  if (!list.length) {
-    $('linkResults').innerHTML = '<div class="empty">ไม่พบเอกสารที่จัดคิวไว้แล้วตรงเงื่อนไข</div>';
-    return;
-  }
+/* ---------- 📦 ใบอื่นไซต์เดียวกัน รอจัดคิว (v137) ---------- */
+/* แทนปุ่ม "เชื่อมเที่ยวกับเอกสารที่จัดคิวไว้แล้ว" แบบเดิม (คู่ 1:1 ต้องจัดคิวใบแรกก่อน ถึงย้อนมาเชื่อมได้)
+   ตอนนี้ถ้าไซต์เดียวกันมีใบอื่นที่ยังไม่จัดคิวอยู่ด้วย ระบบจะโชว์ให้ติ๊กเลือกจัดคิวไปพร้อมกันได้เลยตั้งแต่ตอนนี้
+   เลือกได้มากกว่า 2 ใบ (ไม่จำกัดจำนวน) — ปุ่มเชื่อม/ยกเลิกเชื่อมที่แท็บ "เที่ยวรถ" ยังใช้งานได้เป็นทางเลือกสำรอง */
+function renderSiteSiblings(d) {
+  var list = (d && d.siteSiblings) || [];
+  $('siblingCard').classList.toggle('hide', !list.length);
+  if (!list.length) { $('siblingList').innerHTML = ''; return; }
   var html = '';
   for (var i = 0; i < list.length; i++) {
     var o = list[i];
-    html += '<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:10px;">' +
-              '<div style="min-width:0;">' +
-                '<div class="value" style="font-size:14.5px;">' + esc(o.doc) + '</div>' +
-                '<div class="sub">' + esc([o.site, o.driver].filter(Boolean).join('  ·  ')) + '</div>' +
-              '</div>' +
-              '<button class="btn orange sm" data-doc="' + esc(o.doc) + '">เชื่อม</button>' +
-            '</div>';
+    html += '<label class="cr-opt sib-opt">' +
+              '<input type="checkbox" class="sib-chk" value="' + esc(o.doc) + '" checked />' +
+              '<span>' + esc(o.doc) +
+                (o.requestedDateLabel ? ('<br><span class="sib-sub">' + esc(o.requestedDateLabel) + '</span>') : '') +
+                (o.note ? ('<br><span class="sib-sub">📝 ' + esc(o.note) + '</span>') : '') +
+              '</span>' +
+            '</label>';
   }
-  $('linkResults').innerHTML = html;
-  var btns = $('linkResults').querySelectorAll('button[data-doc]');
-  for (var k = 0; k < btns.length; k++) {
-    btns[k].addEventListener('click', function () {
-      onLinkTrip(this.getAttribute('data-doc'));
-    });
+  $('siblingList').innerHTML = html;
+}
+
+function selectedSiblingDocs() {
+  var boxes = $('siblingList').querySelectorAll('.sib-chk');
+  var out = [];
+  for (var i = 0; i < boxes.length; i++) {
+    if (boxes[i].checked) out.push(boxes[i].value);
   }
-}
-
-function openLinkBox() {
-  $('linkBox').classList.remove('hide');
-  $('addLinkBtn').classList.add('hide');
-  $('linkSearch').value = '';
-  renderLinkResults();
-  $('linkSearch').focus();
-}
-
-function closeLinkBox() {
-  $('linkBox').classList.add('hide');
-  if (state.doc && state.doc.site && state.doc.site.trim() && !state.doc.linkDoc) {
-    $('addLinkBtn').classList.remove('hide');
-  }
-}
-
-function onLinkTrip(linkDoc) {
-  var d = state.doc;
-  api('dsp_linktrip', { doc: d.doc, linkDoc: linkDoc, by: state.profile.displayName })
-    .then(function () {
-      toast('🔗 เชื่อมเที่ยวกับ ' + linkDoc + ' แล้วค่ะ');
-      return api('dsp_doc', { doc: d.doc });
-    })
-    .then(function (res) {
-      state.doc = res;
-      $('dDriver').value = res.driver || $('dDriver').value;
-      $('dPlateInput').value = String(res.plate || '').trim() || currentPlate();
-      renderDoc();
-      loadQueue();
-    })
-    .catch(function (e) { toast(e.message, true); });
-}
-
-function onUnlinkTrip() {
-  var d = state.doc;
-  if (!d || !d.linkDoc) return;
-  if (!window.confirm('ยกเลิกเชื่อมเที่ยวกับ ' + d.linkDoc + ' ?')) return;
-  var btn = $('unlinkTripBtn');
-  btn.disabled = true;
-  api('dsp_unlinktrip', { doc: d.doc, by: state.profile.displayName })
-    .then(function () {
-      toast('ยกเลิกเชื่อมเที่ยวแล้วค่ะ');
-      return api('dsp_doc', { doc: d.doc });
-    })
-    .then(function (res) {
-      state.doc = res;
-      renderDoc();
-      loadQueue();
-    })
-    .catch(function (e) { toast(e.message, true); })
-    .then(function () { btn.disabled = false; });
+  return out;
 }
 
 function renderCallLog(count, last) {
@@ -1282,12 +1190,14 @@ function onSaveQueue() {
     callResult: callResult,
     note: ($('dDspNote').value || '').trim(),
     by: state.profile.displayName,
-    lineUserId: state.profile.userId
+    lineUserId: state.profile.userId,
+    siblingDocs: selectedSiblingDocs()
   }).then(function (res) {
     state.doc = res;
     $('doneSummary').innerHTML = esc(res.doc) + '<br>' + esc(res.site) + '<br>🚚 ' + esc(res.driver) +
       (res.plate ? ('  ·  ' + esc(res.plate)) : '') +
-      (res.driver2 ? ('<br>🚚 ' + esc(res.driver2) + (res.plate2 ? ('  ·  ' + esc(res.plate2)) : '')) : '');
+      (res.driver2 ? ('<br>🚚 ' + esc(res.driver2) + (res.plate2 ? ('  ·  ' + esc(res.plate2)) : '')) : '') +
+      ((res.linkedDocs && res.linkedDocs.length) ? ('<br>🔗 ไปพร้อมกับ ' + res.linkedDocs.length + ' ใบ: ' + esc(res.linkedDocs.join(', '))) : '');
     $('donePush').textContent = (res.pushResult && res.pushResult.sent)
       ? '✅ แจ้ง LINE คนขับแล้ว'
       : 'ℹ️ ยังไม่ได้เปิดใช้การแจ้ง LINE คนขับอัตโนมัติ (' + ((res.pushResult && res.pushResult.message) || '-') + ')';
@@ -1624,10 +1534,6 @@ document.addEventListener('DOMContentLoaded', function () {
   $('addTruck2Btn').addEventListener('click', function () { showTruck2(true); updatePlate2Hint(); });
   $('removeTruck2Btn').addEventListener('click', removeTruck2);
   $('dDriver2').addEventListener('change', onDriver2Change);
-  $('addLinkBtn').addEventListener('click', openLinkBox);
-  $('cancelLinkBtn').addEventListener('click', closeLinkBox);
-  $('linkSearch').addEventListener('input', renderLinkResults);
-  $('unlinkTripBtn').addEventListener('click', onUnlinkTrip);
   $('dPlate2Input').addEventListener('input', updatePlate2Hint);
   $('callBtn').addEventListener('click', onCall);
   $('saveNoteBtn').addEventListener('click', onSaveNote);
