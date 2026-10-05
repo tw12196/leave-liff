@@ -173,8 +173,22 @@
   .cr-warn  { background: #FCF0D8; border-color: #F1DFAE; }
   .cr-warn input { accent-color: #A8721A; }
   .cr-warn span  { color: #7A5200; }
-  .sib-opt { background: #F0F4FC; border-color: #CFE0F7; }
-  .sib-opt input { accent-color: #2F6FE0; }
+  .sib-card {
+    background: #F0F4FC; border: 1px solid #CFE0F7; border-radius: 10px;
+    padding: 13px 14px 2px;
+  }
+  .sib-intro {
+    font-size: 13px; font-weight: 700; color: #1F3A66;
+    line-height: 1.5; margin-bottom: 10px;
+  }
+  .sib-opt {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+    padding: 10px 0 12px; margin: 0; border: none; border-radius: 0;
+    border-top: 1px dashed #CFE0F7; cursor: pointer;
+  }
+  .sib-opt:first-of-type { border-top: none; padding-top: 0; }
+  .sib-opt input { width: 20px; height: 20px; flex-shrink: 0; accent-color: #2F6FE0; }
+  .sib-opt .sib-doc { padding-left: 30px; font-size: 14.5px; font-weight: 700; color: #1F3A66; }
   .sib-opt .sib-sub { font-weight: 400; font-size: 12px; color: #6B6B68; }
   .need-confirm {
     margin-top: 8px; padding: 9px 11px; border-radius: 8px;
@@ -342,8 +356,8 @@
     </div>
 
     <!-- 📦 ใบอื่นไซต์เดียวกัน รอจัดคิว — เลือกจัดคิวไปพร้อมกันได้เลย (v137 แทนปุ่มเชื่อมเที่ยวแบบเดิม) -->
-    <div class="field hide" id="siblingCard">
-      <label>📦 ไซต์นี้มีใบอื่นรอจัดคิวอยู่ — ติ๊กใบที่จะไปพร้อมกัน (ไม่ติ๊กไว้ให้ล่วงหน้า ต้องเลือกเองทุกครั้ง — ถ้าจะแยกคนขับคนละคัน อย่าติ๊กรวมกัน)</label>
+    <div class="field hide sib-card" id="siblingCard">
+      <div class="sib-intro">🔗 เลือกเลขบิลที่ผูกไซต์เดียวกัน และจะไปส่งพร้อมกันกับบิลนี้</div>
       <div id="siblingList"></div>
     </div>
 
@@ -930,10 +944,10 @@ function renderSiteSiblings(d) {
   var html = '';
   for (var i = 0; i < list.length; i++) {
     var o = list[i];
-    html += '<label class="cr-opt sib-opt">' +
+    html += '<label class="sib-opt">' +
               '<input type="checkbox" class="sib-chk" value="' + esc(o.doc) + '" />' +
-              '<span>' + esc(o.doc) +
-                (o.requestedDateLabel ? ('<br><span class="sib-sub">' + esc(o.requestedDateLabel) + '</span>') : '') +
+              '<span class="sib-doc">' + esc(o.doc) +
+                (o.requestedDateLabel ? ('&nbsp;&nbsp;<span class="sib-sub">' + esc(o.requestedDateLabel) + '</span>') : '') +
                 (o.note ? ('<br><span class="sib-sub">📝 ' + esc(o.note) + '</span>') : '') +
               '</span>' +
             '</label>';
