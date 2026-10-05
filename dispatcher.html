@@ -242,8 +242,9 @@
     </div>
     <div class="chips">
       <button class="chip on" data-filter="pending">รอจัดคิว <span id="cntPending"></span></button>
-      <button class="chip" data-filter="done">จัดคิวแล้ว</button>
-      <button class="chip" data-filter="partial">ส่งไม่ครบ <span id="cntPartial"></span></button>
+      <button class="chip" data-filter="queued">จัดคิวแล้ว <span id="cntQueued"></span></button>
+      <button class="chip" data-filter="partial">ส่งไม่ครบ/ไม่สำเร็จ <span id="cntPartial"></span></button>
+      <button class="chip" data-filter="success">ส่งสำเร็จ</button>
       <button class="chip" data-filter="all">ทั้งหมด</button>
     </div>
     <div id="queueList"><div class="loading">กำลังโหลดคิว…</div></div>
@@ -759,16 +760,26 @@ function loadDrivers() {
 
 function loadQueue() {
   return api('dsp_queue', {}).then(function (d) {
+    /* ถังใหม่ queued / failed / success มาจากเซิร์ฟเวอร์ (v144)
+       ถ้าเซิร์ฟเวอร์ยังเป็นรุ่นเก่าที่ไม่มีถังพวกนี้ ให้ถอยไปใช้ถัง done เดิม หน้าจะได้ไม่ว่างเปล่า */
     state.queue = {
       pending: (d && d.pending) || [],
       done:    (d && d.done)    || [],
-      partial: (d && d.partial) || []
+      queued:  (d && d.queued)  || null,
+      failed:  (d && d.failed)  || null,
+      success: (d && d.success) || null,
+      other:   (d && d.other)   || []
     };
+    if (!state.queue.queued)  state.queue.queued  = state.queue.done;
+    if (!state.queue.success) state.queue.success = [];
+    if (!state.queue.failed)  state.queue.failed  = (d && d.partial) || [];
+
     $('cntPending').textContent = '(' + state.queue.pending.length + ')';
-    $('cntPartial').textContent = '(' + state.queue.partial.length + ')';
+    $('cntQueued').textContent  = '(' + state.queue.queued.length + ')';
+    $('cntPartial').textContent = '(' + state.queue.failed.length + ')';
     // ขึ้นสีแดงเฉพาะตอนมีของค้างจริง ไม่มีก็เป็นชิปเงียบๆ ไม่ต้องเตือนลอยๆ
     var partialChip = document.querySelector('.chip[data-filter="partial"]');
-    if (partialChip) partialChip.classList.toggle('alert', state.queue.partial.length > 0);
+    if (partialChip) partialChip.classList.toggle('alert', state.queue.failed.length > 0);
     renderQueue();
   }).catch(function (e) {
     // ให้มีปุ่มกดลองใหม่ตรงนี้เลย คนจัดคิวจะได้ไม่ต้องปิดแอปเปิดใหม่
@@ -786,9 +797,14 @@ function renderQueue() {
   var q = ($('queueSearch').value || '').trim().toLowerCase();
   var list;
   if (state.filter === 'pending')      list = state.queue.pending;
-  else if (state.filter === 'done')    list = state.queue.done;
-  else if (state.filter === 'partial') list = state.queue.partial || [];
-  else                                 list = state.queue.pending.concat(state.queue.done);
+  else if (state.filter === 'queued')  list = state.queue.queued  || [];
+  else if (state.filter === 'partial') list = state.queue.failed  || [];
+  else if (state.filter === 'success') list = state.queue.success || [];
+  else list = state.queue.pending
+               .concat(state.queue.queued  || [])
+               .concat(state.queue.failed  || [])
+               .concat(state.queue.success || [])
+               .concat(state.queue.other   || []);
 
   if (q) {
     list = list.filter(function (o) {
@@ -800,7 +816,9 @@ function renderQueue() {
   if (!list.length) {
     $('queueList').innerHTML = '<div class="empty">' +
       (state.filter === 'pending' ? 'ไม่มีเอกสารรอจัดคิวค่ะ 🎉'
-       : state.filter === 'partial' ? 'ไม่มีใบที่ส่งไม่ครบค้างอยู่ค่ะ 🎉'
+       : state.filter === 'queued'  ? 'ยังไม่มีใบที่จัดคิวให้คนขับค่ะ'
+       : state.filter === 'partial' ? 'ไม่มีใบที่ส่งไม่ครบหรือส่งไม่สำเร็จค้างอยู่ค่ะ 🎉'
+       : state.filter === 'success' ? 'ยังไม่มีใบที่ส่งสำเร็จค่ะ'
        : 'ไม่พบรายการ') + '</div>';
     return;
   }
