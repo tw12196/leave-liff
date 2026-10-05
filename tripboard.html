@@ -742,11 +742,14 @@ function linkCtrlHtml(t, plate){
     return '<div><span class="linktag">🔗 เชื่อมเที่ยว</span>' +
       '<button class="unlinkbtn" onclick="event.stopPropagation(); onUnlinkClick(\'' + esc(t.docs[0]) + '\')">ยกเลิกเชื่อม</button></div>';
   }
-  if (linkMode && t.docs && t.docs.length === 1 && !t.failed) {
-    var doc = t.docs[0];
-    var checked = linkPick.some(function(p){ return p.doc === doc; }) ? ' checked' : '';
+  // รองรับติ๊กเลือกเที่ยวที่มีหลายบิลรวมกันอยู่แล้ว (รวมจากตรรกะเวลาเดิม ยังไม่ได้เชื่อมแบบทางการ) ไม่ใช่แค่บิลเดียว (แก้ 5 ต.ค. 2569)
+  if (linkMode && t.docs && t.docs.length >= 1 && !t.failed) {
+    var docs = t.docs;
+    var docsKey = docs.join(',');
+    var checked = linkPick.some(function(p){ return p.docs.join(',') === docsKey; }) ? ' checked' : '';
+    var pickLabel = docs.length > 1 ? ('เลือกเพื่อเชื่อมเที่ยว (' + docs.length + ' บิล)') : 'เลือกเพื่อเชื่อมเที่ยว';
     return '<label class="linkpick" onclick="event.stopPropagation()">' +
-      '<input type="checkbox" class="linkchk" data-plate="' + esc(plate) + '" data-doc="' + esc(doc) + '"' + checked + ' onchange="onLinkCheck(this)"> เลือกเพื่อเชื่อมเที่ยว' +
+      '<input type="checkbox" class="linkchk" data-plate="' + esc(plate) + '" data-docs="' + esc(docsKey) + '"' + checked + ' onchange="onLinkCheck(this)"> ' + pickLabel +
     '</label>';
   }
   return '';
@@ -762,13 +765,14 @@ function setLinkMode(on){
 
 function syncLinkCheckboxes(){
   document.querySelectorAll('.linkchk').forEach(function(cb){
-    cb.checked = linkPick.some(function(p){ return p.doc === cb.dataset.doc; });
+    cb.checked = linkPick.some(function(p){ return p.docs.join(',') === cb.dataset.docs; });
   });
   renderLinkBar();
 }
 
 function onLinkCheck(cb){
-  var plate = cb.dataset.plate, doc = cb.dataset.doc;
+  var plate = cb.dataset.plate, docsKey = cb.dataset.docs;
+  var docs = docsKey.split(',');
   if (cb.checked) {
     if (linkPick.length && linkPick[0].plate !== plate) {
       setStatusBar('เลือกได้เฉพาะ 2 เอกสารของรถคันเดียวกันค่ะ', true, false);
@@ -776,10 +780,10 @@ function onLinkCheck(cb){
       return;
     }
     if (linkPick.length >= 2) { cb.checked = false; return; }
-    linkPick.push({ plate: plate, doc: doc });
+    linkPick.push({ plate: plate, docs: docs });
     setStatusBar('');
   } else {
-    linkPick = linkPick.filter(function(p){ return p.doc !== doc; });
+    linkPick = linkPick.filter(function(p){ return p.docs.join(',') !== docsKey; });
   }
   syncLinkCheckboxes();
 }
@@ -790,7 +794,7 @@ function renderLinkBar(){
   var btn = document.getElementById('linkBarConfirm');
   if (!linkPick.length) { bar.hidden = true; return; }
   bar.hidden = false;
-  txt.textContent = linkPick.map(function(p){ return p.doc; }).join('  +  ') + (linkPick.length < 2 ? '  (เลือกอีก 1 ใบ)' : '');
+  txt.textContent = linkPick.map(function(p){ return p.docs.join('+'); }).join('  +  ') + (linkPick.length < 2 ? '  (เลือกอีก 1 ใบ)' : '');
   btn.disabled = (linkPick.length !== 2);
   btn.textContent = '🔗 เชื่อมเที่ยว';
 }
@@ -804,9 +808,20 @@ function confirmLinkPick(){
   if (linkPick.length !== 2) return;
   var auth = currentAuth || loadAuth();
   if (!auth) { showLogin(); return; }
+  // รวมทุกบิลจากทั้ง 2 ช่องที่เลือก (แต่ละช่องอาจมีมากกว่า 1 บิลถ้าเป็นเที่ยวที่รวมกันอยู่แล้ว) แล้วเชื่อมทีละคู่ไล่จากบิลหลัก
+  // ให้ทุกบิลจบที่กลุ่มเดียวกัน — ฝั่ง backend รองรับกลุ่ม N ใบ (v137) อยู่แล้ว แค่ต้องยิงให้ครบทุกคู่
+  var allDocs = linkPick[0].docs.concat(linkPick[1].docs);
+  var anchor = allDocs[0];
+  var restDocs = allDocs.slice(1);
   var btn = document.getElementById('linkBarConfirm');
   btn.disabled = true; btn.textContent = 'กำลังเชื่อม…';
-  api('dsp_linktrip', { name: auth.name, pin: auth.pin }, { doc: linkPick[0].doc, linkDoc: linkPick[1].doc, by: auth.name })
+  var chain = Promise.resolve();
+  restDocs.forEach(function(d){
+    chain = chain.then(function(){
+      return api('dsp_linktrip', { name: auth.name, pin: auth.pin }, { doc: anchor, linkDoc: d, by: auth.name });
+    });
+  });
+  chain
     .then(function(){
       linkPick = [];
       setStatusBar('🔗 เชื่อมเที่ยวแล้วค่ะ');
