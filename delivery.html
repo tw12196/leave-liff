@@ -127,6 +127,7 @@ let currentAllowedLocs = null; // [] หรือ null = ยังไม่ท�
 
 // ข้อมูลรูปที่แนบ (บีบอัด/หรือไฟล์ดิบแล้วแต่กรณี) — เก็บเป็นลิสต์เพื่อรองรับหลายรูป รอตอนกดยืนยัน
 let currentPhotoList = []; // [{ base64, mime, dataUrl }, ...]
+let keepPhotosOnce = false; // true = ห้ามล้างรูปตอนวาดการ์ดใหม่ (ใช้ตอนเด้งไปยืนยันบิลถัดไปของเที่ยวเดียวกัน)
 let currentDispatchInfo = null; // ข้อมูลคิวจัดส่งของเอกสารใบนี้ (จาก dsp_doc) — null = ยังไม่ได้ดึง/ดึงไม่สำเร็จ/ไม่มีในคิว
 let currentIsDesignatedEditor = true; // ผู้ใช้ปัจจุบันเป็น 1 ใน 5 คนที่มีสิทธิ์แก้ไขข้อมูล หรือแค่กดส่งของเพิ่มเติม (top-up)
 
@@ -507,6 +508,7 @@ return `
 <div class="photo-preview-wrap" id="photoPreviewWrap" style="display:none;"></div>
 </div>
 
+<div id="siblingBox" style="display:none;"></div>
 <button class="btn btn-full" id="btnFull">✅ ส่งครบถ้วน</button>
 <button class="btn btn-partial" id="btnPartial">⚠️ ส่งไม่ครบ / มีปัญหา</button>
 <div id="partialForm" style="display:none;">
@@ -546,7 +548,8 @@ alreadyHtml = boxesHtml + hintHtml;
 }
 
 // รีเซ็ตรูปที่ค้างจากรอบก่อนหน้าทุกครั้งที่วาดการ์ดใหม่
-currentPhotoList = [];
+// ยกเว้นตอนเด้งไปยืนยันบิลถัดไปของเที่ยวเดียวกัน — คนขับยืนอยู่ที่เดิม ของกองเดิม ไม่ควรให้ถ่ายซ้ำ
+if (keepPhotosOnce) { keepPhotosOnce = false; } else { currentPhotoList = []; }
 
 const formHtml = alreadyConfirmed
 ? ((existing.canEdit || existing.canTopUp)
@@ -574,10 +577,16 @@ if (!alreadyConfirmed) {
 // หน้าจอต้องใช้งานได้ทันทีเสมอ ไม่ว่าระบบจัดคิวรถจะตอบช้าหรือล่มก็ตาม
 applyDispatchAutofill_();
 
+// ถ้ายกรูปมาจากใบก่อนหน้า ต้องวาดพรีวิวใหม่ เพราะ DOM เพิ่งถูกสร้างใหม่ทั้งหมด
+if (currentPhotoList.length) renderPhotoPreviews();
+
+// ถามระบบจัดคิวรถว่ามีบิลอื่นไปส่งจุดเดียวกันไหม — ยิงแบบไม่ await โดยตั้งใจ หน้าจอต้องใช้งานได้ทันทีเสมอ
+applySiblingBox_();
+
 document.getElementById("btnFull").onclick = () => {
 const err = validateCommonFields();
 if (err) { notifyError_(err); return; }
-submitConfirmation("ครบ", null, null, null);
+submitConfirmation("ครบ", null, null, null, getCheckedSiblingDocs_());
 };
 document.getElementById("btnPartial").onclick = () => {
 document.getElementById("partialForm").style.display = "block";
@@ -998,6 +1007,38 @@ fetchWithTimeout_(url, { method: "GET" }, 8000).catch(function () {});
 }
 // ============ จบส่วนถามเวลารถออกจากร้าน ============
 
+/* ---------- ส่งพร้อมกันหลายบิล จุดเดียวกัน (เพิ่ม 6 ต.ค. 2569) ----------
+   ดึงบิลพี่น้องของเที่ยวนี้มาติ๊กไว้ให้ล่วงหน้า คนขับกดยืนยันครั้งเดียวได้ครบทุกใบ
+   ใบไหนยังไม่ได้ลงจริงให้ติ๊กออก เดี๋ยวกล่องเดิมหลังบันทึกสำเร็จจะพาไปใบที่เหลือให้เอง
+   ห้าม throw ออกไปข้างนอกเด็ดขาด — กล่องนี้เป็นของเสริม พังแล้วต้องไม่กระทบการยืนยันปกติ */
+async function applySiblingBox_() {
+try {
+const related = await fetchRelatedDocs_(currentDocNumber);
+if (!related || !related.length) return;
+const box = document.getElementById("siblingBox");
+if (!box) return;
+const rowsHtml = related.map(function (r) {
+return `<label style="display:flex;align-items:center;gap:9px;padding:7px 2px;font-size:14px;cursor:pointer;">
+<input type="checkbox" class="sibling-chk" value="${r.doc}" checked style="width:19px;height:19px;flex:0 0 19px;">
+<span>${r.doc}</span></label>`;
+}).join("");
+box.innerHTML = `<div style="background:#E8F3EC;border:1px solid #BCDFC9;border-radius:10px;padding:12px;margin-top:14px;">
+<div style="font-size:13.5px;font-weight:700;color:#0B5C46;margin-bottom:6px;">📦 ไปส่งที่เดียวกัน ยืนยันพร้อมกันเลยไหม</div>
+${rowsHtml}
+<div style="font-size:11.5px;color:#4A6B58;margin-top:4px;">ถ้าใบไหนยังไม่ได้ลง ให้ติ๊กออก เดี๋ยวระบบพาไปกรอกให้ทีหลัง</div>
+</div>`;
+box.style.display = "block";
+} catch (err) {
+// เงียบ ไม่ให้กระทบฟอร์มหลัก
+}
+}
+
+// คืนเฉพาะเลขที่เอกสารที่คนขับยังติ๊กค้างไว้ ถ้าไม่มีกล่องนี้เลยจะคืน [] ทำงานเหมือนเดิม
+function getCheckedSiblingDocs_() {
+const nodes = document.querySelectorAll(".sibling-chk:checked");
+return Array.prototype.map.call(nodes, function (n) { return n.value; });
+}
+
 function validateCommonFields() {
 const method = getResolvedDeliveryMethod();
 if (!method) return "กรุณาเลือกวิธีการจัดส่งให้ครบทั้ง 2 ช่องก่อนกดยืนยัน";
@@ -1050,6 +1091,7 @@ btnNext.className = "btn btn-full";
 btnNext.textContent = "✅ ยืนยันใบถัดไปเลย";
 btnNext.onclick = async () => {
 currentDocNumber = next.doc;
+keepPhotosOnce = true;   // ยกรูปที่ถ่ายไว้ไปด้วย ไม่ต้องถ่ายใหม่ทั้งที่ยืนอยู่ที่เดิม
 await checkStatus();
 };
 
@@ -1082,7 +1124,11 @@ body: JSON.stringify(payload),
 const data = await res.json();
 if (data.ok) {
 showToast(payload.status === "ครบ" ? "ยืนยันสำเร็จ ✅" : "บันทึกแล้ว แจ้งเตือนพี่บุ้งกี๋แล้ว ⚠️");
-appDiv.innerHTML = `<div class = "card"><div class = "doc-number">${currentDocNumber}</div>${locBadgeHtml()}<div class = "hint">บันทึกเรียบร้อยแล้ว ปิดหน้านี้ได้เลย</div></div>`;
+const extraWritten = (data.extra && data.extra.written) || [];
+const extraLine = extraWritten.length
+? `<div class = "hint" style="margin-top:8px;color:#0B5C46;font-weight:600;">ยืนยันพร้อมกัน ${extraWritten.length + 1} ใบ<br>${currentDocNumber}, ${extraWritten.join(", ")}</div>`
+: "";
+appDiv.innerHTML = `<div class = "card"><div class = "doc-number">${currentDocNumber}</div>${locBadgeHtml()}<div class = "hint">บันทึกเรียบร้อยแล้ว ปิดหน้านี้ได้เลย</div>${extraLine}</div>`;
 await showRelatedDocsPrompt_(currentDocNumber);
 } else {
 const errMsg = "เกิดข้อผิดพลาด: " + (data.message || "กรุณาลองใหม่อีกครั้ง");
@@ -1094,7 +1140,7 @@ await recoverAfterSubmitTimeout_(payload, () => attemptSubmitConfirmation_(paylo
 }
 }
 
-async function submitConfirmation(status, qtyActual, reason, nextAction) {
+async function submitConfirmation(status, qtyActual, reason, nextAction, extraDocs) {
 const deliveryMethod = getResolvedDeliveryMethod();
 const deliveryDate = document.getElementById("deliveryDate").value;
 const deliveryTime = document.getElementById("deliveryTime").value;
@@ -1113,6 +1159,8 @@ deliveryMethod: deliveryMethod,
 deliveryDate: deliveryDate,
 deliveryTime: deliveryTime,
 photos: photos,
+// บิลอื่นที่ไปส่งจุดเดียวกันและคนขับติ๊กยืนยันพร้อมกัน — หลังบ้านเขียนแยกแถวให้เอง
+extraDocs: Array.isArray(extraDocs) ? extraDocs : [],
 };
 saveDepartTimeIfNeeded_();
 attemptSubmitConfirmation_(payload);
