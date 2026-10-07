@@ -254,6 +254,10 @@
     border:1px solid var(--danger-line); background:#fff; color:var(--danger-fg); border-radius:7px;
     padding:3px 8px; font-size:10.5px; font-weight:700; cursor:pointer; margin-bottom:4px;
   }
+  .edittimebtn{
+    border:1px solid var(--line); background:#fff; color:var(--fg); border-radius:7px;
+    padding:2px 6px; font-size:11px; cursor:pointer; margin-left:4px; line-height:1.4;
+  }
   .linkpick{ display:flex; align-items:center; gap:5px; font-size:10.5px; color:var(--muted); margin-bottom:4px; cursor:pointer; }
   .linkpick input{ width:14px; height:14px; cursor:pointer; }
   .linkmodebtn{
@@ -643,7 +647,7 @@ function render(){
               '<div class="stopdoc">' + esc((s.docs || []).join(', ')) + '</div>' +
               '<div class="stoptimes">' +
                 '<span class="out' + (s.outMissing ? ' unknown' : '') + '">' + sOutLabel + '</span>' +
-                sInHtml +
+                sInHtml + editBtnHtml(t, s.docs) +
               '</div>' +
             '</div>';
           }).join('') + '</div>';
@@ -656,7 +660,7 @@ function render(){
             '<div class="doc">' + esc(docsLabel) + multiTag + '</div>' +
             '<div class="times">' +
               '<span class="out' + (t.outMissing ? ' unknown' : '') + '">' + outLabel + '</span>' +
-              inHtml +
+              inHtml + editBtnHtml(t, t.docs) +
             '</div>';
         }
         html += '<div class="cell filled ' + (t.failed ? 'failedtrip' : (isDone ? 'done' : 'transit')) + '" data-doc="' + esc(docsCsv) + '" data-site="' + esc(t.site) + '">' +
@@ -701,7 +705,7 @@ function render(){
               '<div class="stopdoc">' + esc((s.docs || []).join(', ')) + '</div>' +
               '<div class="stoptimes">' +
                 '<span class="out' + (s.outMissing ? ' unknown' : '') + '">' + sOutLabel + '</span>' +
-                sInHtml +
+                sInHtml + editBtnHtml(t, s.docs) +
               '</div>' +
             '</div>';
           }).join('') + '</div></div>';
@@ -716,7 +720,7 @@ function render(){
             '</div>' +
             '<div class="times">' +
               '<span class="out' + (t.outMissing ? ' unknown' : '') + '">' + outLabel + '</span>' +
-              inHtml +
+              inHtml + editBtnHtml(t, t.docs) +
             '</div>';
         }
         rowsHtml +=
@@ -737,6 +741,12 @@ function render(){
 /* ---------------- 🔗 เชื่อม/ยกเลิกเชื่อมเที่ยว ----------------
    เลือกเชื่อมได้เฉพาะเที่ยวที่มีเอกสารใบเดียว (ยังไม่ถูกรวมโดยตรรกะเวลาเดิมหรือเชื่อมไว้ก่อนแล้ว)
    ของรถคันเดียวกันเท่านั้น — เขียนคอลัมน์เดียวกับที่ Step 1 เขียน (dsp_linktrip/dsp_unlinktrip) */
+function editBtnHtml(t, docs){
+  var docsCsv = (docs || []).join(',');
+  if (!docsCsv) return '';
+  return ' <button class="edittimebtn" onclick="event.stopPropagation(); onEditTimeClick(\'' + esc(docsCsv) + '\')" title="แก้เวลาออก/เวลาเข้า">✏️</button>';
+}
+
 function linkCtrlHtml(t, plate){
   if (t.linked) {
     return '<div><span class="linktag">🔗 เชื่อมเที่ยว</span>' +
@@ -839,6 +849,53 @@ function confirmLinkPick(){
     })
     .finally(function(){
       btn.disabled = false; btn.textContent = '🔗 เชื่อมเที่ยว';
+    });
+}
+
+function onEditTimeClick(docsCsv){
+  var docs = String(docsCsv || '').split(',').map(function(x){ return x.trim(); }).filter(Boolean);
+  if (!docs.length) return;
+  var doc = docs[0];
+  if (docs.length > 1) {
+    var picked = window.prompt('เที่ยวนี้มีหลายบิล: ' + docs.join(', ') + '\nพิมพ์เลขที่เอกสารที่ต้องการแก้เวลา', docs[0]);
+    if (!picked) return;
+    picked = picked.trim().toUpperCase();
+    if (docs.indexOf(picked) === -1) { window.alert('ไม่พบเลขที่เอกสารนี้ในเที่ยวนี้ค่ะ'); return; }
+    doc = picked;
+  }
+
+  var auth = currentAuth || loadAuth();
+  if (!auth) { showLogin(); return; }
+
+  var choice = window.prompt('แก้เวลาของเอกสาร ' + doc + '\nพิมพ์ "ออก" เพื่อแก้เวลารถออก หรือ "เข้า" เพื่อแก้เวลาส่งถึงลูกค้า', 'ออก');
+  if (!choice) return;
+  choice = choice.trim();
+  var isArrival = (choice.indexOf('เข้า') !== -1);
+  var action = isArrival ? 'dsp_editarrivaltime' : 'dsp_editdeparttime';
+  var label = isArrival ? 'เวลาเข้า (ส่งถึงลูกค้า)' : 'เวลาออก';
+
+  var newTime = window.prompt('กรอก' + label + 'ใหม่ (รูปแบบ HH:mm เช่น 14:30)', '');
+  if (!newTime) return;
+  newTime = newTime.trim();
+  if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(newTime)) { window.alert('รูปแบบเวลาไม่ถูกต้อง กรุณากรอกแบบ HH:mm เช่น 14:30 ค่ะ'); return; }
+
+  var reason = window.prompt('กรุณาระบุเหตุผลที่แก้' + label, '');
+  if (!reason || !reason.trim()) { window.alert('ต้องระบุเหตุผลค่ะ'); return; }
+  reason = reason.trim();
+
+  setStatusBar('⏳ กำลังแก้' + label + '...', false, false);
+  api(action, { name: auth.name, pin: auth.pin }, { doc: doc, time: newTime, reason: reason, by: auth.name })
+    .then(function(){
+      setStatusBar('แก้' + label + 'แล้วค่ะ');
+      return loadTripboard(auth.name, auth.pin, curDate);
+    })
+    .then(function(){
+      render();
+      setTimeout(function(){ setStatusBar(''); }, 2500);
+    })
+    .catch(function(err){
+      if (err && err.denied && /PIN/.test((err && err.message) || '')) { clearAuth(); showLogin('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่ค่ะ'); return; }
+      setStatusBar('⚠ ' + ((err && err.message) || 'แก้เวลาไม่สำเร็จ'), true, false);
     });
 }
 
