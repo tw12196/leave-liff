@@ -334,6 +334,7 @@
   <div class="boardwrap">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:10px; flex-wrap:wrap;">
       <button id="btnLinkMode" class="linkmodebtn">🔗 เชื่อมเที่ยว</button>
+      <button id="btnEditTimeMode" class="linkmodebtn">✉️ แก้เวลาเข้า-ออก</button>
       <div class="viewToggle">
         <button id="btnGridView" class="active">🔲 มุมมองตาราง</button>
         <button id="btnListView">📋 มุมมองรายการ</button>
@@ -465,6 +466,7 @@ var MAX_DATE = '';
 var viewMode = 'grid';
 var linkPick = [];    // 🔗 เอกสารที่เลือกไว้เพื่อเชื่อมเที่ยว (สูงสุด 2 ใบ ของรถคันเดียวกัน)
 var linkMode = false; // true = กำลังอยู่ในโหมดเชื่อมเที่ยว (กดปุ่ม "🔗 เชื่อมเที่ยว" แล้ว) — ถึงจะโชว์ช่องติ๊กเลือก
+var editTimeMode = false; // true = กำลังอยู่ในโหมดแก้เวลาเข้า/ออก — ถึงจะโชว์ปุ่ม ✉️ ต่อท้ายเวลาออก/เข้า
 var THAI_MONTHS = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
 var THAI_DOW = ["อาทิตย์","จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์"];
 
@@ -742,6 +744,7 @@ function render(){
    เลือกเชื่อมได้เฉพาะเที่ยวที่มีเอกสารใบเดียว (ยังไม่ถูกรวมโดยตรรกะเวลาเดิมหรือเชื่อมไว้ก่อนแล้ว)
    ของรถคันเดียวกันเท่านั้น — เขียนคอลัมน์เดียวกับที่ Step 1 เขียน (dsp_linktrip/dsp_unlinktrip) */
 function editBtnHtml(t, docs){
+  if (!editTimeMode) return '';
   var docsCsv = (docs || []).join(',');
   if (!docsCsv) return '';
   return ' <button class="edittimebtn" onclick="event.stopPropagation(); onEditTimeClick(\'' + esc(docsCsv) + '\')" title="แก้เวลาออก/เวลาเข้า">✏️</button>';
@@ -770,6 +773,15 @@ function setLinkMode(on){
   var btn = document.getElementById('btnLinkMode');
   if (btn) btn.classList.toggle('active', linkMode);
   if (!linkMode) { linkPick = []; renderLinkBar(); }
+  if (linkMode && editTimeMode) { setEditTimeMode(false); }
+  render();
+}
+
+function setEditTimeMode(on){
+  editTimeMode = !!on;
+  var btn2 = document.getElementById('btnEditTimeMode');
+  if (btn2) btn2.classList.toggle('active', editTimeMode);
+  if (editTimeMode && linkMode) { setLinkMode(false); return; }
   render();
 }
 
@@ -984,6 +996,7 @@ function applyViewMode(){
 document.getElementById('btnGridView').addEventListener('click', function(){ viewMode = 'grid'; applyViewMode(); });
 document.getElementById('btnListView').addEventListener('click', function(){ viewMode = 'list'; applyViewMode(); });
 document.getElementById('btnLinkMode').addEventListener('click', function(){ setLinkMode(!linkMode); });
+document.getElementById('btnEditTimeMode').addEventListener('click', function(){ setEditTimeMode(!editTimeMode); });
 
 /* ---------------- แถบวันที่ ---------------- */
 document.getElementById('prevDay').addEventListener('click', function(){ goDate(addDays(curDate, -1)); });
