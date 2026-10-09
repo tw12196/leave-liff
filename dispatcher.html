@@ -213,6 +213,71 @@
   }
   .toast.err { background: #A8391A; }
 
+  /* ===== แผนเที่ยวรถ: ลงคิว / ปล่อยเที่ยว (9 ต.ค. 2569) ===== */
+  .daychips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 10px; }
+  .daychip {
+    flex: none; border: 1px solid #D8D5CB; background: #fff; color: #1D3557; border-radius: 10px;
+    padding: 6px 10px; text-align: center; cursor: pointer; font-family: inherit; min-width: 58px;
+  }
+  .daychip b { display: block; font-size: 14px; }
+  .daychip small { display: block; font-size: 10.5px; color: #8A8A85; }
+  .daychip.on { background: #1D3557; border-color: #1D3557; color: #fff; }
+  .daychip.on small { color: #C9D3E0; }
+  .plan-box { background: #fff; border: 1px solid #E4E1D8; border-radius: 12px; padding: 12px; margin-bottom: 14px; }
+  .plan-head { font-size: 13px; font-weight: 700; color: #1D3557; margin-bottom: 8px; }
+  .trip-row {
+    display: flex; align-items: flex-start; gap: 9px; padding: 9px 0; border-top: 1px solid #EFEDE7;
+  }
+  .trip-row:first-of-type { border-top: none; }
+  .trip-no {
+    flex: none; width: 54px; font-size: 12px; font-weight: 700; color: #1D3557;
+    background: #E5EDF7; border-radius: 6px; text-align: center; padding: 3px 0;
+  }
+  .trip-body { flex: 1; min-width: 0; font-size: 13px; color: #333; }
+  .trip-body .stop { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .trip-body .tsub { font-size: 11px; color: #8A8A85; }
+  .trip-row.released { opacity: .5; }
+  .trip-row.mine { background: #FFF7D6; border-radius: 8px; padding: 9px 6px; margin: 2px -6px; }
+  .trip-act { flex: none; display: flex; gap: 4px; }
+  .trip-act button {
+    width: 32px; height: 30px; border-radius: 8px; border: 1px solid #D8D5CB; background: #fff;
+    color: #1D3557; font-size: 16px; cursor: pointer; font-family: inherit; padding: 0;
+  }
+  .trip-act button.x { color: #C0271B; border-color: #F0B4AC; }
+  .add-trip {
+    width: 100%; margin-top: 8px; padding: 9px; border: 1.5px dashed #B7BFC9; border-radius: 9px;
+    background: #fff; color: #1D3557; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+  .plan-state { font-size: 12.5px; border-radius: 8px; padding: 8px 10px; margin-top: 10px; }
+  .plan-state.ok { background: #E1F5EE; color: #085041; }
+  .plan-state.wait { background: #FCF0D8; color: #7A5200; }
+  .hint-orange { font-size: 12.5px; color: #8A3B12; background: #FBE9E0; border-radius: 9px; padding: 10px 12px; margin-bottom: 10px; }
+  .sheet-bg { position: fixed; inset: 0; background: rgba(20,30,45,.45); z-index: 60; display: flex; align-items: flex-end; justify-content: center; }
+  .sheet {
+    background: #F5F4F0; width: 100%; max-width: 480px; max-height: 88vh; overflow-y: auto;
+    border-radius: 16px 16px 0 0; padding: 16px 14px 22px;
+  }
+  .sheet-title { font-size: 15px; font-weight: 700; color: #1D3557; margin-bottom: 4px; }
+  .sheet-sub { font-size: 12.5px; color: #6B6B68; margin-bottom: 12px; }
+  .opt-btn {
+    display: block; width: 100%; text-align: left; background: #fff; border: 1px solid #E4E1D8; border-radius: 10px;
+    padding: 12px; margin-bottom: 8px; cursor: pointer; font-family: inherit; color: #1D3557;
+  }
+  .opt-btn b { display: block; font-size: 14px; }
+  .opt-btn small { display: block; font-size: 12px; color: #6B6B68; margin-top: 2px; }
+  .rel-doc { background: #fff; border: 1px solid #E4E1D8; border-radius: 10px; padding: 11px; margin-bottom: 9px; }
+  .rel-doc .rd-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .rel-doc .rd-doc { font-size: 14px; font-weight: 700; }
+  .rel-doc .rd-site { font-size: 12.5px; color: #3A4A5F; margin-top: 2px; }
+  .rel-doc .cr-opt { padding: 10px; margin: 8px 0 0; }
+  .rel-doc input.reason { margin-top: 8px; font-size: 14px; padding: 9px 10px; }
+  .tel-btn { flex: none; background: #0F6E56; color: #fff; border-radius: 8px; padding: 7px 12px; font-size: 13px; font-weight: 600; text-decoration: none; }
+  .drv-card { background: #fff; border: 1px solid #E4E1D8; border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+  .drv-card .dc-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+  .drv-card .dc-name { font-size: 14.5px; font-weight: 700; }
+  .drv-card .dc-sub { font-size: 11.5px; color: #8A8A85; }
+  .drv-card .trip-row { cursor: pointer; }
+
   .hide { display: none !important; }
   .divider { height: 1px; background: #E4E1D8; margin: 16px 0; }
   .success-icon { font-size: 46px; text-align: center; margin: 18px 0 6px; }
@@ -242,10 +307,17 @@
     </div>
     <div class="chips">
       <button class="chip on" data-filter="pending">รอจัดคิว <span id="cntPending"></span></button>
-      <button class="chip" data-filter="queued">จัดคิวแล้ว <span id="cntQueued"></span></button>
+      <button class="chip" data-filter="planned">ลงคิว <span id="cntPlanned"></span></button>
+      <button class="chip" data-filter="queued">ปล่อยเที่ยวรถ <span id="cntQueued"></span></button>
       <button class="chip" data-filter="partial">ส่งไม่ครบ/ไม่สำเร็จ <span id="cntPartial"></span></button>
       <button class="chip" data-filter="success">ส่งสำเร็จ</button>
       <button class="chip" data-filter="all">ทั้งหมด</button>
+    </div>
+    <!-- แท็บ "ลงคิว": แผนรายคนขับ รายวัน -->
+    <div id="planView" class="hide">
+      <div class="hint-orange">กดที่เที่ยวนั้นเพื่อเข้าบิล โทรหาหน้างาน แล้วกด “ปล่อยเที่ยว” การ์ดจะถึงคนขับตอนกดปล่อยเท่านั้นค่ะ</div>
+      <div class="daychips" id="planDays"></div>
+      <div id="planList"><div class="loading">กำลังโหลดแผน…</div></div>
     </div>
     <div id="queueList"><div class="loading">กำลังโหลดคิว…</div></div>
     <div class="divider"></div>
@@ -341,6 +413,15 @@
       <button class="link-btn hide" id="usePlateBtn">↩ ใช้ทะเบียนรถประจำ</button>
     </div>
 
+    <!-- 🗓️ แผนเที่ยวรถ (9 ต.ค. 2569): เลือกวัน → เห็นแผนของคนขับวันนั้น → กด + เพื่อลงคิว -->
+    <div id="planSection" class="hide">
+      <div class="field" style="margin-bottom:8px;">
+        <label>วันที่ส่ง</label>
+        <div class="daychips" id="docDays"></div>
+      </div>
+      <div class="plan-box" id="docPlanBox"></div>
+    </div>
+
     <!-- รถคันที่ 2 — ใบเดียวของเยอะ แบ่งใส่ 2 คัน ออกพร้อมกันไปที่เดียวกัน -->
     <button class="btn ghost" id="addTruck2Btn" style="margin-bottom:14px;">➕ เพิ่มรถคันที่ 2</button>
     <div id="truck2Box" class="hide">
@@ -372,7 +453,7 @@
       <div class="call-log muted" id="dCallLog">ยังไม่ได้กดโทร</div>
     </div>
 
-    <div class="callresult">
+    <div class="callresult" id="dCallResult">
       <div class="cr-label">ผลการโทรหาลูกค้า (ต้องเลือก 1 ข้อ)</div>
       <label class="cr-opt cr-ok" for="crConfirmed">
         <input type="radio" name="callResult" value="confirmed" id="crConfirmed" />
@@ -420,6 +501,9 @@
       <button class="selfpick-link" id="selfPickBtn"></button>
     </div>
   </div>
+
+  <!-- แผ่นเลือกวิธีลงคิว / แผ่นโทรก่อนปล่อยเที่ยว (เติมเนื้อหาด้วย JS) -->
+  <div id="sheetBg" class="sheet-bg hide"><div class="sheet" id="sheetBody"></div></div>
 
   <!-- ============ หน้าเลือกไซต์ ============ -->
   <div id="screenSite" class="hide">
@@ -531,7 +615,7 @@ function show(screen) {
    dsp_call / dsp_selfpickup / dsp_bindsite / dsp_savesite) จะไม่ยิงซ้ำเด็ดขาด
    เพราะถ้าเซิร์ฟเวอร์บันทึกสำเร็จแล้วแต่ตอบกลับไม่ทัน การยิงซ้ำจะกลายเป็นบันทึกสองรอบ */
 var API_SAFE_RETRY = {
-  dsp_access: 1, dsp_drivers: 1, dsp_queue: 1,
+  dsp_access: 1, dsp_drivers: 1, dsp_queue: 1, dsp_plan: 1,
   dsp_doc: 1, dsp_sites: 1, dsp_customers: 1
 };
 
@@ -768,13 +852,17 @@ function loadQueue() {
       queued:  (d && d.queued)  || null,
       failed:  (d && d.failed)  || null,
       success: (d && d.success) || null,
-      other:   (d && d.other)   || []
+      other:   (d && d.other)   || [],
+      planned: (d && d.planned) || []
     };
+    /* แท็บ "รอจัดคิว" = ยังไม่ได้ลงคิว · บิลที่ลงคิวแล้ว (มี plan) ไปอยู่แท็บ "ลงคิว" (9 ต.ค. 2569) */
+    state.queue.waiting = state.queue.pending.filter(function (o) { return !o.plan; });
     if (!state.queue.queued)  state.queue.queued  = state.queue.done;
     if (!state.queue.success) state.queue.success = [];
     if (!state.queue.failed)  state.queue.failed  = (d && d.partial) || [];
 
-    $('cntPending').textContent = '(' + state.queue.pending.length + ')';
+    $('cntPending').textContent = '(' + state.queue.waiting.length + ')';
+    $('cntPlanned').textContent = state.queue.planned.length ? ('(' + state.queue.planned.length + ')') : '';
     $('cntQueued').textContent  = '(' + state.queue.queued.length + ')';
     $('cntPartial').textContent = '(' + state.queue.failed.length + ')';
     // ขึ้นสีแดงเฉพาะตอนมีของค้างจริง ไม่มีก็เป็นชิปเงียบๆ ไม่ต้องเตือนลอยๆ
@@ -795,8 +883,12 @@ function loadQueue() {
 
 function renderQueue() {
   var q = ($('queueSearch').value || '').trim().toLowerCase();
+  var isPlan = state.filter === 'planned';
+  $('planView').classList.toggle('hide', !isPlan);
+  $('queueList').classList.toggle('hide', isPlan);
+  if (isPlan) { if (state.planTab && state.planTab.date === state.planTabDate) drawPlanTab(); return; }
   var list;
-  if (state.filter === 'pending')      list = state.queue.pending;
+  if (state.filter === 'pending')      list = state.queue.waiting || state.queue.pending;
   else if (state.filter === 'queued')  list = state.queue.queued  || [];
   else if (state.filter === 'partial') list = state.queue.failed  || [];
   else if (state.filter === 'success') list = state.queue.success || [];
@@ -828,6 +920,7 @@ function renderQueue() {
     var o = list[i];
     var meta = [];
     if (o.driver) meta.push('🚚 ' + o.driver + (o.driver2 ? (' + ' + o.driver2) : ''));
+    else if (o.plan) meta.push('🗓️ ลงคิว ' + o.plan.driver + ' เที่ยว ' + o.plan.trip + ' · ' + dayLabel(o.plan.date));
     if (o.callCount) meta.push('📞 ' + o.callCount + ' ครั้ง');
     if (o.confirmed) meta.push('✔ คอนเฟิร์มแล้ว');
     if (o.nextAction) meta.push('📋 ' + o.nextAction);
@@ -854,6 +947,7 @@ function renderQueue() {
 /* ---------- หน้าเอกสาร ---------- */
 
 function openDoc(doc) {
+  state.docPlanFor = '';   // เปิดบิลใหม่ = เลือกวันที่เริ่มต้นใหม่ตามบิลนั้น
   show('doc');
   $('dDoc').textContent = doc;
   $('dStatus').innerHTML = '';
@@ -923,8 +1017,10 @@ function renderDoc() {
     $('dDelivered').classList.add('hide');
   }
 
-  $('dDriver').value = d.driver || '';
-  $('dPlateInput').value = String(d.plate || '').trim() || defaultPlate(d.driver || '');
+  // ลงคิวไว้แล้ว (ยังไม่ปล่อย) = ยังไม่มีคนขับในคอลัมน์ J → ใช้คนขับ/ทะเบียนจากแผนแทน
+  var planDrv = (!d.driver && d.plan) ? d.plan.driver : '';
+  $('dDriver').value = d.driver || planDrv || '';
+  $('dPlateInput').value = String(d.plate || '').trim() || ((!d.driver && d.plan && d.plan.plate) ? d.plan.plate : '') || defaultPlate(d.driver || planDrv || '');
   updatePlateHint();
 
   var d2 = String(d.driver2 || '').trim();
@@ -947,6 +1043,7 @@ function renderDoc() {
   renderUnqueue(d);
   renderDepart(d);
   renderSiteSiblings(d);
+  renderPlanSection(d);   // ต้องอยู่ท้ายสุด — ซ่อน/เปลี่ยนปุ่มบันทึกคิวรถตามสถานะแผน
 }
 
 /* ---------- 📦 ใบอื่นไซต์เดียวกัน รอจัดคิว (v137) ---------- */
@@ -1156,8 +1253,10 @@ function bindSite(site) {
 
 function goBack() {
   if (state.screen === 'site' && state.doc) { show('doc'); return; }
+  closeSheet();
   loadQueue();
   show('queue');
+  if (state.filter === 'planned') renderPlanTab();
 }
 
 function onCall() {
@@ -1535,11 +1634,387 @@ function onManualGo() {
   openDoc(p + a + '-' + b);
 }
 
+/* =========================================================
+   🗓️ แผนเที่ยวรถ — ลงคิว / ปล่อยเที่ยว (9 ต.ค. 2569)
+   ลงคิว = วางแผนไว้ก่อน ยังไม่มีอะไรถึงคนขับ
+   ปล่อยเที่ยว = โทรหน้างานครบทุกบิลในเที่ยวแล้ว → ส่งการ์ดใบเดียวต่อเที่ยว
+   เซิร์ฟเวอร์: dspPlan.gs (Apps Script Version 150)
+   ========================================================= */
+
+var TH_DOW = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
+
+function pad2(n) { return (n < 10 ? '0' : '') + n; }
+function ddmmyyyy(dt) { return pad2(dt.getDate()) + '/' + pad2(dt.getMonth() + 1) + '/' + dt.getFullYear(); }
+
+/* วันที่ 14 วันนับจากวันนี้ ให้เลื่อนเลือกได้ */
+function planDays() {
+  var out = [];
+  var base = new Date(); base.setHours(12, 0, 0, 0);
+  for (var i = 0; i < 14; i++) {
+    var dt = new Date(base.getTime() + i * 86400000);
+    var top = i === 0 ? 'วันนี้' : i === 1 ? 'พรุ่งนี้' : i === 2 ? 'มะรืน' : TH_DOW[dt.getDay()];
+    out.push({ key: ddmmyyyy(dt), top: top, day: dt.getDate() + '/' + (dt.getMonth() + 1) });
+  }
+  return out;
+}
+
+function dayLabel(key) {
+  var days = planDays();
+  for (var i = 0; i < days.length; i++) if (days[i].key === key) return days[i].top + ' ' + days[i].day;
+  return key;
+}
+
+function daysChipsHtml(selected) {
+  return planDays().map(function (d) {
+    return '<button class="daychip' + (d.key === selected ? ' on' : '') + '" data-day="' + d.key + '">' +
+             '<small>' + esc(d.top) + '</small><b>' + esc(d.day) + '</b></button>';
+  }).join('');
+}
+
+/* วันที่เริ่มต้นของบิล: ลงคิวไว้แล้วใช้วันในแผน · ไม่งั้นเดาจากวันที่เซลล์ขอให้ส่ง (ถ้าอยู่ใน 14 วัน) · ไม่งั้นวันนี้ */
+function guessPlanDate(d) {
+  if (d && d.plan && d.plan.date) return d.plan.date;
+  var keys = planDays().map(function (x) { return x.key; });
+  if (d && d.requestedDate && keys.indexOf(d.requestedDate) >= 0) return d.requestedDate;
+  return keys[0];
+}
+
+/* ---------- ในหน้าบิล ---------- */
+
+function renderPlanSection(d) {
+  var usable = !!(d && d.found !== false && d.site && String(d.site).trim() && !d.selfPickup && !d.cancelled);
+  $('planSection').classList.toggle('hide', !usable);
+  var inOpenPlan = !!(d && d.plan && !d.plan.released && !d.driver);
+  // บิลที่ลงคิวไว้ (ยังไม่ปล่อย) ใช้ปุ่มปล่อยเที่ยวในกล่องแผนแทน — ซ่อนผลการโทร/ปุ่มบันทึกคิวรถแบบเดิม กันกดผิดทาง
+  $('dCallResult').classList.toggle('hide', inOpenPlan);
+  if (inOpenPlan) $('dNeedConfirm').classList.add('hide');
+  if (inOpenPlan) $('saveQueueBtn').classList.add('hide');
+  if (!d.driver && !inOpenPlan) $('saveQueueBtn').textContent = '⚡ บันทึกคิวรถ · ส่งการ์ดทันที (งานด่วน)';
+  if (!usable) return;
+
+  if (!state.docPlanDate || state.docPlanFor !== d.doc) {
+    state.docPlanDate = d.driver ? ((d.plan && d.plan.date) || planDays()[0].key) : guessPlanDate(d);
+    state.docPlanFor = d.doc;
+  }
+  $('docDays').innerHTML = daysChipsHtml(state.docPlanDate);
+  loadDocPlan();
+}
+
+function currentPlanDriver() {
+  var d = state.doc || {};
+  return d.driver || $('dDriver').value || '';
+}
+
+function loadDocPlan() {
+  var drv = currentPlanDriver();
+  var box = $('docPlanBox');
+  if (!drv) {
+    box.innerHTML = '<div class="plan-head">แผนเที่ยวรถ</div>' +
+      '<div class="sub" style="margin:0">เลือกคนขับด้านบนก่อน แผนของคนขับวันนั้นจะขึ้นตรงนี้ค่ะ</div>';
+    return;
+  }
+  box.innerHTML = '<div class="loading" style="padding:10px">กำลังโหลดแผนของ ' + esc(drv) + '…</div>';
+  var want = drv + '|' + state.docPlanDate;
+  state.docPlanWant = want;
+  api('dsp_plan', { date: state.docPlanDate, driver: drv }).then(function (p) {
+    if (state.docPlanWant !== want) return;   // เปลี่ยนคนขับ/วันไปแล้วระหว่างรอ
+    state.docPlan = p;
+    renderDocPlan();
+  }).catch(function (e) {
+    box.innerHTML = '<div class="sub" style="margin:0;color:#C0271B">โหลดแผนไม่สำเร็จ: ' + esc(e.message) + '</div>';
+  });
+}
+
+function planTrips() {
+  var p = state.docPlan;
+  return (p && p.drivers && p.drivers[0] && p.drivers[0].trips) || [];
+}
+
+function tripHasDoc(t, doc) {
+  for (var i = 0; i < t.docs.length; i++) if (t.docs[i].doc === doc) return true;
+  return false;
+}
+
+/* จุดส่งในเที่ยว (ไซต์ละบรรทัด) */
+function tripStops(t) {
+  var seen = {}, out = [];
+  t.docs.forEach(function (x) {
+    if (!seen[x.site]) { seen[x.site] = { site: x.site, docs: [] }; out.push(seen[x.site]); }
+    seen[x.site].docs.push(x.doc);
+  });
+  return out;
+}
+
+function renderDocPlan() {
+  var d = state.doc, p = state.docPlan;
+  var drv = currentPlanDriver();
+  var trips = planTrips();
+  var locked = !!d.driver;   // ปล่อยเที่ยว/จัดคิวไปแล้ว — ดูแผนได้อย่างเดียว
+  var html = '<div class="plan-head">แผนของ ' + esc(drv) + ' · ' + esc(dayLabel(p.date)) + '</div>';
+  var mineTrip = 0;
+
+  if (!trips.length) html += '<div class="sub" style="margin:0 0 4px">ยังไม่มีเที่ยวในวันนี้</div>';
+  trips.forEach(function (t) {
+    var mine = tripHasDoc(t, d.doc);
+    if (mine) mineTrip = t.trip;
+    var stops = tripStops(t).map(function (s) { return '<div class="stop">📍 ' + esc(s.site) + '</div>'; }).join('');
+    var sub = t.released ? ('ปล่อยแล้ว ' + esc((t.releasedAt || '').slice(-5)) + (t.departAt ? (' · รถออก ' + esc(t.departAt)) : '')) : '';
+    var act = '';
+    if (!locked && !t.released) {
+      act = mine ? '<button class="x" data-act="remove" title="เอาบิลนี้ออกจากแผน">×</button>'
+                 : '<button data-act="plus" data-trip="' + t.trip + '" title="ใส่บิลนี้ในเที่ยวนี้">+</button>';
+    }
+    html += '<div class="trip-row' + (t.released ? ' released' : '') + (mine ? ' mine' : '') + '">' +
+              '<div class="trip-no">เที่ยว ' + t.trip + '</div>' +
+              '<div class="trip-body">' + stops + (sub ? '<div class="tsub">' + sub + '</div>' : '') + '</div>' +
+              '<div class="trip-act">' + act + '</div>' +
+            '</div>';
+  });
+
+  if (!locked) {
+    html += '<button class="add-trip" data-act="new">+ เพิ่มเที่ยว ' + (trips.length + 1) + '</button>';
+  }
+
+  // แถบสถานะ: บิลนี้อยู่ตรงไหนของแผน (อาจอยู่คนละวัน/คนละคนกับที่กำลังดู)
+  var pl = d.plan;
+  if (locked) {
+    html += '<div class="plan-state ok">✅ บิลนี้ปล่อยเที่ยว/จัดคิวให้ ' + esc(d.driver) + ' แล้ว' +
+            (pl && pl.trip ? (' · เที่ยว ' + pl.trip) : '') + '</div>';
+  } else if (pl) {
+    var here = (pl.driver === drv && pl.date === p.date);
+    html += '<div class="plan-state ok">🗓️ ลงคิวแล้ว: เที่ยว ' + pl.trip + ' ของ ' + esc(pl.driver) + ' · ' + esc(dayLabel(pl.date)) +
+            (here ? '' : '<br>กด + ในแผนนี้ ถ้าจะย้ายมาที่นี่') + '</div>';
+  } else {
+    html += '<div class="plan-state wait">ยังไม่ได้ลงคิว — กด + เพื่อไปกับเที่ยวที่มีอยู่ หรือ “เพิ่มเที่ยว” เป็นเที่ยวใหม่</div>';
+  }
+
+  // ปุ่มปล่อยเที่ยว: เฉพาะแผนของวันนี้ และบิลนี้อยู่ในเที่ยวที่ยังไม่ปล่อย
+  if (!locked && mineTrip && p.isToday) {
+    html += '<button class="btn orange" data-act="release" data-trip="' + mineTrip + '" style="margin-top:10px">' +
+            '🚚 ปล่อยเที่ยว ' + mineTrip + ' · โทรหน้างาน แล้วส่งการ์ด</button>';
+  } else if (!locked && mineTrip) {
+    html += '<div class="sub" style="margin-top:8px">ปุ่มปล่อยเที่ยวจะขึ้นในวันที่ส่งจริงค่ะ</div>';
+  }
+
+  $('docPlanBox').innerHTML = html;
+}
+
+function onDocPlanClick(ev) {
+  var b = ev.target.closest && ev.target.closest('[data-act]');
+  if (!b) return;
+  var act = b.getAttribute('data-act');
+  var trip = Number(b.getAttribute('data-trip') || 0);
+  if (act === 'new') return planAdd('new', 0);
+  if (act === 'plus') return openAddSheet(trip);
+  if (act === 'remove') return planRemove();
+  if (act === 'release') return openReleaseSheet(trip);
+}
+
+function closeSheet() { $('sheetBg').classList.add('hide'); $('sheetBody').innerHTML = ''; }
+
+function openAddSheet(tripNo) {
+  var t = planTrips()[tripNo - 1];
+  if (!t) return;
+  var sites = tripStops(t).map(function (s) { return s.site; }).join(', ');
+  var docs = t.docs.map(function (x) { return x.doc; }).join(', ');
+  $('sheetBody').innerHTML =
+    '<div class="sheet-title">ใส่ ' + esc(state.doc.doc) + ' ในเที่ยว ' + tripNo + '</div>' +
+    '<div class="sheet-sub">เที่ยว ' + tripNo + ' ตอนนี้ไป: ' + esc(sites) + '</div>' +
+    '<button class="opt-btn" data-mode="join"><b>🔗 รวมเที่ยว</b><small>ไปพร้อมกันในเที่ยว ' + tripNo + ' (รถคันเดียวกัน ออกพร้อมกัน)</small></button>' +
+    '<button class="opt-btn" data-mode="insert"><b>⤴️ แทรกคิว</b><small>เป็นเที่ยวใหม่ก่อนเที่ยว ' + tripNo + ' · เที่ยว ' + tripNo + ' เดิมเลื่อนเป็นเที่ยว ' + (tripNo + 1) + '</small></button>' +
+    '<button class="opt-btn" data-mode="replace"><b>🔁 แทนคิวเดิม</b><small>ใช้เที่ยว ' + tripNo + ' แทน · ' + esc(docs) + ' กลับไปรอจัดคิว</small></button>' +
+    '<button class="btn ghost" data-mode="cancel" style="margin-top:4px">ยกเลิก</button>';
+  $('sheetBg').classList.remove('hide');
+  var btns = $('sheetBody').querySelectorAll('[data-mode]');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].addEventListener('click', function () {
+      var m = this.getAttribute('data-mode');
+      closeSheet();
+      if (m !== 'cancel') planAdd(m, tripNo);
+    });
+  }
+}
+
+/* หลังแก้แผน: อยู่หน้าเดิม รีเฟรชบิล + แผน (ไม่เด้งไปแท็บอื่น — ตามที่พี่บุ้งกี๋ติไว้ในมอคอัพ) */
+function refreshDocAfterPlan(msg) {
+  return api('dsp_doc', { doc: state.doc.doc }).then(function (res) {
+    state.doc = res;
+    renderDoc();
+    if (msg) toast(msg);
+    loadQueue();
+  });
+}
+
+function planAdd(mode, tripNo) {
+  var d = state.doc;
+  var drv = $('dDriver').value;
+  if (!drv) { toast('กรุณาเลือกคนขับก่อนค่ะ', true); return; }
+  toast('กำลังลงคิว…');
+  api('dsp_planadd', {
+    doc: d.doc, docs: selectedSiblingDocs(), driver: drv, plate: currentPlate(),
+    date: state.docPlanDate, mode: mode, trip: tripNo, by: state.profile.displayName
+  }).then(function (p) {
+    var msg = { 'new': 'ลงคิวเป็นเที่ยวใหม่แล้วค่ะ', join: 'รวมเข้าเที่ยว ' + tripNo + ' แล้วค่ะ',
+                insert: 'แทรกเป็นเที่ยว ' + tripNo + ' แล้วค่ะ', replace: 'แทนเที่ยว ' + tripNo + ' แล้วค่ะ' }[mode];
+    if (p && p.replacedDocs && p.replacedDocs.length) msg += ' · ' + p.replacedDocs.join(', ') + ' กลับไปรอจัดคิว';
+    return refreshDocAfterPlan(msg);
+  }).catch(function (e) { toast(e.message, true); });
+}
+
+function planRemove() {
+  var d = state.doc;
+  api('dsp_planremove', { doc: d.doc }).then(function () {
+    return refreshDocAfterPlan('เอาออกจากแผนแล้ว กลับไปรอจัดคิวค่ะ');
+  }).catch(function (e) { toast(e.message, true); });
+}
+
+/* ---------- แผ่นโทรก่อนปล่อยเที่ยว ---------- */
+
+function openReleaseSheet(tripNo) {
+  var t = planTrips()[tripNo - 1];
+  if (!t) return;
+  var drv = currentPlanDriver();
+  var html = '<div class="sheet-title">ปล่อยเที่ยว ' + tripNo + ' · ' + esc(drv) + '</div>' +
+             '<div class="sheet-sub">โทรหาหน้างานทุกบิลก่อน แล้วบันทึกผลการโทร การ์ดจะส่งถึงคนขับ 1 ใบต่อเที่ยว</div>';
+  t.docs.forEach(function (x, i) {
+    var tel = (x.phone || '').replace(/[^0-9+]/g, '');
+    html += '<div class="rel-doc" data-doc="' + esc(x.doc) + '">' +
+              '<div class="rd-top"><div><div class="rd-doc">' + esc(x.doc) + '</div>' +
+                '<div class="rd-site">📍 ' + esc(x.site) + (x.contactName ? (' · ' + esc(x.contactName)) : '') + '</div></div>' +
+                (tel ? '<a class="tel-btn" href="tel:' + esc(tel) + '" data-call="' + esc(x.doc) + '">📞 โทรเลย</a>'
+                     : '<span class="sub" style="margin:0">ไม่มีเบอร์</span>') +
+              '</div>' +
+              '<label class="cr-opt cr-ok"><input type="radio" name="rel' + i + '" value="confirmed" /><span>✅ โทรคอนเฟิร์มแล้ว</span></label>' +
+              '<label class="cr-opt cr-warn"><input type="radio" name="rel' + i + '" value="noanswer" /><span>📵 โทรไม่ติด / ติดต่อไม่ได้</span></label>' +
+              '<input class="reason hide" placeholder="จำเป็นต้องกรอก: โทรไม่ติดเพราะอะไร ตัดสินใจยังไงต่อ" />' +
+            '</div>';
+  });
+  html += '<button class="btn orange" id="relConfirmBtn">ยืนยันปล่อยเที่ยว ' + tripNo + ' · ส่งการ์ดให้ ' + esc(drv) + '</button>' +
+          '<button class="btn ghost" id="relCancelBtn" style="margin-top:8px">ยังไม่ปล่อย</button>';
+  $('sheetBody').innerHTML = html;
+  $('sheetBg').classList.remove('hide');
+
+  var body = $('sheetBody');
+  var calls = body.querySelectorAll('[data-call]');
+  for (var c = 0; c < calls.length; c++) {
+    calls[c].addEventListener('click', function () {
+      api('dsp_call', { doc: this.getAttribute('data-call') }).catch(function () {});   // นับครั้งที่โทร พลาดไม่บล็อก
+    });
+  }
+  var radios = body.querySelectorAll('input[type=radio]');
+  for (var r = 0; r < radios.length; r++) {
+    radios[r].addEventListener('change', function () {
+      var box = this.closest('.rel-doc');
+      box.querySelector('.reason').classList.toggle('hide', this.value !== 'noanswer');
+    });
+  }
+  $('relCancelBtn').addEventListener('click', closeSheet);
+  $('relConfirmBtn').addEventListener('click', function () { doRelease(tripNo, drv); });
+}
+
+function doRelease(tripNo, drv) {
+  var boxes = $('sheetBody').querySelectorAll('.rel-doc');
+  var calls = {};
+  for (var i = 0; i < boxes.length; i++) {
+    var doc = boxes[i].getAttribute('data-doc');
+    var sel = boxes[i].querySelector('input[type=radio]:checked');
+    if (!sel) { toast('ยังไม่ได้บันทึกผลการโทรของ ' + doc + ' ค่ะ', true); return; }
+    var note = (boxes[i].querySelector('.reason').value || '').trim();
+    if (sel.value === 'noanswer' && !note) {
+      toast(doc + ' โทรไม่ติด กรุณากรอกเหตุผลก่อนค่ะ', true);
+      boxes[i].querySelector('.reason').focus();
+      return;
+    }
+    calls[doc] = { result: sel.value, note: note };
+  }
+  var btn = $('relConfirmBtn');
+  btn.disabled = true; btn.textContent = 'กำลังปล่อยเที่ยว…';
+  api('dsp_release', {
+    driver: drv, date: state.docPlanDate, trip: tripNo, calls: calls,
+    by: state.profile.displayName, lineUserId: state.profile.userId
+  }).then(function (res) {
+    closeSheet();
+    var pr = res && res.pushResult;
+    var relNo = (res && res.releasedTrip) || tripNo;
+    var msg = 'ปล่อยเที่ยว ' + relNo + ' แล้ว · ' + ((pr && pr.sent) ? 'ส่งการ์ดถึง ' + drv + ' แล้ว ✅' : ('การ์ดยังไม่ถึงคนขับ: ' + ((pr && pr.message) || '-')));
+    return refreshDocAfterPlan(msg);
+  }).catch(function (e) {
+    toast(e.message, true);
+    btn.disabled = false; btn.textContent = 'ยืนยันปล่อยเที่ยว ' + tripNo + ' · ส่งการ์ดให้ ' + drv;
+  });
+}
+
+/* ---------- แท็บ "ลงคิว" ---------- */
+
+function renderPlanTab() {
+  if (!state.planTabDate) state.planTabDate = planDays()[0].key;
+  $('planDays').innerHTML = daysChipsHtml(state.planTabDate);
+  $('planList').innerHTML = '<div class="loading">กำลังโหลดแผน…</div>';
+  var want = state.planTabDate;
+  api('dsp_plan', { date: want }).then(function (p) {
+    if (state.planTabDate !== want || state.filter !== 'planned') return;
+    state.planTab = p;
+    drawPlanTab();
+  }).catch(function (e) {
+    $('planList').innerHTML = '<div class="empty">โหลดแผนไม่สำเร็จ<br>' + esc(e.message) + '</div>';
+  });
+}
+
+function drawPlanTab() {
+  var p = state.planTab;
+  var q = ($('queueSearch').value || '').trim().toLowerCase();
+  var drivers = (p && p.drivers) || [];
+  if (!drivers.length) {
+    $('planList').innerHTML = '<div class="empty">ยังไม่มีแผนของ' + esc(dayLabel(p.date)) +
+      '<br>เปิดบิลจากแท็บ “รอจัดคิว” แล้วเลือกคนขับ + วันที่ เพื่อลงคิวค่ะ</div>';
+    return;
+  }
+  var html = '';
+  drivers.forEach(function (dv) {
+    var nRel = dv.trips.filter(function (t) { return t.released; }).length;
+    var rows = '';
+    dv.trips.forEach(function (t, ti) {
+      if (q && !t.docs.some(function (x) { return (x.doc + ' ' + x.site).toLowerCase().indexOf(q) >= 0; })) return;
+      var stops = tripStops(t).map(function (s) { return '<div class="stop">📍 ' + esc(s.site) + '</div>'; }).join('');
+      var sub = t.docs.map(function (x) { return x.doc; }).join(' · ') +
+        (t.released ? (' · ปล่อยแล้ว ' + (t.releasedAt || '').slice(-5) + (t.departAt ? (' · รถออก ' + t.departAt) : '')) : '');
+      var act = t.released ? '' :
+        '<button data-mv="-1" data-drv="' + esc(dv.driver) + '" data-trip="' + t.trip + '"' + (ti === 0 || dv.trips[ti - 1].released ? ' disabled style="opacity:.3"' : '') + '>▲</button>' +
+        '<button data-mv="1" data-drv="' + esc(dv.driver) + '" data-trip="' + t.trip + '"' + (ti === dv.trips.length - 1 || dv.trips[ti + 1].released ? ' disabled style="opacity:.3"' : '') + '>▼</button>';
+      rows += '<div class="trip-row' + (t.released ? ' released' : '') + '" data-open="' + esc(t.docs[0].doc) + '">' +
+                '<div class="trip-no">เที่ยว ' + t.trip + '</div>' +
+                '<div class="trip-body">' + stops + '<div class="tsub">' + esc(sub) + '</div></div>' +
+                '<div class="trip-act">' + act + '</div>' +
+              '</div>';
+    });
+    if (!rows) return;
+    html += '<div class="drv-card"><div class="dc-head"><div class="dc-name">🚚 ' + esc(dv.driver) + '</div>' +
+            '<div class="dc-sub">' + esc(dv.plate || '') + ' · ' + dv.trips.length + ' เที่ยว' + (nRel ? (' · ปล่อยแล้ว ' + nRel) : '') + '</div></div>' +
+            rows + '</div>';
+  });
+  $('planList').innerHTML = html || '<div class="empty">ไม่พบรายการ</div>';
+}
+
+function onPlanTabClick(ev) {
+  var mv = ev.target.closest && ev.target.closest('[data-mv]');
+  if (mv) {
+    ev.stopPropagation();
+    if (mv.disabled) return;
+    api('dsp_planmove', { driver: mv.getAttribute('data-drv'), date: state.planTabDate,
+                          trip: Number(mv.getAttribute('data-trip')), dir: Number(mv.getAttribute('data-mv')) })
+      .then(function () { renderPlanTab(); })
+      .catch(function (e) { toast(e.message, true); });
+    return;
+  }
+  var row = ev.target.closest && ev.target.closest('[data-open]');
+  if (row) openDoc(row.getAttribute('data-open'));
+}
+
 /* ---------- ผูก event ---------- */
 
 document.addEventListener('DOMContentLoaded', function () {
   $('backBtn').addEventListener('click', goBack);
-  $('refreshBtn').addEventListener('click', function () { loadQueue(); toast('รีเฟรชแล้วค่ะ'); });
+  $('refreshBtn').addEventListener('click', function () { loadQueue(); if (state.filter === 'planned') renderPlanTab(); toast('รีเฟรชแล้วค่ะ'); });
   $('queueSearch').addEventListener('input', renderQueue);
 
   var chips = document.querySelectorAll('.chip');
@@ -1549,6 +2024,7 @@ document.addEventListener('DOMContentLoaded', function () {
       this.classList.add('on');
       state.filter = this.getAttribute('data-filter');
       renderQueue();
+      if (state.filter === 'planned') renderPlanTab();
     });
   }
 
@@ -1562,7 +2038,23 @@ document.addEventListener('DOMContentLoaded', function () {
   $('mNum4').addEventListener('input', function () { this.value = this.value.replace(/\D/g, ''); });
 
   $('chooseSiteBtn').addEventListener('click', openSiteScreen);
-  $('dDriver').addEventListener('change', onDriverChange);
+  $('dDriver').addEventListener('change', function () { onDriverChange(); if (state.doc && !state.doc.driver) loadDocPlan(); });
+  $('docPlanBox').addEventListener('click', onDocPlanClick);
+  $('docDays').addEventListener('click', function (ev) {
+    var b = ev.target.closest && ev.target.closest('[data-day]');
+    if (!b) return;
+    state.docPlanDate = b.getAttribute('data-day');
+    $('docDays').innerHTML = daysChipsHtml(state.docPlanDate);
+    loadDocPlan();
+  });
+  $('planDays').addEventListener('click', function (ev) {
+    var b = ev.target.closest && ev.target.closest('[data-day]');
+    if (!b) return;
+    state.planTabDate = b.getAttribute('data-day');
+    renderPlanTab();
+  });
+  $('planList').addEventListener('click', onPlanTabClick);
+  $('sheetBg').addEventListener('click', function (ev) { if (ev.target === this) closeSheet(); });
   $('dPlateInput').addEventListener('input', updatePlateHint);
   $('usePlateBtn').addEventListener('click', useDefaultPlate);
   $('addTruck2Btn').addEventListener('click', function () { showTruck2(true); updatePlate2Hint(); });
