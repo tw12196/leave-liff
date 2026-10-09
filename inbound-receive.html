@@ -210,6 +210,19 @@
     cursor: pointer;
     margin-top: 8px;
   }
+  button.cancel-receive-btn {
+    width: 100%;
+    padding: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    border: 1.5px solid #a3231c;
+    border-radius: 8px;
+    background: #fff;
+    color: #a3231c;
+    cursor: pointer;
+    margin-top: 12px;
+  }
+  button.cancel-receive-btn:disabled { opacity: 0.6; }
   .lock-note { font-size: 12px; color: #888; text-align: center; margin-top: 6px; }
   .edit-log { font-size: 12px; color: #555; line-height: 1.6; }
   .edit-log div { padding: 6px 0; border-bottom: 1px dashed #eee; }
@@ -303,6 +316,8 @@
   </div>
   <button class="edit-btn" id="editBtn" style="display:none">✏️ แก้ไขจำนวนที่รับ</button>
   <div class="lock-note" id="editLockNote"></div>
+  <button class="cancel-receive-btn" id="cancelReceiveBtn" style="display:none">↩️ ยกเลิกการรับของใบนี้</button>
+  <div class="msg" id="cancelReceiveMsg"></div>
 </div>
 
 <!-- แก้ไขการรับของ: ขั้นที่ 1 แก้ตัวเลข + เลือกเหตุผล -->
@@ -577,7 +592,7 @@ function loadHistoryOrders() {
 }
 
 function openHistoryOrder(orderNo) {
-  apiGet('dsp_inb_getHistory', { orderNo: orderNo }).then(function (data) {
+  apiGet('dsp_inb_getHistory', { orderNo: orderNo, lineUserId: lineUserId }).then(function (data) {
     if (!data.ok) return;
     document.getElementById('historyDetailOrderNo').textContent = 'เลขใบรับสินค้า: ' + data.orderNo;
     document.getElementById('historyDetailCarrier').textContent = 'ขนส่ง: ' + (data.carrier || 'ไม่ระบุ');
@@ -598,6 +613,11 @@ function openHistoryOrder(orderNo) {
     });
     currentHistory = data;
     renderEditSection(data);
+    var cancelBtn = document.getElementById('cancelReceiveBtn');
+    cancelBtn.style.display = data.canCancel ? 'block' : 'none';
+    cancelBtn.disabled = false;
+    cancelBtn.textContent = '↩️ ยกเลิกการรับของใบนี้';
+    document.getElementById('cancelReceiveMsg').className = 'msg';
     showHistoryDetailView();
   });
 }
@@ -634,6 +654,35 @@ function renderEditSection(data) {
     btn.style.display = 'none';
     note.textContent = data.lockReason || '';
   }
+}
+
+function cancelReceive() {
+  if (!currentHistory) return;
+  if (!confirm('ยืนยันยกเลิกการรับของใบ ' + currentHistory.orderNo + ' ?\nใบนี้จะกลับไปอยู่ในหน้า "รอของ" และต้องกดรับใหม่')) return;
+  var btn = document.getElementById('cancelReceiveBtn');
+  var msg = document.getElementById('cancelReceiveMsg');
+  btn.disabled = true;
+  btn.textContent = 'กำลังยกเลิก...';
+  apiGet('dsp_inb_cancelReceive', { orderNo: currentHistory.orderNo, lineUserId: lineUserId }).then(function (data) {
+    if (!data.ok) {
+      btn.disabled = false;
+      btn.textContent = '↩️ ยกเลิกการรับของใบนี้';
+      msg.className = 'msg err';
+      msg.textContent = data.error || 'ยกเลิกไม่สำเร็จ';
+      return;
+    }
+    btn.style.display = 'none';
+    msg.className = 'msg ok';
+    msg.textContent = '✅ ยกเลิกการรับของแล้ว — ใบนี้กลับไปอยู่ในหน้า "รอของ"';
+    loadPendingOrders();
+    loadHistoryOrders();
+    setTimeout(showTabsView, 1500);
+  }).catch(function () {
+    btn.disabled = false;
+    btn.textContent = '↩️ ยกเลิกการรับของใบนี้';
+    msg.className = 'msg err';
+    msg.textContent = 'เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่';
+  });
 }
 
 function showEditView() {
@@ -990,6 +1039,7 @@ document.getElementById('tabPending').addEventListener('click', function () { sw
 document.getElementById('tabHistory').addEventListener('click', function () { switchTab('history'); });
 document.getElementById('pickupConfirmBtn').addEventListener('click', confirmPickup);
 document.getElementById('editBtn').addEventListener('click', openEditForm);
+document.getElementById('cancelReceiveBtn').addEventListener('click', cancelReceive);
 document.getElementById('editBackBtn').addEventListener('click', showHistoryDetailView);
 document.getElementById('editReviewBtn').addEventListener('click', reviewEdit);
 document.getElementById('editBackToFormBtn').addEventListener('click', showEditView);
