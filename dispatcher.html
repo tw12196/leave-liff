@@ -946,7 +946,17 @@ function renderQueue() {
 
 /* ---------- หน้าเอกสาร ---------- */
 
+/* จำบิลที่เปิดอยู่ไว้ใน URL — ถ้า LINE รีโหลดหน้าเอง (เช่น สลับแอปไปโทรแล้วกลับมา) จะกลับมาที่บิลเดิม ไม่หลุดไปหน้ารายการ */
+function rememberDoc(doc) {
+  try {
+    var u = new URL(window.location.href);
+    if (doc) u.searchParams.set('doc', doc); else u.searchParams.delete('doc');
+    window.history.replaceState(null, '', u.pathname + u.search + u.hash);
+  } catch (e) { /* ไม่สำคัญถึงขั้นต้องเตือน */ }
+}
+
 function openDoc(doc) {
+  rememberDoc(doc);
   state.docPlanFor = '';   // เปิดบิลใหม่ = เลือกวันที่เริ่มต้นใหม่ตามบิลนั้น
   show('doc');
   $('dDoc').textContent = doc;
@@ -1254,6 +1264,7 @@ function bindSite(site) {
 function goBack() {
   if (state.screen === 'site' && state.doc) { show('doc'); return; }
   closeSheet();
+  rememberDoc('');
   loadQueue();
   show('queue');
   if (state.filter === 'planned') renderPlanTab();
@@ -1681,15 +1692,70 @@ function guessPlanDate(d) {
 
 /* ---------- ในหน้าบิล ---------- */
 
+/* ซ่อน/โชว์ผลการโทร + ปุ่มบันทึกคิวรถเดิม ตามสถานะแผนของบิล */
+function applyPlanControls(d) {
+  var inOpenPlan = !!(d && d.plan && !d.plan.released && !d.driver);
+  $('dCallResult').classList.toggle('hide', inOpenPlan);
+  if (inOpenPlan) { $('dNeedConfirm').classList.add('hide'); $('saveQueueBtn').classList.add('hide'); }
+  else if (!d.selfPickup) {
+    $('saveQueueBtn').classList.remove('hide');
+    syncConfirmGate();
+  }
+  state.planBusy = false;
+  if (!d.driver && !inOpenPlan) $('saveQueueBtn').textContent = '⚡ บันทึกคิวรถ · ส่งการ์ดทันที (งานด่วน)';
+}
+
+/* ระหว่างรอเซิร์ฟเวอร์ (ลงคิว/เอาออก/ปล่อย ใช้เวลา 3–8 วิ) — บอกให้รู้ว่ากำลังทำงาน และกันกดซ้ำ */
+function setPlanBusy(msg) {
+  state.planBusy = !!msg;
+  var box = $('docPlanBox');
+  var old = $('planBusyBar');
+  if (old) old.remove();
+  var btns = box.querySelectorAll('button');
+  for (var i = 0; i < btns.length; i++) btns[i].disabled = !!msg;
+  box.style.opacity = msg ? '0.6' : '';
+  if (msg) {
+    var bar = document.createElement('div');
+    bar.id = 'planBusyBar';
+    bar.className = 'plan-state wait';
+    bar.style.marginTop = '0';
+    bar.style.marginBottom = '8px';
+    bar.textContent = '⏳ ' + msg;
+    box.insertBefore(bar, box.firstChild);
+  }
+}
+
+/* ข้อมูลแผนของบิลนี้ จากผลแผนที่เซิร์ฟเวอร์ส่งกลับ (ไม่ต้องยิง dsp_doc ซ้ำ) */
+function planOfDocFrom(p, doc) {
+  var dv = p && p.drivers && p.drivers[0];
+  if (!dv) return null;
+  for (var i = 0; i < dv.trips.length; i++) {
+    for (var k = 0; k < dv.trips[i].docs.length; k++) {
+      if (dv.trips[i].docs[k].doc === doc) {
+        return { driver: dv.driver, plate: dv.plate, date: p.date, trip: dv.trips[i].trip, released: dv.trips[i].released };
+      }
+    }
+  }
+  return null;
+}
+
+/* หลังลงคิว/เอาออก: ใช้แผนที่ได้กลับมาวาดทันที — เดิมยิงซ้ำอีก 2 รอบ (dsp_doc + dsp_plan) ทำให้รอนาน 10 วิขึ้นไป */
+function applyPlanResult(p, msg) {
+  state.docPlan = p;
+  state.docPlanWant = currentPlanDriver() + '|' + state.docPlanDate;
+  state.doc.plan = planOfDocFrom(p, state.doc.doc);
+  setPlanBusy('');
+  applyPlanControls(state.doc);
+  renderDocPlan();
+  if (msg) toast(msg);
+  loadQueue();   // รีเฟรชรายการด้านหลังเงียบๆ ไม่ต้องรอ
+}
+
 function renderPlanSection(d) {
   var usable = !!(d && d.found !== false && d.site && String(d.site).trim() && !d.selfPickup && !d.cancelled);
   $('planSection').classList.toggle('hide', !usable);
-  var inOpenPlan = !!(d && d.plan && !d.plan.released && !d.driver);
   // บิลที่ลงคิวไว้ (ยังไม่ปล่อย) ใช้ปุ่มปล่อยเที่ยวในกล่องแผนแทน — ซ่อนผลการโทร/ปุ่มบันทึกคิวรถแบบเดิม กันกดผิดทาง
-  $('dCallResult').classList.toggle('hide', inOpenPlan);
-  if (inOpenPlan) $('dNeedConfirm').classList.add('hide');
-  if (inOpenPlan) $('saveQueueBtn').classList.add('hide');
-  if (!d.driver && !inOpenPlan) $('saveQueueBtn').textContent = '⚡ บันทึกคิวรถ · ส่งการ์ดทันที (งานด่วน)';
+  applyPlanControls(d);
   if (!usable) return;
 
   if (!state.docPlanDate || state.docPlanFor !== d.doc) {
@@ -1849,7 +1915,8 @@ function planAdd(mode, tripNo) {
   var d = state.doc;
   var drv = $('dDriver').value;
   if (!drv) { toast('กรุณาเลือกคนขับก่อนค่ะ', true); return; }
-  toast('กำลังลงคิว…');
+  if (state.planBusy) return;
+  setPlanBusy('กำลังลงคิว… รอสักครู่นะคะ อย่าเพิ่งกดซ้ำ');
   api('dsp_planadd', {
     doc: d.doc, docs: selectedSiblingDocs(), driver: drv, plate: currentPlate(),
     date: state.docPlanDate, mode: mode, trip: tripNo, by: state.profile.displayName
@@ -1857,15 +1924,17 @@ function planAdd(mode, tripNo) {
     var msg = { 'new': 'ลงคิวเป็นเที่ยวใหม่แล้วค่ะ', join: 'รวมเข้าเที่ยว ' + tripNo + ' แล้วค่ะ',
                 insert: 'แทรกเป็นเที่ยว ' + tripNo + ' แล้วค่ะ', replace: 'แทนเที่ยว ' + tripNo + ' แล้วค่ะ' }[mode];
     if (p && p.replacedDocs && p.replacedDocs.length) msg += ' · ' + p.replacedDocs.join(', ') + ' กลับไปรอจัดคิว';
-    return refreshDocAfterPlan(msg);
-  }).catch(function (e) { toast(e.message, true); });
+    applyPlanResult(p, msg);
+  }).catch(function (e) { setPlanBusy(''); toast(e.message, true); });
 }
 
 function planRemove() {
   var d = state.doc;
-  api('dsp_planremove', { doc: d.doc }).then(function () {
-    return refreshDocAfterPlan('เอาออกจากแผนแล้ว กลับไปรอจัดคิวค่ะ');
-  }).catch(function (e) { toast(e.message, true); });
+  if (state.planBusy) return;
+  setPlanBusy('กำลังเอาออกจากแผน…');
+  api('dsp_planremove', { doc: d.doc }).then(function (p) {
+    applyPlanResult(p, 'เอาออกจากแผนแล้ว กลับไปรอจัดคิวค่ะ');
+  }).catch(function (e) { setPlanBusy(''); toast(e.message, true); });
 }
 
 /* ---------- แผ่นโทรก่อนปล่อยเที่ยว ---------- */
@@ -2088,7 +2157,7 @@ document.addEventListener('DOMContentLoaded', function () {
   $('saveSiteBtn').addEventListener('click', onSaveNewSite);
 
   $('goDeliveryBtn').addEventListener('click', goDelivery);
-  $('backToQueueBtn').addEventListener('click', function () { loadQueue(); show('queue'); });
+  $('backToQueueBtn').addEventListener('click', function () { rememberDoc(''); loadQueue(); show('queue'); });
 
   boot();
 });
