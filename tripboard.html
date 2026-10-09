@@ -569,6 +569,20 @@ function addDays(iso, delta){
   d.setDate(d.getDate() + delta);
   return d.toISOString().slice(0, 10);
 }
+function ymdToDmy(iso){
+  var p = String(iso || '').split('-');
+  if (p.length !== 3) return '';
+  return p[2] + '/' + p[1] + '/' + p[0];
+}
+function dmyToYmd(dmy){
+  var m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(dmy || '').trim());
+  if (!m) return '';
+  var dd = +m[1], mm = +m[2], yyyy = +m[3];
+  if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return '';
+  var d = new Date(yyyy, mm - 1, dd);
+  if (d.getFullYear() !== yyyy || d.getMonth() !== mm - 1 || d.getDate() !== dd) return '';
+  return yyyy + '-' + (mm < 10 ? '0' + mm : mm) + '-' + (dd < 10 ? '0' + dd : dd);
+}
 
 /* ---------------- วาดหน้าจอ ---------------- */
 function render(){
@@ -893,12 +907,21 @@ function onEditTimeClick(docsCsv){
   newTime = newTime.trim();
   if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(newTime)) { window.alert('รูปแบบเวลาไม่ถูกต้อง กรุณากรอกแบบ HH:mm เช่น 14:30 ค่ะ'); return; }
 
+  // ต้องถามวันที่ด้วยเสมอ ไม่ปล่อยให้ฝั่งเซิร์ฟเวอร์เดาเป็น "วันนี้" (ตอนกดแก้ไข) เพราะส่วนใหญ่
+  // เป็นการแก้ย้อนหลังของเที่ยวที่ผ่านมาแล้ว — ตั้งค่าเริ่มต้นเป็นวันที่ของกระดานที่กำลังดูอยู่
+  var defaultDateDmy = ymdToDmy(curDate);
+  var newDateDmy = window.prompt('วันที่ของ' + label + ' (รูปแบบ dd/MM/yyyy)\nกรุณาตรวจสอบให้ตรงกับวันที่ส่งจริง ไม่ใช่วันที่กดแก้ไขนะคะ', defaultDateDmy);
+  if (!newDateDmy) return;
+  newDateDmy = newDateDmy.trim();
+  var newDateYmd = dmyToYmd(newDateDmy);
+  if (!newDateYmd) { window.alert('รูปแบบวันที่ไม่ถูกต้อง กรุณากรอกแบบ dd/MM/yyyy เช่น 07/10/2026 ค่ะ'); return; }
+
   var reason = window.prompt('กรุณาระบุเหตุผลที่แก้' + label, '');
   if (!reason || !reason.trim()) { window.alert('ต้องระบุเหตุผลค่ะ'); return; }
   reason = reason.trim();
 
   setStatusBar('⏳ กำลังแก้' + label + '...', false, false);
-  api(action, { name: auth.name, pin: auth.pin }, { doc: doc, time: newTime, reason: reason, by: auth.name })
+  api(action, { name: auth.name, pin: auth.pin }, { doc: doc, time: newTime, date: newDateYmd, reason: reason, by: auth.name })
     .then(function(){
       setStatusBar('แก้' + label + 'แล้วค่ะ');
       return loadTripboard(auth.name, auth.pin, curDate);
