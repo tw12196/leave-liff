@@ -926,8 +926,10 @@ function loadDrivers() {
 /* ---------- หน้าคิว ---------- */
 
 function loadQueue() {
-  return api('dsp_queue', {}).then(function (d) {
+  /* ขอแบบเบา: เฉพาะช่องที่การ์ดในรายการใช้ และยังไม่เอาแท็บงานจบแล้ว (ส่งสำเร็จ/ทั้งหมด) — โหลดตอนกดแท็บนั้น (9 ต.ค. 2569) */
+  return api('dsp_queue', { lean: true }).then(function (d) {
     state.queueLoaded = true;
+    var prev = state.queue || {};
     /* ถังใหม่ queued / failed / success มาจากเซิร์ฟเวอร์ (v144)
        ถ้าเซิร์ฟเวอร์ยังเป็นรุ่นเก่าที่ไม่มีถังพวกนี้ ให้ถอยไปใช้ถัง done เดิม หน้าจะได้ไม่ว่างเปล่า */
     state.queue = {
@@ -935,8 +937,8 @@ function loadQueue() {
       done:    (d && d.done)    || [],
       queued:  (d && d.queued)  || null,
       failed:  (d && d.failed)  || null,
-      success: (d && d.success) || null,
-      other:   (d && d.other)   || [],
+      success: (d && d.success) || (d && d.lean ? (prev.success || []) : null),
+      other:   (d && d.other)   || (d && d.lean ? (prev.other || []) : []),
       planned: (d && d.planned) || []
     };
     /* แท็บ "รอจัดคิว" = ยังไม่ได้ลงคิว · บิลที่ลงคิวแล้ว (มี plan) ไปอยู่แท็บ "ลงคิว" (9 ต.ค. 2569) */
@@ -952,6 +954,8 @@ function loadQueue() {
     // ขึ้นสีแดงเฉพาะตอนมีของค้างจริง ไม่มีก็เป็นชิปเงียบๆ ไม่ต้องเตือนลอยๆ
     var partialChip = document.querySelector('.chip[data-filter="partial"]');
     if (partialChip) partialChip.classList.toggle('alert', state.queue.failed.length > 0);
+    state.restStale = true;   // ถังงานจบแล้วอาจเปลี่ยน — ขอใหม่ครั้งหน้าที่เปิดแท็บนั้น
+    if (state.filter === 'success' || state.filter === 'all') loadRest();
     renderQueue();
   }).catch(function (e) {
     // ให้มีปุ่มกดลองใหม่ตรงนี้เลย คนจัดคิวจะได้ไม่ต้องปิดแอปเปิดใหม่
@@ -965,6 +969,20 @@ function loadQueue() {
   });
 }
 
+/* แท็บ "ส่งสำเร็จ" / "ทั้งหมด" — ดึงตอนกดเข้าไปเท่านั้น */
+function loadRest() {
+  if (state.restBusy) return;
+  state.restBusy = true;
+  api('dsp_queue', { lean: true, rest: true }).then(function (d) {
+    state.queue.success = (d && d.success) || [];
+    state.queue.other = (d && d.other) || [];
+    state.restLoaded = true;
+    state.restStale = false;
+    state.restError = '';
+  }).catch(function (e) { state.restError = e.message || 'โหลดไม่สำเร็จ'; })
+    .then(function () { state.restBusy = false; renderQueue(); });
+}
+
 function renderQueue() {
   if (!state.queueLoaded) { $('queueList').innerHTML = '<div class="loading">กำลังโหลดคิว…</div>'; return; }
   var q = ($('queueSearch').value || '').trim().toLowerCase();
@@ -972,6 +990,17 @@ function renderQueue() {
   $('planView').classList.toggle('hide', !isPlan);
   $('queueList').classList.toggle('hide', isPlan);
   if (isPlan) { if (state.planTab && state.planTab.date === state.planTabDate) drawPlanTab(); return; }
+  if ((state.filter === 'success' || state.filter === 'all') && !state.restLoaded && state.restError) {
+    $('queueList').innerHTML = '<div class="empty">โหลดรายการไม่สำเร็จ<br>' + esc(state.restError) +
+      '<br><br><button class="btn orange sm" id="retryRestBtn">ลองใหม่อีกครั้ง</button></div>';
+    $('retryRestBtn').addEventListener('click', function () { state.restError = ''; renderQueue(); });
+    return;
+  }
+  if ((state.filter === 'success' || state.filter === 'all') && !state.restLoaded) {
+    $('queueList').innerHTML = '<div class="loading">กำลังโหลด' + (state.filter === 'success' ? 'รายการส่งสำเร็จ' : 'รายการทั้งหมด') + '…</div>';
+    loadRest();
+    return;
+  }
   var list;
   if (state.filter === 'pending')      list = state.queue.waiting || state.queue.pending;
   else if (state.filter === 'queued')  list = state.queue.queued  || [];
@@ -2426,6 +2455,7 @@ document.addEventListener('DOMContentLoaded', function () {
       for (var k = 0; k < chips.length; k++) chips[k].classList.remove('on');
       this.classList.add('on');
       state.filter = this.getAttribute('data-filter');
+      if ((state.filter === 'success' || state.filter === 'all') && state.restLoaded && state.restStale) loadRest();
       renderQueue();
       if (state.filter === 'planned') renderPlanTab();
     });
