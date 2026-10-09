@@ -458,8 +458,9 @@
 
       <!-- ทะเบียนรถ — เติมรถประจำให้อัตโนมัติ แต่แก้ได้ (ใช้ในงานด่วน/แก้ไขคิว) -->
       <div class="field fb" id="bPlate">
-        <label>ทะเบียนรถ</label>
-        <input id="dPlateInput" placeholder="เช่น กข-1234 เชียงใหม่" />
+        <label id="lblPlate">ทะเบียนรถ</label>
+        <input id="dPlateInput" list="plateList" autocomplete="off" placeholder="เลือกหรือพิมพ์ทะเบียน เช่น 82-8487" />
+        <datalist id="plateList"></datalist>
         <div class="sub" id="dPlate"></div>
         <button class="link-btn hide" id="usePlateBtn">↩ ใช้ทะเบียนรถประจำ</button>
       </div>
@@ -493,7 +494,7 @@
           </div>
           <div class="field">
             <label>ทะเบียนรถคันที่ 2</label>
-            <input id="dPlate2Input" placeholder="เช่น 82-8487" />
+            <input id="dPlate2Input" list="plateList" autocomplete="off" placeholder="เลือกหรือพิมพ์ทะเบียน เช่น 82-8487" />
             <div class="sub" id="dPlate2"></div>
             <button class="link-btn" id="removeTruck2Btn">✕ ไม่ใช้รถคันที่ 2 แล้ว</button>
           </div>
@@ -907,6 +908,13 @@ function loadDrivers() {
       opt.textContent = d.name + (d.plate ? ('  ·  ' + d.plate) : '');
       sel.appendChild(opt);
     }
+    // ทะเบียนที่รู้จัก (รถประจำของคนขับทุกคน) ให้เลือกในช่องทะเบียน — พิมพ์ทะเบียนอื่นเองก็ได้
+    var seenPlate = {}, dl = '';
+    state.drivers.forEach(function (dv) {
+      var pl = String(dv.plate || '').trim();
+      if (pl && !seenPlate[pl]) { seenPlate[pl] = true; dl += '<option value="' + esc(pl) + '">' + esc(dv.name) + '</option>'; }
+    });
+    $('plateList').innerHTML = dl;
     // คันที่ 2 ใช้รายชื่อชุดเดียวกัน
     var sel2 = $('dDriver2');
     sel2.innerHTML = '<option value="">— เลือกคนขับคันที่ 2 —</option>';
@@ -1252,6 +1260,7 @@ function updatePlateHint() {
     bits.push('เติมจากรถประจำในชีต "คนขับ" ให้แล้ว แก้ไขได้');
   }
   if (d && !d.lineId) bits.push('ยังไม่มี LINE User ID ในชีตคนขับ');
+  if (state.doc && docMode(state.doc) === 'plan' && state.truck2Trip) bits.push('ใช้กับทั้งเที่ยว ' + state.truck2Trip + ' · แก้แล้วบันทึกให้ทันที');
 
   $('dPlate').textContent = bits.join('  ·  ');
   $('usePlateBtn').classList.toggle('hide', !(def && cur !== def));
@@ -1825,7 +1834,7 @@ function docMode(d) {
 }
 
 var FLOW_ORDER = {
-  plan:   ['siblingCard', 'docDaysField', 'bDriver', 'bTruck2', 'planSection', 'bSwitch'],
+  plan:   ['siblingCard', 'docDaysField', 'bDriver', 'bPlate', 'bTruck2', 'planSection', 'bSwitch'],
   urgent: ['bDriver', 'bPlate', 'bTruck2', 'siblingCard', 'bPhone', 'bCall', 'bNote', 'bSave', 'bSwitch'],
   view:   ['bDriver', 'planSection', 'bEdit'],
   viewOpen: ['bDriver', 'planSection', 'bEdit', 'bPlate', 'bTruck2', 'bPhone', 'bCall', 'bNote', 'bSave']
@@ -1857,13 +1866,15 @@ function renderMode(d) {
   if (mode === 'plan') {
     if (hasSib) $('lblSib').innerHTML = stepNo(++n) + 'บิลอื่นที่ไซต์เดียวกัน — ติ๊กถ้าจะไปพร้อมกัน';
     $('lblDays').innerHTML = stepNo(++n) + 'วันที่ส่ง';
-    $('lblDriver').innerHTML = stepNo(++n) + 'ทะเบียนรถ';
+    $('lblDriver').innerHTML = stepNo(++n) + 'คนขับ';
+    $('lblPlate').innerHTML = stepNo(++n) + 'ทะเบียนรถ <span style="font-weight:400;color:#8A8A85">(เติมรถประจำให้ เปลี่ยนได้)</span>';
     $('lblPlan').innerHTML = stepNo(++n) + 'แผนของรถคันนี้ — กด + เพื่อลงคิว';
     $('switchModeBtn').textContent = (d.plan && !d.plan.released) ? '⚡ ไม่รอคิวแล้ว · เปลี่ยนเป็นงานด่วน ส่งการ์ดทันที' : '⚡ เปลี่ยนเป็นงานด่วน · ส่งการ์ดทันที';
     $('addTruck2Btn').textContent = '➕ เพิ่มรถคันที่ 2';
     $('truck2Hint').classList.add('hide');
   } else if (mode === 'urgent') {
     $('lblDriver').innerHTML = stepNo(++n) + 'คนขับ · ทะเบียนรถ';
+    $('lblPlate').textContent = 'ทะเบียนรถ';
     $('lblSib').innerHTML = '🔗 บิลอื่นที่ไซต์เดียวกัน — ติ๊กถ้าจะไปพร้อมกัน';
     $('lblPhone').innerHTML = stepNo(++n) + 'โทรหาหน้างาน';
     $('lblNote').innerHTML = 'หมายเหตุคนจัดเที่ยวรถ (บังคับกรอกถ้าโทรไม่ติด)';
@@ -1876,6 +1887,7 @@ function renderMode(d) {
     $('addTruck2Btn').textContent = '➕ เพิ่มรถคันที่ 2';
     $('truck2Hint').classList.add('hide');
     $('lblDriver').innerHTML = 'คนขับ';
+    $('lblPlate').textContent = 'ทะเบียนรถ';
     $('lblPlan').innerHTML = 'แผนเที่ยวรถ';
     $('lblPhone').innerHTML = 'เบอร์ติดต่อหน้างาน';
     $('lblNote').innerHTML = 'หมายเหตุคนจัดเที่ยวรถ (บันทึกแยกได้ ไม่ต้องรอปิดงาน)';
@@ -1885,7 +1897,7 @@ function renderMode(d) {
     syncConfirmGate();
   }
   // ตัวเลือกคนขับ: ทางลงคิวให้เห็นทะเบียนก่อน (เลือกรถ) · ทางอื่นเห็นชื่อก่อน (เลือกคน)
-  fillDriverOptions(mode === 'plan');
+  fillDriverOptions(false);   // เลือกคนก่อน ทะเบียนแยกช่อง (9 ต.ค. 2569)
   return mode;
 }
 
@@ -1943,7 +1955,7 @@ function planOfDocFrom(p, doc) {
   for (var i = 0; i < dv.trips.length; i++) {
     for (var k = 0; k < dv.trips[i].docs.length; k++) {
       if (dv.trips[i].docs[k].doc === doc) {
-        return { driver: dv.driver, plate: dv.plate, date: p.date, trip: dv.trips[i].trip, released: dv.trips[i].released,
+        return { driver: dv.driver, plate: dv.trips[i].plate || dv.plate, date: p.date, trip: dv.trips[i].trip, released: dv.trips[i].released,
                  driver2: dv.trips[i].driver2 || '', plate2: dv.trips[i].plate2 || '' };
       }
     }
@@ -2014,7 +2026,7 @@ function renderPlannedView() {
   var d = state.doc, pl = d.plan, p = state.docPlan;
   var t = p ? plannedTrip() : null;
   var tripNo = t ? t.trip : pl.trip;
-  var plate = pl.plate || defaultPlate(pl.driver);
+  var plate = (t && t.plate) || pl.plate || defaultPlate(pl.driver);
   var html = '<div class="pv-head">🗓️ ลงคิวไว้แล้ว · ยังไม่ส่งการ์ดถึงคนขับ</div>' +
     '<div class="pv-row"><span class="k">วันที่ส่ง</span><span class="v">' + esc(dayLabel(pl.date)) + '</span></div>' +
     '<div class="pv-row"><span class="k">รถ</span><span class="v">' + esc((plate ? plate + ' · ' : '') + pl.driver) + '</span></div>' +
@@ -2083,6 +2095,12 @@ function planAssists() {
   return (p && p.drivers && p.drivers[0] && p.drivers[0].assists) || [];
 }
 
+/* บรรทัดทะเบียน — โชว์เฉพาะเที่ยวที่ใช้รถไม่ใช่รถประจำของคนขับ */
+function plateLine(t, drv) {
+  if (!t.plate || t.plate === defaultPlate(drv)) return '';
+  return '<div class="t2">🚛 ใช้รถ ' + esc(t.plate) + '</div>';
+}
+
 /* บรรทัด "+ คันที่ 2" ใต้จุดส่งของเที่ยว */
 function truck2Line(t) {
   if (!t.driver2) return '';
@@ -2147,7 +2165,7 @@ function renderDocPlan() {
     }
     html += '<div class="trip-row' + (t.released ? ' released' : '') + (mine ? ' mine' : '') + '">' +
               '<div class="trip-no">เที่ยว ' + t.trip + '</div>' +
-              '<div class="trip-body">' + stops + truck2Line(t) + (sub ? '<div class="tsub">' + sub + '</div>' : '') + '</div>' +
+              '<div class="trip-body">' + stops + plateLine(t, drv) + truck2Line(t) + (sub ? '<div class="tsub">' + sub + '</div>' : '') + '</div>' +
               '<div class="trip-act">' + act + '</div>' +
             '</div>';
   });
@@ -2162,7 +2180,11 @@ function renderDocPlan() {
     var mineT = null;
     trips.forEach(function (t) { if (!t.released && tripHasDoc(t, d.doc)) mineT = t; });
     state.truck2Trip = mineT ? mineT.trip : 0;
-    if (mineT) syncTruck2FromTrip(mineT);
+    if (mineT) {
+      syncTruck2FromTrip(mineT);
+      $('dPlateInput').value = mineT.plate || defaultPlate(drv);
+      updatePlateHint();
+    }
     else { $('truck2Hint').classList.add('hide'); }
   }
 
@@ -2278,6 +2300,21 @@ function planSaveTruck2() {
   api('dsp_plantruck2', { driver: drv, date: state.docPlanDate, trip: state.truck2Trip,
                           driver2: d2, plate2: plate2, by: state.profile.displayName })
     .then(function (p) { applyPlanResult(p, d2 ? ('เที่ยว ' + state.truck2Trip + ' ไป 2 คันแล้ว: + ' + d2) : 'เที่ยวนี้ไปคันเดียวแล้วค่ะ', true); })
+    .catch(function (e) { setPlanBusy(''); toast(e.message, true); renderDocPlan(); });
+}
+
+/* บิลลงคิวไว้แล้ว เปลี่ยนทะเบียน → บันทึกให้ทั้งเที่ยวทันที */
+function planSavePlate() {
+  var d = state.doc;
+  if (!d || docMode(d) !== 'plan' || !state.truck2Trip) return;
+  var t = planTrips()[state.truck2Trip - 1];
+  var plate = currentPlate();
+  if (!t || (t.plate || '') === plate) return;
+  if (!plate) { toast('กรุณาใส่ทะเบียนรถค่ะ', true); return; }
+  if (state.planBusy) return;
+  setPlanBusy('กำลังบันทึกทะเบียนรถ…');
+  api('dsp_planplate', { driver: currentPlanDriver(), date: state.docPlanDate, trip: state.truck2Trip, plate: plate, by: state.profile.displayName })
+    .then(function (p) { applyPlanResult(p, 'เที่ยว ' + state.truck2Trip + ' ใช้รถ ' + plate + ' แล้วค่ะ', true); })
     .catch(function (e) { setPlanBusy(''); toast(e.message, true); renderDocPlan(); });
 }
 
@@ -2408,7 +2445,7 @@ function drawPlanTab() {
         '<button data-mv="1" data-drv="' + esc(dv.driver) + '" data-trip="' + t.trip + '"' + (ti === dv.trips.length - 1 || dv.trips[ti + 1].released ? ' disabled style="opacity:.3"' : '') + '>▼</button>';
       rows += '<div class="trip-row' + (t.released ? ' released' : '') + '" data-open="' + esc(t.docs[0].doc) + '">' +
                 '<div class="trip-no">เที่ยว ' + t.trip + '</div>' +
-                '<div class="trip-body">' + stops + truck2Line(t) + '<div class="tsub">' + esc(sub) + '</div></div>' +
+                '<div class="trip-body">' + stops + plateLine(t, dv.driver) + truck2Line(t) + '<div class="tsub">' + esc(sub) + '</div></div>' +
                 '<div class="trip-act">' + act + '</div>' +
               '</div>';
     });
@@ -2497,7 +2534,8 @@ document.addEventListener('DOMContentLoaded', function () {
   $('planList').addEventListener('click', onPlanTabClick);
   $('sheetBg').addEventListener('click', function (ev) { if (ev.target === this) closeSheet(); });
   $('dPlateInput').addEventListener('input', updatePlateHint);
-  $('usePlateBtn').addEventListener('click', useDefaultPlate);
+  $('dPlateInput').addEventListener('change', planSavePlate);
+  $('usePlateBtn').addEventListener('click', function () { useDefaultPlate(); planSavePlate(); });
   $('addTruck2Btn').addEventListener('click', function () { showTruck2(true); updatePlate2Hint(); });
   $('removeTruck2Btn').addEventListener('click', function () { removeTruck2(); planSaveTruck2(); });
   $('dDriver2').addEventListener('change', function () { onDriver2Change(); planSaveTruck2(); });
