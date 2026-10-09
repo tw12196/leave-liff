@@ -278,6 +278,13 @@
   .drv-card .dc-sub { font-size: 11.5px; color: #8A8A85; }
   .drv-card .trip-row { cursor: pointer; }
 
+  .more-toggle {
+    width: 100%; text-align: left; background: #fff; border: 1px solid #E4E1D8; border-radius: 10px;
+    padding: 12px 14px; font-size: 13.5px; font-weight: 600; color: #1D3557; cursor: pointer;
+    font-family: inherit; margin-bottom: 12px;
+  }
+  .more-toggle small { display: block; font-weight: 400; font-size: 11.5px; color: #8A8A85; margin-top: 2px; }
+
   .hide { display: none !important; }
   .divider { height: 1px; background: #E4E1D8; margin: 16px 0; }
   .success-icon { font-size: 46px; text-align: center; margin: 18px 0 6px; }
@@ -413,77 +420,83 @@
       <button class="link-btn hide" id="usePlateBtn">↩ ใช้ทะเบียนรถประจำ</button>
     </div>
 
-    <!-- 🗓️ แผนเที่ยวรถ (9 ต.ค. 2569): เลือกวัน → เห็นแผนของคนขับวันนั้น → กด + เพื่อลงคิว -->
-    <div id="planSection" class="hide">
-      <div class="field" style="margin-bottom:8px;">
-        <label>วันที่ส่ง</label>
-        <div class="daychips" id="docDays"></div>
-      </div>
-      <div class="plan-box" id="docPlanBox"></div>
-    </div>
-
-    <!-- รถคันที่ 2 — ใบเดียวของเยอะ แบ่งใส่ 2 คัน ออกพร้อมกันไปที่เดียวกัน -->
-    <button class="btn ghost" id="addTruck2Btn" style="margin-bottom:14px;">➕ เพิ่มรถคันที่ 2</button>
-    <div id="truck2Box" class="hide">
-      <div class="field">
-        <label>คนขับคันที่ 2</label>
-        <select id="dDriver2"><option value="">— เลือกคนขับคันที่ 2 —</option></select>
-      </div>
-      <div class="field">
-        <label>ทะเบียนรถคันที่ 2</label>
-        <input id="dPlate2Input" placeholder="เช่น 82-8487" />
-        <div class="sub" id="dPlate2"></div>
-        <button class="link-btn" id="removeTruck2Btn">✕ ไม่ใช้รถคันที่ 2 แล้ว</button>
-      </div>
-    </div>
-
     <!-- 📦 ใบอื่นไซต์เดียวกัน รอจัดคิว — เลือกจัดคิวไปพร้อมกันได้เลย (v137 แทนปุ่มเชื่อมเที่ยวแบบเดิม) -->
     <div class="field hide sib-card" id="siblingCard">
       <div class="sib-intro">🔗 เลือกเลขบิลที่ผูกไซต์เดียวกัน และจะไปส่งพร้อมกันกับบิลนี้</div>
       <div id="siblingList"></div>
     </div>
-
-    <!-- เบอร์ติดต่อ + ปุ่มโทร -->
-    <div class="field">
-      <label>เบอร์ติดต่อหน้างาน</label>
-      <div class="phone-row">
-        <input id="dPhone" inputmode="tel" placeholder="081-234-5678" />
-        <button class="call-btn" id="callBtn" title="โทรเลย">📞</button>
+    <!-- 🗓️ แผนเที่ยวรถ (9 ต.ค. 2569): เลือกวัน → เห็นแผนของคนขับวันนั้น → กด + เพื่อลงคิว -->
+    <div id="planSection" class="hide">
+      <div class="field" id="docDaysField" style="margin-bottom:8px;">
+        <label>วันที่ส่ง</label>
+        <div class="daychips" id="docDays"></div>
       </div>
-      <div class="call-log muted" id="dCallLog">ยังไม่ได้กดโทร</div>
+      <div class="plan-box" id="docPlanBox"></div>
     </div>
-
-    <div class="callresult" id="dCallResult">
-      <div class="cr-label">ผลการโทรหาลูกค้า (ต้องเลือก 1 ข้อ)</div>
-      <label class="cr-opt cr-ok" for="crConfirmed">
-        <input type="radio" name="callResult" value="confirmed" id="crConfirmed" />
-        <span>✅ โทรคอนเฟิร์มกับลูกค้าแล้ว</span>
-      </label>
-      <label class="cr-opt cr-warn" for="crNoAnswer">
-        <input type="radio" name="callResult" value="noanswer" id="crNoAnswer" />
-        <span>📵 โทรไม่ติด / ติดต่อลูกค้าไม่ได้</span>
-      </label>
-    </div>
-    <div class="need-confirm hide" id="dNeedConfirm">
-      ☝️ ต้องเลือกผลการโทรก่อน ถึงจะบันทึกคิวรถได้ค่ะ
-    </div>
-
-    <!-- หมายเหตุคนจัดเที่ยวรถ -->
-    <div class="field">
-      <label>หมายเหตุคนจัดเที่ยวรถ (บันทึกแยกได้ ไม่ต้องรอปิดงาน)</label>
-      <div class="note-row">
-        <textarea id="dDspNote" placeholder="เช่น โทรแล้ว หน้างานเข้าไม่ได้ ฝนตก รอเช็คพรุ่งนี้"></textarea>
-        <button class="note-save-btn" id="saveNoteBtn">บันทึก</button>
-      </div>
-      <div class="sub" id="dDspNoteHistory"></div>
-    </div>
-
     <div class="card self hide" id="dSelfPickCard">
       <div class="label">ลูกค้าเปลี่ยนเป็นมารับเอง</div>
       <div class="sub" id="dSelfPickInfo"></div>
     </div>
 
-    <button class="btn" id="saveQueueBtn">บันทึกคิวรถ</button>
+    <!-- งานด่วน / แก้ไขคิวรถ — พับไว้ก่อน ให้หน้าบิลสั้นลง (9 ต.ค. 2569 พี่บุ้งกี๋: "หน้านี้ข้อมูลเยอะมาก") -->
+    <button class="more-toggle" id="moreToggle"></button>
+    <div id="moreWrap" class="hide">
+
+      <!-- รถคันที่ 2 — ใบเดียวของเยอะ แบ่งใส่ 2 คัน ออกพร้อมกันไปที่เดียวกัน -->
+      <button class="btn ghost" id="addTruck2Btn" style="margin-bottom:14px;">➕ เพิ่มรถคันที่ 2</button>
+      <div id="truck2Box" class="hide">
+        <div class="field">
+          <label>คนขับคันที่ 2</label>
+          <select id="dDriver2"><option value="">— เลือกคนขับคันที่ 2 —</option></select>
+        </div>
+        <div class="field">
+          <label>ทะเบียนรถคันที่ 2</label>
+          <input id="dPlate2Input" placeholder="เช่น 82-8487" />
+          <div class="sub" id="dPlate2"></div>
+          <button class="link-btn" id="removeTruck2Btn">✕ ไม่ใช้รถคันที่ 2 แล้ว</button>
+        </div>
+      </div>
+
+
+      <!-- เบอร์ติดต่อ + ปุ่มโทร -->
+      <div class="field">
+        <label>เบอร์ติดต่อหน้างาน</label>
+        <div class="phone-row">
+          <input id="dPhone" inputmode="tel" placeholder="081-234-5678" />
+          <button class="call-btn" id="callBtn" title="โทรเลย">📞</button>
+        </div>
+        <div class="call-log muted" id="dCallLog">ยังไม่ได้กดโทร</div>
+      </div>
+
+      <div class="callresult" id="dCallResult">
+        <div class="cr-label">ผลการโทรหาลูกค้า (ต้องเลือก 1 ข้อ)</div>
+        <label class="cr-opt cr-ok" for="crConfirmed">
+          <input type="radio" name="callResult" value="confirmed" id="crConfirmed" />
+          <span>✅ โทรคอนเฟิร์มกับลูกค้าแล้ว</span>
+        </label>
+        <label class="cr-opt cr-warn" for="crNoAnswer">
+          <input type="radio" name="callResult" value="noanswer" id="crNoAnswer" />
+          <span>📵 โทรไม่ติด / ติดต่อลูกค้าไม่ได้</span>
+        </label>
+      </div>
+      <div class="need-confirm hide" id="dNeedConfirm">
+        ☝️ ต้องเลือกผลการโทรก่อน ถึงจะบันทึกคิวรถได้ค่ะ
+      </div>
+
+      <!-- หมายเหตุคนจัดเที่ยวรถ -->
+      <div class="field">
+        <label>หมายเหตุคนจัดเที่ยวรถ (บันทึกแยกได้ ไม่ต้องรอปิดงาน)</label>
+        <div class="note-row">
+          <textarea id="dDspNote" placeholder="เช่น โทรแล้ว หน้างานเข้าไม่ได้ ฝนตก รอเช็คพรุ่งนี้"></textarea>
+          <button class="note-save-btn" id="saveNoteBtn">บันทึก</button>
+        </div>
+        <div class="sub" id="dDspNoteHistory"></div>
+      </div>
+
+
+      <button class="btn" id="saveQueueBtn">บันทึกคิวรถ</button>
+
+    </div>
 
     <div class="selfpick-row hide" id="unqueueRow">
       <button class="selfpick-link" id="unqueueBtn">↩️ ยกเลิกการจัดคิวรถ</button>
@@ -957,6 +970,7 @@ function rememberDoc(doc) {
 
 function openDoc(doc) {
   rememberDoc(doc);
+  state.moreOpen = false;   // เปิดบิลใหม่ = พับส่วนงานด่วน/หมายเหตุไว้ก่อน
   state.docPlanFor = '';   // เปิดบิลใหม่ = เลือกวันที่เริ่มต้นใหม่ตามบิลนั้น
   show('doc');
   $('dDoc').textContent = doc;
@@ -1745,15 +1759,43 @@ function applyPlanResult(p, msg) {
   state.docPlanWant = currentPlanDriver() + '|' + state.docPlanDate;
   state.doc.plan = planOfDocFrom(p, state.doc.doc);
   setPlanBusy('');
+  // บิลไซต์เดียวกันที่เพิ่งลงคิวไปพร้อมกัน ไม่ต้องโชว์ให้ติ๊กซ้ำ
+  var inPlan = {};
+  ((p && p.drivers && p.drivers[0] && p.drivers[0].trips) || []).forEach(function (t) {
+    t.docs.forEach(function (x) { inPlan[x.doc] = true; });
+  });
+  state.doc.siteSiblings = (state.doc.siteSiblings || []).filter(function (o) { return !inPlan[o.doc]; });
+  renderSiteSiblings(state.doc);
   applyPlanControls(state.doc);
+  renderMore(state.doc);
   renderDocPlan();
   if (msg) toast(msg);
   loadQueue();   // รีเฟรชรายการด้านหลังเงียบๆ ไม่ต้องรอ
 }
 
+/* ส่วนที่พับไว้ (งานด่วน / แก้ไขคิว / หมายเหตุ) — ข้อความหัวเปลี่ยนตามสถานะบิล ให้รู้ว่าข้างในมีอะไร */
+function renderMore(d) {
+  var released = !!d.driver;
+  var planned = !!(d.plan && !d.plan.released && !released);
+  var t, sub;
+  if (released)     { t = '✏️ แก้ไขคิวรถ / ส่งการ์ดใหม่'; sub = 'เปลี่ยนคนขับ · รถคันที่ 2 · เบอร์หน้างาน · หมายเหตุ'; }
+  else if (planned) { t = '📝 หมายเหตุ / เบอร์หน้างาน';   sub = 'การโทรก่อนรถออก ทำตอนกด “ปล่อยเที่ยว” ด้านบน'; }
+  else              { t = '⚡ งานด่วน: ส่งการ์ดทันทีโดยไม่ลงคิว'; sub = 'รถคันที่ 2 · โทรหน้างาน · หมายเหตุ'; }
+  var open = !!state.moreOpen;
+  $('moreToggle').innerHTML = esc(t) + (open ? ' ▴' : ' ▾') + '<small>' + esc(sub) + '</small>';
+  $('moreWrap').classList.toggle('hide', !open);
+  // รถคันที่ 2 ใช้ได้เฉพาะทางลัดงานด่วน/แก้ไขคิว (แผนยังไม่รองรับ 2 คัน)
+  if (planned) $('addTruck2Btn').classList.add('hide');
+  else if ($('truck2Box').classList.contains('hide')) $('addTruck2Btn').classList.remove('hide');
+  // ปล่อยแล้ว: ไม่ต้องเลือกวัน/บิลไซต์เดียวกันอีก เหลือแค่ดูแผน
+  $('docDaysField').classList.toggle('hide', released);
+  if (released) $('siblingCard').classList.add('hide');
+}
+
 function renderPlanSection(d) {
   var usable = !!(d && d.found !== false && d.site && String(d.site).trim() && !d.selfPickup && !d.cancelled);
   $('planSection').classList.toggle('hide', !usable);
+  renderMore(d);
   // บิลที่ลงคิวไว้ (ยังไม่ปล่อย) ใช้ปุ่มปล่อยเที่ยวในกล่องแผนแทน — ซ่อนผลการโทร/ปุ่มบันทึกคิวรถแบบเดิม กันกดผิดทาง
   applyPlanControls(d);
   if (!usable) return;
@@ -2109,6 +2151,7 @@ document.addEventListener('DOMContentLoaded', function () {
   $('chooseSiteBtn').addEventListener('click', openSiteScreen);
   $('dDriver').addEventListener('change', function () { onDriverChange(); if (state.doc && !state.doc.driver) loadDocPlan(); });
   $('docPlanBox').addEventListener('click', onDocPlanClick);
+  $('moreToggle').addEventListener('click', function () { state.moreOpen = !state.moreOpen; if (state.doc) renderMore(state.doc); });
   $('docDays').addEventListener('click', function (ev) {
     var b = ev.target.closest && ev.target.closest('[data-day]');
     if (!b) return;
