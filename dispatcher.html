@@ -238,6 +238,9 @@
   .trip-body .tsub { font-size: 11px; color: #8A8A85; }
   .trip-row.released { opacity: .5; }
   .trip-row.mine { background: #FFF7D6; border-radius: 8px; padding: 9px 6px; margin: 2px -6px; }
+  .trip-body .t2 { font-size: 12px; color: #7A5200; font-weight: 600; }
+  .trip-row.assist { opacity: .85; }
+  .trip-row.assist .trip-no { background: #FCF0D8; color: #7A5200; }
   .trip-act { flex: none; display: flex; gap: 4px; }
   .trip-act button {
     width: 32px; height: 30px; border-radius: 8px; border: 1px solid #D8D5CB; background: #fff;
@@ -465,6 +468,7 @@
       <!-- รถคันที่ 2 (งานด่วน/แก้ไขคิวเท่านั้น) -->
       <div class="fb" id="bTruck2">
         <button class="btn ghost" id="addTruck2Btn" style="margin-bottom:14px;">➕ เพิ่มรถคันที่ 2</button>
+        <div class="sub hide" id="truck2Hint" style="margin:-8px 0 12px"></div>
         <div id="truck2Box" class="hide">
           <div class="field">
             <label>คนขับคันที่ 2</label>
@@ -1768,7 +1772,7 @@ function docMode(d) {
 }
 
 var FLOW_ORDER = {
-  plan:   ['siblingCard', 'docDaysField', 'bDriver', 'planSection', 'bSwitch'],
+  plan:   ['siblingCard', 'docDaysField', 'bDriver', 'bTruck2', 'planSection', 'bSwitch'],
   urgent: ['bDriver', 'bPlate', 'bTruck2', 'siblingCard', 'bPhone', 'bCall', 'bNote', 'bSave', 'bSwitch'],
   view:   ['bDriver', 'planSection', 'bEdit'],
   viewOpen: ['bDriver', 'planSection', 'bEdit', 'bPlate', 'bTruck2', 'bPhone', 'bCall', 'bNote', 'bSave']
@@ -1802,6 +1806,8 @@ function renderMode(d) {
     $('lblDriver').innerHTML = stepNo(++n) + 'ทะเบียนรถ';
     $('lblPlan').innerHTML = stepNo(++n) + 'แผนของรถคันนี้ — กด + เพื่อลงคิว';
     $('switchModeBtn').textContent = '⚡ เปลี่ยนเป็นงานด่วน · ส่งการ์ดทันที';
+    $('addTruck2Btn').textContent = '➕ เที่ยวนี้ต้องไป 2 คัน? เพิ่มรถคันที่ 2';
+    $('truck2Hint').classList.add('hide');
   } else if (mode === 'urgent') {
     $('lblDriver').innerHTML = stepNo(++n) + 'คนขับ · ทะเบียนรถ';
     $('lblSib').innerHTML = '🔗 บิลอื่นที่ไซต์เดียวกัน — ติ๊กถ้าจะไปพร้อมกัน';
@@ -1809,8 +1815,12 @@ function renderMode(d) {
     $('lblNote').innerHTML = 'หมายเหตุคนจัดเที่ยวรถ (บังคับกรอกถ้าโทรไม่ติด)';
     $('switchModeBtn').textContent = '🗓️ เปลี่ยนเป็นลงคิวรอไว้';
     $('saveQueueBtn').textContent = '⚡ บันทึกคิวรถ · ส่งการ์ดทันที';
+    $('addTruck2Btn').textContent = '➕ เพิ่มรถคันที่ 2';
+    $('truck2Hint').classList.add('hide');
     syncConfirmGate();
   } else {   // view
+    $('addTruck2Btn').textContent = '➕ เพิ่มรถคันที่ 2';
+    $('truck2Hint').classList.add('hide');
     $('lblDriver').innerHTML = 'คนขับ';
     $('lblPlan').innerHTML = 'แผนเที่ยวรถ';
     $('lblPhone').innerHTML = 'เบอร์ติดต่อหน้างาน';
@@ -1836,6 +1846,14 @@ function fillDriverOptions(plateFirst) {
   }
   opts[0].textContent = plateFirst ? '— เลือกรถ —' : '— เลือกคนขับ —';
   sel.value = cur;
+  var sel2 = $('dDriver2'), cur2 = sel2.value, o2 = sel2.querySelectorAll('option');
+  for (var k = 1; k < o2.length; k++) {
+    var dv2 = driverInfo(o2[k].value);
+    if (!dv2) continue;
+    o2[k].textContent = (plateFirst && dv2.plate) ? (dv2.plate + '  ·  ' + dv2.name) : (dv2.name + (dv2.plate ? ('  ·  ' + dv2.plate) : ''));
+  }
+  o2[0].textContent = plateFirst ? '— เลือกรถคันที่ 2 —' : '— เลือกคนขับคันที่ 2 —';
+  sel2.value = cur2;
 }
 
 function setMode(m) {
@@ -1871,7 +1889,8 @@ function planOfDocFrom(p, doc) {
   for (var i = 0; i < dv.trips.length; i++) {
     for (var k = 0; k < dv.trips[i].docs.length; k++) {
       if (dv.trips[i].docs[k].doc === doc) {
-        return { driver: dv.driver, plate: dv.plate, date: p.date, trip: dv.trips[i].trip, released: dv.trips[i].released };
+        return { driver: dv.driver, plate: dv.plate, date: p.date, trip: dv.trips[i].trip, released: dv.trips[i].released,
+                 driver2: dv.trips[i].driver2 || '', plate2: dv.trips[i].plate2 || '' };
       }
     }
   }
@@ -1879,7 +1898,7 @@ function planOfDocFrom(p, doc) {
 }
 
 /* หลังลงคิว/เอาออก: ใช้แผนที่ได้กลับมาวาดทันที — เดิมยิงซ้ำอีก 2 รอบ (dsp_doc + dsp_plan) ทำให้รอนาน 10 วิขึ้นไป */
-function applyPlanResult(p, msg) {
+function applyPlanResult(p, msg, keepJust) {
   state.docPlan = p;
   state.docPlanWant = currentPlanDriver() + '|' + state.docPlanDate;
   state.doc.plan = planOfDocFrom(p, state.doc.doc);
@@ -1892,7 +1911,7 @@ function applyPlanResult(p, msg) {
   state.doc.siteSiblings = (state.doc.siteSiblings || []).filter(function (o) { return !inPlan[o.doc]; });
   renderSiteSiblings(state.doc);
   $('dStatus').innerHTML = badgeHtml(shownStatus(state.doc));
-  state.justPlanned = state.doc.plan ? state.doc.doc : '';   // เพิ่งลงคิว = ยังไม่โชว์ปุ่มปล่อยเที่ยว (กันเข้าใจว่าต้องกดต่อทันที)
+  if (!keepJust) state.justPlanned = state.doc.plan ? state.doc.doc : '';   // เพิ่งลงคิว = ยังไม่โชว์ปุ่มปล่อยเที่ยว (กันเข้าใจว่าต้องกดต่อทันที)
   renderMode(state.doc);
   renderDocPlan();
   if (msg) toast(msg);
@@ -1940,6 +1959,39 @@ function planTrips() {
   return (p && p.drivers && p.drivers[0] && p.drivers[0].trips) || [];
 }
 
+function planAssists() {
+  var p = state.docPlan;
+  return (p && p.drivers && p.drivers[0] && p.drivers[0].assists) || [];
+}
+
+/* บรรทัด "+ คันที่ 2" ใต้จุดส่งของเที่ยว */
+function truck2Line(t) {
+  if (!t.driver2) return '';
+  return '<div class="t2">🚚+ คันที่ 2: ' + esc(t.driver2) + (t.plate2 ? (' · ' + esc(t.plate2)) : '') + '</div>';
+}
+
+/* แถวอ่านอย่างเดียว: คนขับคนนี้ไปเป็นรถคันที่ 2 ให้เที่ยวของคนอื่น */
+function assistRowHtml(a, openable) {
+  return '<div class="trip-row assist' + (a.released ? ' released' : '') + '"' + (openable ? (' data-open="' + esc(a.docs[0]) + '"') : '') + '>' +
+           '<div class="trip-no">ช่วย</div>' +
+           '<div class="trip-body"><div class="stop">🤝 คันที่ 2 ของ ' + esc(a.driver) + ' เที่ยว ' + a.trip + '</div>' +
+             '<div class="tsub">📍 ' + esc(a.sites.join(', ')) + (a.released ? ' · ปล่อยแล้ว' : '') + '</div></div>' +
+           '<div class="trip-act"></div>' +
+         '</div>';
+}
+
+/* ช่องรถคันที่ 2 ให้ตรงกับเที่ยวที่บิลนี้อยู่ (ทางลงคิว) */
+function syncTruck2FromTrip(t) {
+  var d2 = (t && t.driver2) || '';
+  $('dDriver2').value = d2;
+  $('dPlate2Input').value = d2 ? (t.plate2 || defaultPlate(d2)) : '';
+  showTruck2(!!d2);
+  updatePlate2Hint();
+  var hint = $('truck2Hint');
+  hint.textContent = t ? ('ใช้กับทั้งเที่ยว ' + t.trip + ' · เลือก/เปลี่ยนแล้วบันทึกให้ทันที') : '';
+  hint.classList.toggle('hide', !t || !!d2);
+}
+
 function tripHasDoc(t, doc) {
   for (var i = 0; i < t.docs.length; i++) if (t.docs[i].doc === doc) return true;
   return false;
@@ -1976,13 +2028,23 @@ function renderDocPlan() {
     }
     html += '<div class="trip-row' + (t.released ? ' released' : '') + (mine ? ' mine' : '') + '">' +
               '<div class="trip-no">เที่ยว ' + t.trip + '</div>' +
-              '<div class="trip-body">' + stops + (sub ? '<div class="tsub">' + sub + '</div>' : '') + '</div>' +
+              '<div class="trip-body">' + stops + truck2Line(t) + (sub ? '<div class="tsub">' + sub + '</div>' : '') + '</div>' +
               '<div class="trip-act">' + act + '</div>' +
             '</div>';
   });
 
+  planAssists().forEach(function (a) { html += assistRowHtml(a, false); });
+
   if (!locked) {
     html += '<button class="add-trip" data-act="new">+ เพิ่มเที่ยว ' + (trips.length + 1) + '</button>';
+  }
+  // ทางลงคิว: บิลนี้อยู่ในเที่ยวที่ยังไม่ปล่อย → ช่องรถคันที่ 2 แสดงค่าของเที่ยวนั้น
+  if (!locked && docMode(d) === 'plan') {
+    var mineT = null;
+    trips.forEach(function (t) { if (!t.released && tripHasDoc(t, d.doc)) mineT = t; });
+    state.truck2Trip = mineT ? mineT.trip : 0;
+    if (mineT) syncTruck2FromTrip(mineT);
+    else { $('truck2Hint').classList.add('hide'); }
   }
 
   // แถบสถานะ: บิลนี้อยู่ตรงไหนของแผน (อาจอยู่คนละวัน/คนละคนกับที่กำลังดู)
@@ -2002,8 +2064,9 @@ function renderDocPlan() {
   // (เพิ่งลงคิวแล้วปุ่มส้มโผล่ทันที คนจัดงานเข้าใจว่าต้องกดต่อ — พี่บุ้งกี๋ 9 ต.ค. 2569)
   if (!locked && mineTrip) {
     if (p.isToday && state.justPlanned !== d.doc) {
+      var mt = trips[mineTrip - 1] || {};
       html += '<button class="btn orange" data-act="release" data-trip="' + mineTrip + '" style="margin-top:10px">' +
-              '🚚 รถพร้อมออก: ปล่อยเที่ยว ' + mineTrip + '<br><span style="font-weight:400;font-size:12.5px">โทรหน้างาน → ส่งการ์ดให้คนขับ</span></button>';
+              '🚚 รถพร้อมออก: ปล่อยเที่ยว ' + mineTrip + (mt.driver2 ? ' (2 คัน)' : '') + '<br><span style="font-weight:400;font-size:12.5px">โทรหน้างาน → ส่งการ์ดให้คนขับ</span></button>';
     } else {
       html += '<div class="sub" style="margin-top:8px;color:#6B6B68">ยังไม่ส่งการ์ดถึงคนขับ · ' +
               (p.isToday ? 'ตอนรถจะออก เข้าบิลนี้จากแท็บ “ลงคิว” แล้วกดปล่อยเที่ยว'
@@ -2066,15 +2129,45 @@ function planAdd(mode, tripNo) {
   if (!drv) { toast('กรุณาเลือกคนขับก่อนค่ะ', true); return; }
   if (state.planBusy) return;
   setPlanBusy('กำลังลงคิว… รอสักครู่นะคะ อย่าเพิ่งกดซ้ำ');
-  api('dsp_planadd', {
+  var drv2 = truck2Payload().driver2;
+  if (drv2 && drv2 === drv) { setPlanBusy(''); toast('รถคันที่ 2 ต้องไม่ใช่คันเดียวกับคันแรกค่ะ', true); return; }
+  api('dsp_planadd', Object.assign({
     doc: d.doc, docs: selectedSiblingDocs(), driver: drv, plate: currentPlate(),
     date: state.docPlanDate, mode: mode, trip: tripNo, by: state.profile.displayName
-  }).then(function (p) {
+  }, truck2Payload())).then(function (p) {
     var msg = { 'new': 'ลงคิวเป็นเที่ยวใหม่แล้วค่ะ', join: 'รวมเข้าเที่ยว ' + tripNo + ' แล้วค่ะ',
                 insert: 'แทรกเป็นเที่ยว ' + tripNo + ' แล้วค่ะ', replace: 'แทนเที่ยว ' + tripNo + ' แล้วค่ะ' }[mode];
     if (p && p.replacedDocs && p.replacedDocs.length) msg += ' · ' + p.replacedDocs.join(', ') + ' กลับไปรอจัดคิว';
     applyPlanResult(p, msg);
   }).catch(function (e) { setPlanBusy(''); toast(e.message, true); });
+}
+
+/* รถคันที่ 2 ที่เลือกไว้ในช่อง (ทางลงคิว) — ปิดกล่องอยู่ = ไม่ส่ง (รวมเที่ยวจะใช้คันที่ 2 ของเที่ยวเดิม) */
+function truck2Payload() {
+  if ($('truck2Box').classList.contains('hide')) return {};
+  var d2 = $('dDriver2').value || '';
+  if (!d2) return {};
+  return { driver2: d2, plate2: ($('dPlate2Input').value || '').trim() };
+}
+
+/* บิลลงคิวไว้แล้ว เปลี่ยน/ล้างรถคันที่ 2 → บันทึกให้ทั้งเที่ยวทันที */
+function planSaveTruck2() {
+  var d = state.doc;
+  if (!d || docMode(d) !== 'plan' || !state.truck2Trip) return;
+  var open = !$('truck2Box').classList.contains('hide');
+  var d2 = open ? ($('dDriver2').value || '') : '';
+  if (open && !d2) return;   // เพิ่งกดเพิ่ม ยังไม่ได้เลือกคน — รอเลือกก่อน
+  var drv = currentPlanDriver();
+  if (d2 && d2 === drv) { toast('รถคันที่ 2 ต้องไม่ใช่คันเดียวกับคันแรกค่ะ', true); return; }
+  var t = planTrips()[state.truck2Trip - 1];
+  var plate2 = d2 ? (($('dPlate2Input').value || '').trim()) : '';
+  if (t && (t.driver2 || '') === d2 && (t.plate2 || '') === plate2) return;
+  if (state.planBusy) return;
+  setPlanBusy(d2 ? 'กำลังบันทึกรถคันที่ 2…' : 'กำลังเอารถคันที่ 2 ออก…');
+  api('dsp_plantruck2', { driver: drv, date: state.docPlanDate, trip: state.truck2Trip,
+                          driver2: d2, plate2: plate2, by: state.profile.displayName })
+    .then(function (p) { applyPlanResult(p, d2 ? ('เที่ยว ' + state.truck2Trip + ' ไป 2 คันแล้ว: + ' + d2) : 'เที่ยวนี้ไปคันเดียวแล้วค่ะ', true); })
+    .catch(function (e) { setPlanBusy(''); toast(e.message, true); renderDocPlan(); });
 }
 
 function planRemove() {
@@ -2092,7 +2185,9 @@ function openReleaseSheet(tripNo) {
   var t = planTrips()[tripNo - 1];
   if (!t) return;
   var drv = currentPlanDriver();
-  var html = '<div class="sheet-title">ปล่อยเที่ยว ' + tripNo + ' · ' + esc(drv) + '</div>' +
+  var who = drv + (t.driver2 ? (' + ' + t.driver2) : '');
+  var html = '<div class="sheet-title">ปล่อยเที่ยว ' + tripNo + ' · ' + esc(who) + '</div>' +
+             (t.driver2 ? '<div class="sheet-sub" style="color:#7A5200;font-weight:600">🚚 เที่ยวนี้ไป 2 คัน — การ์ดจะส่งถึงทั้ง ' + esc(drv) + ' และ ' + esc(t.driver2) + '</div>' : '') +
              '<div class="sheet-sub">โทรหาหน้างานทุกบิลก่อน แล้วบันทึกผลการโทร การ์ดจะส่งถึงคนขับ 1 ใบต่อเที่ยว</div>';
   t.docs.forEach(function (x, i) {
     var tel = (x.phone || '').replace(/[^0-9+]/g, '');
@@ -2107,7 +2202,7 @@ function openReleaseSheet(tripNo) {
               '<input class="reason hide" placeholder="จำเป็นต้องกรอก: โทรไม่ติดเพราะอะไร ตัดสินใจยังไงต่อ" />' +
             '</div>';
   });
-  html += '<button class="btn orange" id="relConfirmBtn">ยืนยันปล่อยเที่ยว ' + tripNo + ' · ส่งการ์ดให้ ' + esc(drv) + '</button>' +
+  html += '<button class="btn orange" id="relConfirmBtn">ยืนยันปล่อยเที่ยว ' + tripNo + ' · ส่งการ์ดให้ ' + esc(who) + '</button>' +
           '<button class="btn ghost" id="relCancelBtn" style="margin-top:8px">ยังไม่ปล่อย</button>';
   $('sheetBody').innerHTML = html;
   $('sheetBg').classList.remove('hide');
@@ -2127,10 +2222,11 @@ function openReleaseSheet(tripNo) {
     });
   }
   $('relCancelBtn').addEventListener('click', closeSheet);
-  $('relConfirmBtn').addEventListener('click', function () { doRelease(tripNo, drv); });
+  $('relConfirmBtn').addEventListener('click', function () { doRelease(tripNo, drv, who); });
 }
 
-function doRelease(tripNo, drv) {
+function doRelease(tripNo, drv, who) {
+  who = who || drv;
   var boxes = $('sheetBody').querySelectorAll('.rel-doc');
   var calls = {};
   for (var i = 0; i < boxes.length; i++) {
@@ -2154,11 +2250,11 @@ function doRelease(tripNo, drv) {
     closeSheet();
     var pr = res && res.pushResult;
     var relNo = (res && res.releasedTrip) || tripNo;
-    var msg = 'ปล่อยเที่ยว ' + relNo + ' แล้ว · ' + ((pr && pr.sent) ? 'ส่งการ์ดถึง ' + drv + ' แล้ว ✅' : ('การ์ดยังไม่ถึงคนขับ: ' + ((pr && pr.message) || '-')));
+    var msg = 'ปล่อยเที่ยว ' + relNo + ' แล้ว · ' + ((pr && pr.sent) ? 'ส่งการ์ดถึง ' + who + ' แล้ว ✅' : ('การ์ดยังไม่ถึงคนขับ: ' + ((pr && pr.message) || '-')));
     return refreshDocAfterPlan(msg);
   }).catch(function (e) {
     toast(e.message, true);
-    btn.disabled = false; btn.textContent = 'ยืนยันปล่อยเที่ยว ' + tripNo + ' · ส่งการ์ดให้ ' + drv;
+    btn.disabled = false; btn.textContent = 'ยืนยันปล่อยเที่ยว ' + tripNo + ' · ส่งการ์ดให้ ' + who;
   });
 }
 
@@ -2201,17 +2297,24 @@ function drawPlanTab() {
         '<button data-mv="1" data-drv="' + esc(dv.driver) + '" data-trip="' + t.trip + '"' + (ti === dv.trips.length - 1 || dv.trips[ti + 1].released ? ' disabled style="opacity:.3"' : '') + '>▼</button>';
       rows += '<div class="trip-row' + (t.released ? ' released' : '') + '" data-open="' + esc(t.docs[0].doc) + '">' +
                 '<div class="trip-no">เที่ยว ' + t.trip + '</div>' +
-                '<div class="trip-body">' + stops + '<div class="tsub">' + esc(sub) + '</div></div>' +
+                '<div class="trip-body">' + stops + truck2Line(t) + '<div class="tsub">' + esc(sub) + '</div></div>' +
                 '<div class="trip-act">' + act + '</div>' +
               '</div>';
     });
+    (dv.assists || []).forEach(function (a) {
+      if (q && !(a.docs.join(' ') + ' ' + a.sites.join(' ') + ' ' + a.driver).toLowerCase().includes(q)) return;
+      rows += assistRowHtml(a, true);
+    });
     if (!rows) return;
+    var nAs = (dv.assists || []).length;
     html += '<div class="drv-card"><div class="dc-head"><div class="dc-name">🚚 ' + esc(dv.driver) + '</div>' +
-            '<div class="dc-sub">' + esc(dv.plate || '') + ' · ' + dv.trips.length + ' เที่ยว' + (nRel ? (' · ปล่อยแล้ว ' + nRel) : '') + '</div></div>' +
+            '<div class="dc-sub">' + esc(dv.plate || driverPlate(dv.driver)) + ' · ' + dv.trips.length + ' เที่ยว' + (nAs ? (' · เป็นคันที่ 2 ให้อีก ' + nAs + ' เที่ยว') : '') + (nRel ? (' · ปล่อยแล้ว ' + nRel) : '') + '</div></div>' +
             rows + '</div>';
   });
   $('planList').innerHTML = html || '<div class="empty">ไม่พบรายการ</div>';
 }
+
+function driverPlate(name) { var dv = driverInfo(name); return (dv && dv.plate) || ''; }
 
 function onPlanTabClick(ev) {
   var mv = ev.target.closest && ev.target.closest('[data-mv]');
@@ -2282,9 +2385,10 @@ document.addEventListener('DOMContentLoaded', function () {
   $('dPlateInput').addEventListener('input', updatePlateHint);
   $('usePlateBtn').addEventListener('click', useDefaultPlate);
   $('addTruck2Btn').addEventListener('click', function () { showTruck2(true); updatePlate2Hint(); });
-  $('removeTruck2Btn').addEventListener('click', removeTruck2);
-  $('dDriver2').addEventListener('change', onDriver2Change);
+  $('removeTruck2Btn').addEventListener('click', function () { removeTruck2(); planSaveTruck2(); });
+  $('dDriver2').addEventListener('change', function () { onDriver2Change(); planSaveTruck2(); });
   $('dPlate2Input').addEventListener('input', updatePlate2Hint);
+  $('dPlate2Input').addEventListener('change', planSaveTruck2);
   $('callBtn').addEventListener('click', onCall);
   $('saveNoteBtn').addEventListener('click', onSaveNote);
   $('saveQueueBtn').addEventListener('click', onSaveQueue);
