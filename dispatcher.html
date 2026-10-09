@@ -2145,8 +2145,7 @@ function renderDocPlan() {
 
   // ปล่อยงานทำจากหน้าสรุปเท่านั้น (เปิดบิลที่ลงคิวแล้ว → ปุ่ม "ปล่อยงาน") — หน้านี้มีไว้ลงคิว/แก้คิวอย่างเดียว
   if (!locked && mineTrip) {
-    html += '<div class="sub" style="margin-top:8px;color:#6B6B68">ยังไม่ส่งการ์ดถึงคนขับ · ตอนรถจะออก เปิดบิลนี้แล้วกด “ปล่อยงาน”</div>' +
-            '<button class="btn ghost" data-act="summary" style="margin-top:10px">✅ เสร็จแล้ว · ดูสรุปคิว</button>';
+    html += '<div class="sub" style="margin-top:8px;color:#6B6B68">ยังไม่ส่งการ์ดถึงคนขับ · ตอนรถจะออก เปิดบิลนี้แล้วกด “ปล่อยงาน”</div>';
   }
 
   $('docPlanBox').innerHTML = html;
