@@ -866,28 +866,33 @@ function boot() {
       if (!p) return null;
       state.profile = { userId: p.userId || '', displayName: p.displayName || '' };
       $('whoami').textContent = state.profile.displayName;
+      setLoadingText('กำลังตรวจสิทธิ์…');
       return api('dsp_access');            // ตรวจสิทธิ์ก่อน ยังไม่ดึงข้อมูลคิว
     })
     .then(function (a) {
       if (!a) return null;
       state.access = a;
       if (!a.allowed) { showDenied(a); return null; }   // ไม่มีสิทธิ์ = จบตรงนี้ ไม่โหลดข้อมูลอะไรเลย
-      return Promise.all([loadDrivers(), loadQueue()]);
-    })
-    .then(function (loaded) {
-      if (!loaded) return;
-      if (state.access && state.access.open) {
-        toast('⚠️ ยังไม่ได้ตั้งรายชื่อผู้จัดคิว ตอนนี้ใครก็เข้าได้', true);
-      }
-      // ถ้าเปิดมาพร้อม ?doc=... ให้เข้าหน้าเอกสารนั้นเลย
+      if (a.open) toast('⚠️ ยังไม่ได้ตั้งรายชื่อผู้จัดคิว ตอนนี้ใครก็เข้าได้', true);
+      /* ไม่รอคิวทั้งก้อน (ใช้เวลานานที่สุด) — เปิดหน้ารายการก่อนพร้อมข้อความ "กำลังโหลดคิว…"
+         เดิมรอทั้งรายชื่อคนขับ + คิวครบก่อนค่อยเปิด หน้าจอค้างที่ "กำลังเชื่อมต่อ LINE…" นาน 20 วิ จนดูเหมือนโหลดไม่ขึ้น (9 ต.ค. 2569) */
       var qDoc = (new URLSearchParams(window.location.search)).get('doc');
-      if (qDoc) { openDoc(qDoc.toUpperCase()); }
-      else { show('queue'); }
+      loadQueue();
+      if (!qDoc) show('queue');
+      else setLoadingText('กำลังเปิดบิล ' + qDoc.toUpperCase() + '…');
+      return loadDrivers().then(function () {
+        if (qDoc) openDoc(qDoc.toUpperCase());   // หน้าบิลต้องใช้รายชื่อคนขับ จึงรอรายชื่อก่อน (เร็วกว่าคิวมาก)
+      });
     })
     .catch(function (err) {
       $('screenLoading').innerHTML = '<div class="card"><div class="value">เปิดแอปไม่สำเร็จ</div>' +
         '<div class="sub">' + esc(err && err.message ? err.message : err) + '</div></div>';
     });
+}
+
+function setLoadingText(t) {
+  var el = document.querySelector('#screenLoading .loading');
+  if (el) el.textContent = t;
 }
 
 function loadDrivers() {
@@ -922,6 +927,7 @@ function loadDrivers() {
 
 function loadQueue() {
   return api('dsp_queue', {}).then(function (d) {
+    state.queueLoaded = true;
     /* ถังใหม่ queued / failed / success มาจากเซิร์ฟเวอร์ (v144)
        ถ้าเซิร์ฟเวอร์ยังเป็นรุ่นเก่าที่ไม่มีถังพวกนี้ ให้ถอยไปใช้ถัง done เดิม หน้าจะได้ไม่ว่างเปล่า */
     state.queue = {
@@ -960,6 +966,7 @@ function loadQueue() {
 }
 
 function renderQueue() {
+  if (!state.queueLoaded) { $('queueList').innerHTML = '<div class="loading">กำลังโหลดคิว…</div>'; return; }
   var q = ($('queueSearch').value || '').trim().toLowerCase();
   var isPlan = state.filter === 'planned';
   $('planView').classList.toggle('hide', !isPlan);
