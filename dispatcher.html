@@ -290,6 +290,16 @@
   .mode-btn small { display: block; font-size: 12.5px; color: #6B6B68; margin-top: 4px; line-height: 1.5; }
   .mode-btn.plan { border-color: #1D3557; }
   .mode-btn.urgent { border-color: #D85A30; }
+  .mode-btn.go { background: #D85A30; border-color: #D85A30; color: #fff; }
+  .mode-btn.go small { color: #FBE3D8; }
+  .mode-btn.off { opacity: .55; }
+  .pv-head { font-size: 13px; font-weight: 700; color: #0B5C46; margin-bottom: 8px; }
+  .pv-row { display: flex; gap: 8px; font-size: 13.5px; padding: 3px 0; }
+  .pv-row .k { width: 78px; color: #8A8A85; flex: none; }
+  .pv-row .v { font-weight: 600; color: #1D3557; }
+  .pv-trip { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #E4E1D8; font-size: 13px; }
+  .pv-trip .stop { padding: 2px 0; }
+  .pv-trip .docs { font-size: 11.5px; color: #8A8A85; }
   .step-no {
     display: inline-flex; width: 20px; height: 20px; border-radius: 50%; background: #1D3557; color: #fff;
     font-size: 11px; font-weight: 700; align-items: center; justify-content: center; margin-right: 6px; vertical-align: 1px;
@@ -430,6 +440,13 @@
       <div style="font-size:13px;font-weight:600;margin:2px 0 8px;">จะจัดบิลนี้แบบไหน</div>
       <button class="mode-btn plan" data-mode="plan"><b>🗓️ ลงคิวจัดส่งรอไว้</b><small>วางไว้ในเที่ยวของรถ ยังไม่ส่งการ์ด · ตอนรถจะออกค่อยโทรหน้างานแล้วกด “ปล่อยเที่ยว”</small></button>
       <button class="mode-btn urgent" data-mode="urgent"><b>⚡ งานด่วน · ส่งการ์ดทันที</b><small>เลือกคนขับ โทรหน้างาน แล้วการ์ดถึงคนขับเลย</small></button>
+    </div>
+
+    <!-- บิลที่ลงคิวไว้แล้ว (ยังไม่ปล่อย): สรุปสั้นๆ + 2 ปุ่ม (พี่บุ้งกี๋ขอ 9 ต.ค. 2569) -->
+    <div id="plannedView" class="hide">
+      <div class="plan-box" id="plannedBox"></div>
+      <button class="mode-btn plan" id="plannedEditBtn"><b>✏️ แก้ไขคิวที่ลงไว้</b><small>เปลี่ยนวันที่ · รถ · เที่ยว · รถคันที่ 2 หรือเอาออกจากคิว</small></button>
+      <button class="mode-btn go" id="plannedReleaseBtn"><b>🚚 ปล่อยงาน</b><small>โทรหน้างาน → ส่งการ์ดให้คนขับ</small></button>
     </div>
 
     <div id="flow" class="flow">
@@ -1767,7 +1784,7 @@ function guessPlanDate(d) {
 function docMode(d) {
   if (!d || d.found === false || !d.site || !String(d.site).trim() || d.selfPickup || d.cancelled) return 'none';
   if (d.driver || d.driver2) return 'view';
-  if (d.plan && !d.plan.released) return state.mode === 'urgent' ? 'urgent' : 'plan';
+  if (d.plan && !d.plan.released) return (state.mode === 'urgent' || state.mode === 'plan') ? state.mode : 'planned';
   return state.mode || 'choice';
 }
 
@@ -1785,8 +1802,9 @@ function renderMode(d) {
   var mode = docMode(d);
   state.planBusy = false;
   $('modeChoice').classList.toggle('hide', mode !== 'choice');
-  $('flow').classList.toggle('hide', mode === 'choice' || mode === 'none');
-  if (mode === 'choice' || mode === 'none') return mode;
+  $('plannedView').classList.toggle('hide', mode !== 'planned');
+  $('flow').classList.toggle('hide', mode === 'choice' || mode === 'none' || mode === 'planned');
+  if (mode === 'choice' || mode === 'none' || mode === 'planned') return mode;
 
   var key = (mode === 'view' && state.editOpen) ? 'viewOpen' : mode;
   var order = FLOW_ORDER[key];
@@ -1805,7 +1823,7 @@ function renderMode(d) {
     $('lblDays').innerHTML = stepNo(++n) + 'วันที่ส่ง';
     $('lblDriver').innerHTML = stepNo(++n) + 'ทะเบียนรถ';
     $('lblPlan').innerHTML = stepNo(++n) + 'แผนของรถคันนี้ — กด + เพื่อลงคิว';
-    $('switchModeBtn').textContent = '⚡ เปลี่ยนเป็นงานด่วน · ส่งการ์ดทันที';
+    $('switchModeBtn').textContent = (d.plan && !d.plan.released) ? '⚡ ไม่รอคิวแล้ว · เปลี่ยนเป็นงานด่วน ส่งการ์ดทันที' : '⚡ เปลี่ยนเป็นงานด่วน · ส่งการ์ดทันที';
     $('addTruck2Btn').textContent = '➕ เพิ่มรถคันที่ 2';
     $('truck2Hint').classList.add('hide');
   } else if (mode === 'urgent') {
@@ -1920,6 +1938,7 @@ function applyPlanResult(p, msg, keepJust) {
 
 function renderPlanSection(d) {
   var mode = renderMode(d);
+  if (mode === 'planned') { loadPlannedView(d); return; }
   if (mode === 'none' || mode === 'choice' || mode === 'urgent') return;
   if (!state.docPlanDate || state.docPlanFor !== d.doc) {
     state.docPlanDate = d.driver ? ((d.plan && d.plan.date) || planDays()[0].key) : guessPlanDate(d);
@@ -1927,6 +1946,70 @@ function renderPlanSection(d) {
   }
   $('docDays').innerHTML = daysChipsHtml(state.docPlanDate);
   loadDocPlan();
+}
+
+/* ---------- หน้าสรุปบิลที่ลงคิวแล้ว ---------- */
+
+function loadPlannedView(d) {
+  state.docPlanDate = d.plan.date;
+  state.docPlanFor = d.doc;
+  var want = d.plan.driver + '|' + d.plan.date;
+  var have = state.docPlan && state.docPlan.date === d.plan.date && state.docPlan.drivers && state.docPlan.drivers[0] &&
+             state.docPlan.drivers[0].driver === d.plan.driver;
+  if (!have) state.docPlan = null;
+  state.docPlanWant = want;
+  renderPlannedView();
+  if (have) return;
+  api('dsp_plan', { date: d.plan.date, driver: d.plan.driver }).then(function (p) {
+    if (state.docPlanWant !== want) return;
+    state.docPlan = p;
+    renderPlannedView();
+  }).catch(function (e) { toast('โหลดแผนไม่สำเร็จ: ' + e.message, true); });
+}
+
+function plannedTrip() {
+  var d = state.doc;
+  var trips = planTrips();
+  for (var i = 0; i < trips.length; i++) if (tripHasDoc(trips[i], d.doc)) return trips[i];
+  return null;
+}
+
+function renderPlannedView() {
+  var d = state.doc, pl = d.plan, p = state.docPlan;
+  var t = p ? plannedTrip() : null;
+  var tripNo = t ? t.trip : pl.trip;
+  var plate = pl.plate || defaultPlate(pl.driver);
+  var html = '<div class="pv-head">🗓️ ลงคิวไว้แล้ว · ยังไม่ส่งการ์ดถึงคนขับ</div>' +
+    '<div class="pv-row"><span class="k">วันที่ส่ง</span><span class="v">' + esc(dayLabel(pl.date)) + '</span></div>' +
+    '<div class="pv-row"><span class="k">รถ</span><span class="v">' + esc((plate ? plate + ' · ' : '') + pl.driver) + '</span></div>' +
+    '<div class="pv-row"><span class="k">เที่ยวที่</span><span class="v">' + tripNo + '</span></div>';
+  if (t && t.driver2) {
+    html += '<div class="pv-row"><span class="k">รถคันที่ 2</span><span class="v">' + esc((t.plate2 ? t.plate2 + ' · ' : '') + t.driver2) + '</span></div>';
+  }
+  if (t) {
+    var stops = tripStops(t);
+    html += '<div class="pv-trip">' + (stops.length > 1 || t.docs.length > 1 ? '<div class="sub" style="margin:0 0 4px">เที่ยวนี้ไปด้วยกัน ' + stops.length + ' จุด · ' + t.docs.length + ' บิล</div>' : '') +
+      stops.map(function (s) {
+        return '<div class="stop">📍 ' + esc(s.site) + '<div class="docs">' + esc(s.docs.join(' · ')) + '</div></div>';
+      }).join('') + '</div>';
+  } else if (!p) {
+    html += '<div class="sub" style="margin:8px 0 0">กำลังโหลดรายละเอียดเที่ยว…</div>';
+  }
+  $('plannedBox').innerHTML = html;
+
+  var rb = $('plannedReleaseBtn');
+  var ready = !!(p && t);
+  var today = !!(p && p.isToday);
+  rb.classList.toggle('off', !ready || !today);
+  rb.innerHTML = '<b>🚚 ปล่อยงาน' + (t && t.driver2 ? ' (2 คัน)' : '') + '</b><small>' +
+    (!ready ? 'กำลังโหลด…' : (today ? 'โทรหน้างาน → ส่งการ์ดให้คนขับ' : ('ปล่อยได้ในวันที่ส่ง (' + esc(dayLabel(pl.date)) + ')'))) + '</small>';
+}
+
+function onPlannedRelease() {
+  var p = state.docPlan, t = p ? plannedTrip() : null;
+  if (!t) { toast('กำลังโหลดแผน รอสักครู่ค่ะ'); return; }
+  if (!p.isToday) { toast('ปล่อยงานได้เฉพาะวันที่ส่งจริงค่ะ (' + dayLabel(p.date) + ')', true); return; }
+  openReleaseSheet(t.trip);
 }
 
 function currentPlanDriver() {
@@ -2060,18 +2143,10 @@ function renderDocPlan() {
     html += '<div class="plan-state wait">ยังไม่ได้ลงคิว — กด + เพื่อไปกับเที่ยวที่มีอยู่ หรือ “เพิ่มเที่ยว” เป็นเที่ยวใหม่</div>';
   }
 
-  // ปุ่มปล่อยเที่ยว: เฉพาะแผนของวันนี้ บิลอยู่ในเที่ยวที่ยังไม่ปล่อย และ "ไม่ใช่จังหวะที่เพิ่งกดลงคิว"
-  // (เพิ่งลงคิวแล้วปุ่มส้มโผล่ทันที คนจัดงานเข้าใจว่าต้องกดต่อ — พี่บุ้งกี๋ 9 ต.ค. 2569)
+  // ปล่อยงานทำจากหน้าสรุปเท่านั้น (เปิดบิลที่ลงคิวแล้ว → ปุ่ม "ปล่อยงาน") — หน้านี้มีไว้ลงคิว/แก้คิวอย่างเดียว
   if (!locked && mineTrip) {
-    if (p.isToday && state.justPlanned !== d.doc) {
-      var mt = trips[mineTrip - 1] || {};
-      html += '<button class="btn orange" data-act="release" data-trip="' + mineTrip + '" style="margin-top:10px">' +
-              '🚚 รถพร้อมออก: ปล่อยเที่ยว ' + mineTrip + (mt.driver2 ? ' (2 คัน)' : '') + '<br><span style="font-weight:400;font-size:12.5px">โทรหน้างาน → ส่งการ์ดให้คนขับ</span></button>';
-    } else {
-      html += '<div class="sub" style="margin-top:8px;color:#6B6B68">ยังไม่ส่งการ์ดถึงคนขับ · ' +
-              (p.isToday ? 'ตอนรถจะออก เข้าบิลนี้จากแท็บ “ลงคิว” แล้วกดปล่อยเที่ยว'
-                         : 'ปุ่มปล่อยเที่ยวจะขึ้นในวันที่ส่งจริง (เข้าจากแท็บ “ลงคิว”)') + '</div>';
-    }
+    html += '<div class="sub" style="margin-top:8px;color:#6B6B68">ยังไม่ส่งการ์ดถึงคนขับ · ตอนรถจะออก เปิดบิลนี้แล้วกด “ปล่อยงาน”</div>' +
+            '<button class="btn ghost" data-act="summary" style="margin-top:10px">✅ เสร็จแล้ว · ดูสรุปคิว</button>';
   }
 
   $('docPlanBox').innerHTML = html;
@@ -2086,6 +2161,7 @@ function onDocPlanClick(ev) {
   if (act === 'plus') return openAddSheet(trip);
   if (act === 'remove') return planRemove();
   if (act === 'release') return openReleaseSheet(trip);
+  if (act === 'summary') { state.mode = ''; renderPlanSection(state.doc); window.scrollTo(0, 0); return; }
 }
 
 function closeSheet() { $('sheetBg').classList.add('hide'); $('sheetBody').innerHTML = ''; }
@@ -2366,6 +2442,8 @@ document.addEventListener('DOMContentLoaded', function () {
     var b = ev.target.closest && ev.target.closest('[data-mode]');
     if (b) setMode(b.getAttribute('data-mode'));
   });
+  $('plannedEditBtn').addEventListener('click', function () { setMode('plan'); });
+  $('plannedReleaseBtn').addEventListener('click', onPlannedRelease);
   $('switchModeBtn').addEventListener('click', function () { setMode(docMode(state.doc) === 'plan' ? 'urgent' : 'plan'); });
   $('docDays').addEventListener('click', function (ev) {
     var b = ev.target.closest && ev.target.closest('[data-day]');
