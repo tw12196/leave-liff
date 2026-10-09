@@ -752,9 +752,16 @@ function isOverdue(o) {
   return !!(o && o.requestedOverdue && !o.driver);
 }
 
+/* สถานะที่โชว์บนป้าย — บิลที่ลงคิวไว้แต่ยังไม่ปล่อย เซิร์ฟเวอร์ยังนับเป็น "รอจัดคิว" (เพราะยังไม่มีคนขับในคอลัมน์ J)
+   แต่คนจัดงานต้องเห็นว่า "ลงคิวแล้ว" ไม่งั้นงงว่าทำไปแล้วหรือยัง (9 ต.ค. 2569) */
+function shownStatus(o) {
+  if (o && o.plan && !o.plan.released && !o.driver && (o.status === 'รอจัดคิว' || !o.status)) return 'ลงคิวแล้ว';
+  return (o && o.status) || 'รอจัดคิว';
+}
+
 function badgeHtml(status) {
   var cls = { 'รอจัดคิว': 'b-wait', 'จัดคิวแล้ว': 'b-queued', 'ส่งสำเร็จ': 'b-ok',
-              'ส่งไม่ครบ': 'b-partial', 'ลูกค้ารับเอง': 'b-self' }[status] || 'b-queued';
+              'ส่งไม่ครบ': 'b-partial', 'ลูกค้ารับเอง': 'b-self', 'ลงคิวแล้ว': 'b-partial' }[status] || 'b-queued';
   return '<span class="badge ' + cls + '">' + status + '</span>';
 }
 
@@ -939,7 +946,7 @@ function renderQueue() {
     if (o.nextAction) meta.push('📋 ' + o.nextAction);
     if (o.savedAt && !o.driver) meta.push('บันทึก ' + o.savedAt);
     html += '<div class="item" data-doc="' + esc(o.doc) + '">' +
-              '<div class="row1"><div class="doc">' + esc(o.doc) + '</div>' + badgeHtml(o.status) + '</div>' +
+              '<div class="row1"><div class="doc">' + esc(o.doc) + '</div>' + badgeHtml(shownStatus(o)) + '</div>' +
               '<div class="site">' + esc(o.site || '— ยังไม่ได้ผูกไซต์ —') + '</div>' +
               whenChipHtml(o) +
               codChipHtml(o) +
@@ -983,7 +990,7 @@ function openDoc(doc) {
 function renderDoc() {
   var d = state.doc;
   $('dDoc').textContent = d.doc;
-  $('dStatus').innerHTML = d.found ? badgeHtml(d.status) : badgeHtml('รอจัดคิว');
+  $('dStatus').innerHTML = d.found ? badgeHtml(shownStatus(d)) : badgeHtml('รอจัดคิว');
 
   var hasSite = !!(d.site && d.site.trim());
   $('dNoStep0').classList.toggle('hide', hasSite);
@@ -1766,6 +1773,7 @@ function applyPlanResult(p, msg) {
   });
   state.doc.siteSiblings = (state.doc.siteSiblings || []).filter(function (o) { return !inPlan[o.doc]; });
   renderSiteSiblings(state.doc);
+  $('dStatus').innerHTML = badgeHtml(shownStatus(state.doc));
   applyPlanControls(state.doc);
   renderMore(state.doc);
   renderDocPlan();
