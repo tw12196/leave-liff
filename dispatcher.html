@@ -291,6 +291,7 @@
   .mode-btn.plan { border-color: #1D3557; }
   .mode-btn.urgent { border-color: #D85A30; }
   .mode-btn.go { background: #D85A30; border-color: #D85A30; color: #fff; }
+  .rd-nomap { font-size: 12px; color: #7A5200; background: #FCF0D8; border-radius: 6px; padding: 4px 8px; margin-top: 4px; }
   .mode-btn.go small { color: #FBE3D8; }
   .mode-btn.off { opacity: .55; }
   .pv-head { font-size: 13px; font-weight: 700; color: #0B5C46; margin-bottom: 8px; }
@@ -2341,7 +2342,9 @@ function openReleaseSheet(tripNo) {
     var tel = (x.phone || '').replace(/[^0-9+]/g, '');
     html += '<div class="rel-doc" data-doc="' + esc(x.doc) + '">' +
               '<div class="rd-top"><div><div class="rd-doc">' + esc(x.doc) + '</div>' +
-                '<div class="rd-site">📍 ' + esc(x.site) + (x.contactName ? (' · ' + esc(x.contactName)) : '') + '</div></div>' +
+                '<div class="rd-site">📍 ' + esc(x.site) + (x.contactName ? (' · ' + esc(x.contactName)) : '') + '</div>' +
+                (x.hasMap === false ? '<div class="rd-nomap">⚠️ ไซต์นี้ยังไม่มีลิงก์แผนที่ — คนขับจะเห็น "ไม่มีแผนที่" · เติมลิงก์ได้ที่หน้าบิล "แก้ไข / เลือกไซต์อื่น"</div>' : '') +
+                '</div>' +
                 (tel ? '<a class="tel-btn" href="tel:' + esc(tel) + '" data-call="' + esc(x.doc) + '">📞 โทรเลย</a>'
                      : '<span class="sub" style="margin:0">ไม่มีเบอร์</span>') +
               '</div>' +
