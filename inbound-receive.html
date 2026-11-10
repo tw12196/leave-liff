@@ -252,6 +252,40 @@
   .change-box .product { font-weight: 700; }
   .change-box .old { text-decoration: line-through; color: #a3231c; }
   .change-box .new { font-weight: 700; color: #1d6fe0; }
+  /* ของสั่งพิเศษค้างในร้าน (เพิ่ม 10 พ.ย. 2569): แท็บ "รอลูกค้ารับ" + หน้า "อัปเดตรายการของฉัน" */
+  .tabs .tab { padding: 10px 4px; font-size: 13px; }
+  .tab-badge {
+    display: inline-block;
+    min-width: 18px;
+    padding: 1px 6px;
+    margin-left: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 16px;
+    border-radius: 999px;
+    background: #dc2626;
+    color: #fff;
+    vertical-align: middle;
+  }
+  .tab.active .tab-badge { background: #fff; color: #dc2626; }
+  .pk-group-title { font-size: 14px; font-weight: 700; margin: 16px 0 8px; }
+  .pk-group-title.long { color: #b91c1c; }
+  .pk-group-title.mid { color: #c2410c; }
+  .pk-group-title.short { color: #15803d; }
+  .pk-card { display: block; }
+  .pk-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .pk-customer { font-size: 15px; font-weight: 700; color: #5b21b6; }
+  .pk-product { font-size: 14px; margin-top: 4px; }
+  .days-badge { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+  .days-badge.short { background: #f0fdf4; color: #15803d; }
+  .days-badge.mid { background: #fff7ed; color: #c2410c; }
+  .days-badge.long { background: #fef2f2; color: #b91c1c; }
+  .my-pk-row { display: flex; gap: 10px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid #eee; }
+  .my-pk-row:last-child { border-bottom: none; }
+  .my-pk-row input[type="checkbox"] { width: 22px; height: 22px; margin-top: 2px; flex-shrink: 0; }
+  .my-pk-row .pk-body { flex: 1; min-width: 0; }
+  .check-all { display: flex; gap: 10px; align-items: center; font-size: 14px; font-weight: 600; padding-bottom: 8px; border-bottom: 1px solid #eee; }
+  .check-all input { width: 22px; height: 22px; }
 </style>
 </head>
 <body>
@@ -263,6 +297,7 @@
 <div id="tabsBox" class="tabs" style="display:none">
   <button class="tab active" id="tabPending">รอของ</button>
   <button class="tab" id="tabHistory">ประวัติ</button>
+  <button class="tab" id="tabPickup" style="display:none">รอลูกค้ารับ<span class="tab-badge" id="pickupBadge" style="display:none"></span></button>
 </div>
 
 <div id="listView" style="display:none">
@@ -289,6 +324,47 @@
 <div id="historyListView" style="display:none">
   <div id="historyList"></div>
   <div id="historyEmptyMsg" class="empty-msg" style="display:none">ยังไม่มีประวัติการรับของ</div>
+</div>
+
+<!-- แท็บที่ 3 "รอลูกค้ารับ": รายการของสั่งพิเศษที่รับเข้าร้านแล้วแต่ยังไม่มีวันที่ลูกค้ามารับ (ดูได้อย่างเดียว) -->
+<div id="pickupListView" style="display:none">
+  <div id="pickupControls">
+    <div class="manual-box">
+      <input type="text" id="pickupSearchInput" placeholder="ค้นหา ชื่อลูกค้า / สินค้า / เลขใบรับสินค้า" autocomplete="off" />
+    </div>
+    <div class="chip-row" id="pickupSalesChips"></div>
+  </div>
+  <div id="pickupGroups"></div>
+  <div id="pickupEmptyMsg" class="empty-msg" style="display:none">ไม่มีรายการค้าง</div>
+  <div class="msg" id="pickupListMsg"></div>
+</div>
+
+<!-- หน้า "อัปเดตรายการของฉัน" (?mode=mypickup): เซลล์ติ๊กรายการของตัวเองจากทุกใบ แล้วยืนยันวันที่ทีเดียว -->
+<div id="myPickupView" style="display:none">
+  <h1>🚚 อัปเดตรายการของฉัน</h1>
+  <div class="meta-line" id="myPickupSalesName" style="margin-bottom:12px;"></div>
+  <div id="myPickupLoading" class="loading">กำลังโหลด...</div>
+  <div id="myPickupBody" style="display:none">
+    <div class="card">
+      <label class="check-all"><input type="checkbox" id="myPickupAll" /> เลือกทั้งหมด</label>
+      <div id="myPickupItems"></div>
+      <div style="margin-top:12px">
+        <label style="font-size:13px; color:#666; display:block; margin-bottom:6px;">วันที่ของออกจากร้าน (ลูกค้ามารับ / ร้านไปส่ง)</label>
+        <input type="date" id="myPickupDate" style="width:100%; padding:10px; font-size:16px; border:1px solid #ccc; border-radius:8px; box-sizing:border-box;" />
+      </div>
+    </div>
+    <button class="primary" id="myPickupConfirmBtn" disabled>ยืนยันของออกจากร้านแล้ว</button>
+  </div>
+  <div id="myPickupAfter" style="display:none">
+    <div class="msg" id="myPickupDoneMsg"></div>
+    <div id="myPickupRemainBox" style="display:none">
+      <h2 id="myPickupRemainTitle"></h2>
+      <div class="card" id="myPickupRemainList"></div>
+      <button class="primary" id="myPickupContinueBtn">อัปเดตรายการอื่นต่อ</button>
+    </div>
+  </div>
+  <div id="myPickupEmpty" class="empty-msg" style="display:none">คุณไม่มีรายการค้าง</div>
+  <div class="msg" id="myPickupMsg"></div>
 </div>
 
 <div id="detailView" style="display:none">
@@ -404,6 +480,20 @@ var liffOrderNo = urlParams.get('orderNo');
 var pickupItems = [];
 var liffDisplayName = '';
 
+// ของสั่งพิเศษค้างในร้าน (เพิ่ม 10 พ.ย. 2569) — ปุ่ม/แถวบนการ์ดกลุ่มเซลล์เปิดมาด้วย
+//   ?tab=pickup                  → แท็บ "รอลูกค้ารับ" (โหลดแท็บนี้ก่อน)
+//   ?tab=pickup&sales={ชื่อเซลล์} → แท็บเดียวกัน กรองเฉพาะเซลล์คนนั้น
+//   ?mode=mypickup               → หน้า "อัปเดตรายการของฉัน" (ติ๊กรายการของตัวเองจากทุกใบ)
+var urlTab = urlParams.get('tab');
+var urlSales = urlParams.get('sales') || '';
+var isPickupTabMode = urlTab === 'pickup' && liffMode !== 'pickup' && liffMode !== 'mypickup' && liffMode !== 'whoami';
+var userRole = '';        // '' (ยังไม่รู้) / 'warehouse' / 'sales' / 'none' — มาจาก dsp_inb_listPickupWaiting
+var pickupAll = [];       // รายการค้างทั้งหมดของแท็บที่ 3
+var pickupError = '';
+var pickupSalesFilter = urlSales;
+var pendingLoaded = false;
+var myPickupItems = [];
+
 function escapeHtml(s) {
   return String(s || '').replace(/[&<>"']/g, function (c) {
     return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -435,9 +525,11 @@ function showTabsView() {
   hideEditViews();
   document.getElementById('detailView').style.display = 'none';
   document.getElementById('historyDetailView').style.display = 'none';
-  document.getElementById('tabsBox').style.display = 'flex';
+  // เปิดด้วย ?tab=pickup แล้วไม่มีสิทธิ์เลย → ซ่อนแถบแท็บ เหลือแค่ข้อความปฏิเสธ
+  document.getElementById('tabsBox').style.display = (isPickupTabMode && userRole === 'none') ? 'none' : 'flex';
   document.getElementById('listView').style.display = activeTab === 'pending' ? 'block' : 'none';
   document.getElementById('historyListView').style.display = activeTab === 'history' ? 'block' : 'none';
+  document.getElementById('pickupListView').style.display = activeTab === 'pickup' ? 'block' : 'none';
   document.getElementById('resultMsg').style.display = 'none';
 }
 
@@ -445,6 +537,7 @@ function showDetailView() {
   document.getElementById('tabsBox').style.display = 'none';
   document.getElementById('listView').style.display = 'none';
   document.getElementById('historyListView').style.display = 'none';
+  document.getElementById('pickupListView').style.display = 'none';
   document.getElementById('detailView').style.display = 'block';
 }
 
@@ -453,6 +546,7 @@ function showHistoryDetailView() {
   document.getElementById('tabsBox').style.display = 'none';
   document.getElementById('listView').style.display = 'none';
   document.getElementById('historyListView').style.display = 'none';
+  document.getElementById('pickupListView').style.display = 'none';
   document.getElementById('historyDetailView').style.display = 'block';
 }
 
@@ -460,9 +554,288 @@ function switchTab(tab) {
   activeTab = tab;
   document.getElementById('tabPending').classList.toggle('active', tab === 'pending');
   document.getElementById('tabHistory').classList.toggle('active', tab === 'history');
+  document.getElementById('tabPickup').classList.toggle('active', tab === 'pickup');
   document.getElementById('listView').style.display = tab === 'pending' ? 'block' : 'none';
   document.getElementById('historyListView').style.display = tab === 'history' ? 'block' : 'none';
+  document.getElementById('pickupListView').style.display = tab === 'pickup' ? 'block' : 'none';
+  if (tab === 'pending' && !pendingLoaded) loadPendingOrders(); // เปิดด้วย ?tab=pickup จะยังไม่ได้โหลดรายการรอของ
   if (tab === 'history' && historyOrders.length === 0) loadHistoryOrders();
+}
+
+/* ================= แท็บที่ 3 "รอลูกค้ารับ" (เพิ่ม 10 พ.ย. 2569) =================
+ * ดูได้อย่างเดียวสำหรับทุกคน รวมถึงคลัง — คนยืนยันว่าของออกจากร้านคือเซลล์เจ้าของรายการ
+ * ผ่านหน้า "อัปเดตรายการของฉัน" เท่านั้น
+ * สิทธิ์: คลัง = เห็นครบ 3 แท็บ / เซลล์ = เห็นเฉพาะแท็บนี้ / คนอื่น = ปฏิเสธ
+ * (เช็คจริงที่ inbListPickupWaiting_ ใน inbound.gs — ฝั่งหน้าเว็บแค่ซ่อน/โชว์แท็บ) */
+var PICKUP_GROUPS = [
+  { key: 'long', title: 'เกิน 7 วัน' },
+  { key: 'mid', title: '4–7 วัน' },
+  { key: 'short', title: '1–3 วัน' }
+];
+
+function applyRoleTabs() {
+  var tp = document.getElementById('tabPending');
+  var th = document.getElementById('tabHistory');
+  var tk = document.getElementById('tabPickup');
+  if (userRole === 'warehouse') {
+    tp.style.display = ''; th.style.display = ''; tk.style.display = '';
+  } else if (userRole === 'sales') {
+    tp.style.display = 'none'; th.style.display = 'none'; tk.style.display = '';
+    if (activeTab !== 'pickup') switchTab('pickup');
+  } else {
+    tk.style.display = 'none'; // none / ยังไม่รู้สิทธิ์ → ไม่โชว์แท็บนี้ (แท็บรอของ/ประวัติทำงานเหมือนเดิมทุกอย่าง)
+  }
+}
+
+function updatePickupBadge() {
+  var badge = document.getElementById('pickupBadge');
+  if (pickupAll.length > 0 && !pickupError) {
+    badge.textContent = pickupAll.length;
+    badge.style.display = 'inline-block';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function loadPickupWaiting() {
+  return apiGet('dsp_inb_listPickupWaiting', { lineUserId: lineUserId }).then(function (data) {
+    if (!data || !data.ok) {
+      userRole = 'none';
+      pickupAll = [];
+      pickupError = (data && data.error) || 'คุณไม่มีสิทธิ์ดูรายการนี้';
+    } else {
+      userRole = data.role;
+      pickupAll = data.items || [];
+      pickupError = '';
+    }
+    updatePickupBadge();
+    applyRoleTabs();
+    renderPickupSalesChips();
+    renderPickupList();
+  }).catch(function () {
+    pickupError = 'เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่';
+    renderPickupList();
+  });
+}
+
+function renderPickupSalesChips() {
+  var box = document.getElementById('pickupSalesChips');
+  var seen = {};
+  pickupAll.forEach(function (it) { if (it.sales) seen[it.sales] = true; });
+  if (pickupSalesFilter) seen[pickupSalesFilter] = true; // มาจาก ?sales= ให้เห็นชิปที่เลือกอยู่แม้เซลล์คนนั้นไม่มีของค้างแล้ว
+  var names = Object.keys(seen).sort();
+
+  box.innerHTML = '';
+  if (names.length === 0) { box.style.display = 'none'; return; }
+  box.style.display = 'flex';
+
+  function addChip(label, value) {
+    var chip = document.createElement('div');
+    chip.className = 'chip' + (pickupSalesFilter === value ? ' active' : '');
+    chip.textContent = label;
+    chip.addEventListener('click', function () { pickupSalesFilter = value; renderPickupSalesChips(); renderPickupList(); });
+    box.appendChild(chip);
+  }
+  addChip('ทั้งหมด', '');
+  names.forEach(function (n) { addChip(n, n); });
+}
+
+function renderPickupCard(it) {
+  var card = document.createElement('div');
+  card.className = 'card pk-card';
+  card.innerHTML =
+    '<div class="pk-top">' +
+      '<div class="pk-customer">' + escapeHtml(it.customer) + '</div>' +
+      '<span class="days-badge ' + escapeHtml(it.bucket) + '">' + escapeHtml(it.days) + ' วัน</span>' +
+    '</div>' +
+    '<div class="pk-product">' + escapeHtml(it.product) + ' · ' + escapeHtml(it.qty) + (it.unit ? ' ' + escapeHtml(it.unit) : '') + '</div>' +
+    '<div class="meta-line">เซลล์ ' + escapeHtml(it.sales || '-') + '</div>' +
+    '<div class="meta-line">เข้าร้าน ' + escapeHtml(it.receivedAt) + ' · ใบรับสินค้า ' + escapeHtml(it.orderNo) + '</div>';
+  return card;
+}
+
+function renderPickupList() {
+  var controls = document.getElementById('pickupControls');
+  var groupsBox = document.getElementById('pickupGroups');
+  var emptyMsg = document.getElementById('pickupEmptyMsg');
+  var msg = document.getElementById('pickupListMsg');
+  groupsBox.innerHTML = '';
+
+  if (pickupError) {
+    controls.style.display = 'none';
+    emptyMsg.style.display = 'none';
+    msg.className = 'msg err';
+    msg.textContent = pickupError;
+    return;
+  }
+  controls.style.display = 'block';
+  msg.className = 'msg';
+  msg.textContent = '';
+
+  var q = document.getElementById('pickupSearchInput').value.trim().toLowerCase();
+  var visible = pickupAll.filter(function (it) {
+    if (pickupSalesFilter && it.sales !== pickupSalesFilter) return false;
+    if (q) {
+      var hay = (String(it.customer) + ' ' + String(it.product) + ' ' + String(it.orderNo)).toLowerCase();
+      if (hay.indexOf(q) === -1) return false;
+    }
+    return true;
+  });
+
+  PICKUP_GROUPS.forEach(function (g) {
+    var rows = visible.filter(function (it) { return it.bucket === g.key; }); // เรียงค้างนานสุดก่อนมาจากเซิร์ฟเวอร์แล้ว
+    if (rows.length === 0) return;
+    var title = document.createElement('div');
+    title.className = 'pk-group-title ' + g.key;
+    title.textContent = g.title + ' (' + rows.length + ')';
+    groupsBox.appendChild(title);
+    rows.forEach(function (it) { groupsBox.appendChild(renderPickupCard(it)); });
+  });
+  emptyMsg.style.display = visible.length === 0 ? 'block' : 'none';
+  emptyMsg.textContent = pickupAll.length === 0 ? 'ไม่มีของสั่งพิเศษค้างในร้าน' : 'ไม่พบรายการที่ตรงกับที่ค้นหา';
+}
+
+/* ================= หน้า "อัปเดตรายการของฉัน" (?mode=mypickup) ================= */
+
+function showMyPickupView() {
+  ['tabsBox', 'listView', 'historyListView', 'pickupListView', 'detailView', 'historyDetailView', 'pickupView', 'whoamiView'].forEach(function (id) {
+    document.getElementById(id).style.display = 'none';
+  });
+  document.getElementById('myPickupView').style.display = 'block';
+}
+
+function showMyPickupMsg(type, text) {
+  var box = document.getElementById('myPickupMsg');
+  box.className = 'msg ' + type;
+  box.textContent = text;
+}
+
+function loadMyPickup() {
+  document.getElementById('myPickupDate').value = todayDateStr_();
+  document.getElementById('myPickupDate').max = todayDateStr_(); // ย้อนหลังได้ อนาคตไม่ได้
+  return apiGet('dsp_inb_getMyPickupItems', { lineUserId: lineUserId }).then(function (data) {
+    document.getElementById('myPickupLoading').style.display = 'none';
+    if (!data || !data.ok) {
+      showMyPickupMsg('err', (data && data.error) || 'ไม่สามารถโหลดรายการได้');
+      return;
+    }
+    myPickupItems = data.items || [];
+    document.getElementById('myPickupSalesName').textContent = data.isSales ? 'เซลล์: ' + data.salesName : '';
+    renderMyPickupSelect();
+  }).catch(function () {
+    document.getElementById('myPickupLoading').style.display = 'none';
+    showMyPickupMsg('err', 'เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่');
+  });
+}
+
+function renderMyPickupSelect() {
+  document.getElementById('myPickupLoading').style.display = 'none';
+  document.getElementById('myPickupAfter').style.display = 'none';
+  var body = document.getElementById('myPickupBody');
+  var empty = document.getElementById('myPickupEmpty');
+  if (myPickupItems.length === 0) {
+    body.style.display = 'none';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  body.style.display = 'block';
+  document.getElementById('myPickupAll').checked = false;
+
+  var box = document.getElementById('myPickupItems');
+  box.innerHTML = '';
+  myPickupItems.forEach(function (it, idx) {
+    var row = document.createElement('label');
+    row.className = 'my-pk-row';
+    row.innerHTML =
+      '<input type="checkbox" class="myPickupCheck" data-idx="' + idx + '" />' +
+      '<div class="pk-body">' +
+        '<div class="pk-top">' +
+          '<div class="pk-customer">' + escapeHtml(it.customer) + '</div>' +
+          '<span class="days-badge ' + escapeHtml(it.bucket) + '">' + escapeHtml(it.days) + ' วัน</span>' +
+        '</div>' +
+        '<div class="pk-product">' + escapeHtml(it.product) + ' · ' + escapeHtml(it.qty) + (it.unit ? ' ' + escapeHtml(it.unit) : '') + '</div>' +
+        '<div class="meta-line">เข้าร้าน ' + escapeHtml(it.receivedAt) + ' · ใบรับสินค้า ' + escapeHtml(it.orderNo) + '</div>' +
+      '</div>';
+    box.appendChild(row);
+  });
+  var checks = box.querySelectorAll('.myPickupCheck');
+  for (var i = 0; i < checks.length; i++) checks[i].addEventListener('change', updateMyPickupConfirmBtn);
+  var btn = document.getElementById('myPickupConfirmBtn');
+  btn.style.display = 'block';
+  updateMyPickupConfirmBtn();
+}
+
+function selectedMyPickupItems() {
+  var checks = document.querySelectorAll('#myPickupItems .myPickupCheck');
+  var chosen = [];
+  for (var i = 0; i < checks.length; i++) {
+    if (checks[i].checked) chosen.push(myPickupItems[Number(checks[i].getAttribute('data-idx'))]);
+  }
+  return chosen;
+}
+
+function updateMyPickupConfirmBtn() {
+  var n = selectedMyPickupItems().length;
+  var btn = document.getElementById('myPickupConfirmBtn');
+  btn.disabled = n === 0;
+  btn.textContent = n === 0 ? 'ยืนยันของออกจากร้านแล้ว' : 'ยืนยันของออกจากร้านแล้ว (' + n + ' รายการ)';
+  var all = document.querySelectorAll('#myPickupItems .myPickupCheck');
+  document.getElementById('myPickupAll').checked = all.length > 0 && n === all.length;
+}
+
+function confirmMyPickup() {
+  var chosen = selectedMyPickupItems();
+  var pickupDate = document.getElementById('myPickupDate').value;
+  if (chosen.length === 0) return;
+  if (!pickupDate) { showMyPickupMsg('err', 'กรุณาเลือกวันที่ของออกจากร้าน'); return; }
+
+  var btn = document.getElementById('myPickupConfirmBtn');
+  btn.disabled = true;
+  btn.textContent = 'กำลังบันทึก...';
+  showMyPickupMsg('', '');
+  document.getElementById('myPickupMsg').className = 'msg';
+
+  apiGet('dsp_inb_confirmPickup', {
+    rowIndexes: JSON.stringify(chosen.map(function (it) { return it.rowIndex; })),
+    pickupDate: pickupDate,
+    lineUserId: lineUserId
+  }).then(function (data) {
+    if (!data || !data.ok) {
+      updateMyPickupConfirmBtn();
+      showMyPickupMsg('err', (data && data.error) || 'บันทึกไม่สำเร็จ');
+      return;
+    }
+    myPickupItems = data.remaining || [];
+    document.getElementById('myPickupBody').style.display = 'none';
+    document.getElementById('myPickupAfter').style.display = 'block';
+    var done = document.getElementById('myPickupDoneMsg');
+    done.className = 'msg ok';
+    done.textContent = '✅ บันทึกแล้ว ' + data.confirmed + ' รายการ — วันที่ ' + data.pickupAt;
+    var remainBox = document.getElementById('myPickupRemainBox');
+    if (myPickupItems.length === 0) {
+      remainBox.style.display = 'none';
+      done.textContent += '\nไม่มีรายการค้างแล้ว 🎉';
+    } else {
+      remainBox.style.display = 'block';
+      document.getElementById('myPickupRemainTitle').textContent = 'ยังค้างอยู่ ' + myPickupItems.length + ' รายการ';
+      var list = document.getElementById('myPickupRemainList');
+      list.innerHTML = '';
+      myPickupItems.forEach(function (it) {
+        var row = document.createElement('div');
+        row.className = 'history-item-row';
+        row.innerHTML =
+          '<div class="pk-top"><div class="pk-customer">' + escapeHtml(it.customer) + '</div>' +
+          '<span class="days-badge ' + escapeHtml(it.bucket) + '">' + escapeHtml(it.days) + ' วัน</span></div>' +
+          '<div class="pk-product">' + escapeHtml(it.product) + ' · ' + escapeHtml(it.qty) + (it.unit ? ' ' + escapeHtml(it.unit) : '') + '</div>';
+        list.appendChild(row);
+      });
+    }
+    window.scrollTo(0, 0);
+  }).catch(function () {
+    updateMyPickupConfirmBtn();
+    showMyPickupMsg('err', 'เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่');
+  });
 }
 
 function renderOrderCard(o) {
@@ -544,10 +917,12 @@ function renderOrderList() {
 
 function loadPendingOrders() {
   return apiGet('dsp_inb_listPending', {}).then(function (data) {
+    pendingLoaded = true;
     allOrders = (data && data.orders) || [];
     renderCategoryChips();
     renderOrderList();
   }).catch(function () {
+    pendingLoaded = true;
     allOrders = [];
     renderCategoryChips();
     renderOrderList();
@@ -855,6 +1230,8 @@ function showWhoamiView() {
   document.getElementById('detailView').style.display = 'none';
   document.getElementById('historyDetailView').style.display = 'none';
   document.getElementById('pickupView').style.display = 'none';
+  document.getElementById('pickupListView').style.display = 'none';
+  document.getElementById('myPickupView').style.display = 'none';
   document.getElementById('whoamiView').style.display = 'block';
   document.getElementById('whoamiDisplayName').textContent = liffDisplayName || '(ไม่มีชื่อแสดง)';
   document.getElementById('whoamiUserId').textContent = lineUserId;
@@ -866,6 +1243,8 @@ function showPickupView() {
   document.getElementById('historyListView').style.display = 'none';
   document.getElementById('detailView').style.display = 'none';
   document.getElementById('historyDetailView').style.display = 'none';
+  document.getElementById('pickupListView').style.display = 'none';
+  document.getElementById('myPickupView').style.display = 'none';
   document.getElementById('pickupView').style.display = 'block';
 }
 
@@ -1037,6 +1416,19 @@ document.getElementById('historyBackBtn').addEventListener('click', showTabsView
 document.getElementById('confirmBtn').addEventListener('click', confirmReceive);
 document.getElementById('tabPending').addEventListener('click', function () { switchTab('pending'); });
 document.getElementById('tabHistory').addEventListener('click', function () { switchTab('history'); });
+document.getElementById('tabPickup').addEventListener('click', function () { switchTab('pickup'); });
+document.getElementById('pickupSearchInput').addEventListener('input', renderPickupList);
+document.getElementById('myPickupAll').addEventListener('change', function () {
+  var on = this.checked;
+  var checks = document.querySelectorAll('#myPickupItems .myPickupCheck');
+  for (var i = 0; i < checks.length; i++) checks[i].checked = on;
+  updateMyPickupConfirmBtn();
+});
+document.getElementById('myPickupConfirmBtn').addEventListener('click', confirmMyPickup);
+document.getElementById('myPickupContinueBtn').addEventListener('click', function () {
+  document.getElementById('myPickupMsg').className = 'msg';
+  renderMyPickupSelect();
+});
 document.getElementById('pickupConfirmBtn').addEventListener('click', confirmPickup);
 document.getElementById('editBtn').addEventListener('click', openEditForm);
 document.getElementById('cancelReceiveBtn').addEventListener('click', cancelReceive);
@@ -1054,7 +1446,8 @@ document.getElementById('reasonOther').addEventListener('input', clearEditMsg);
 
 // ⚡ แก้ความช้า 26 ก.ย. 2569: รายการ "รอของ" ไม่ต้องใช้ LINE User ID จึงยิงขอข้อมูล
 // ตั้งแต่เปิดหน้า คู่ขนานไปกับ liff.init/getProfile แทนการรอ login เสร็จก่อนค่อยเริ่มโหลด
-var isNormalMode = !(liffMode === 'pickup' && liffOrderNo) && liffMode !== 'whoami';
+// เปิดด้วย ?tab=pickup → โหลดแท็บ "รอลูกค้ารับ" ก่อน ยังไม่โหลดรายการรอของ (ไปโหลดตอนกดแท็บ) / ?mode=mypickup ไม่ต้องใช้รายการรอของเลย
+var isNormalMode = !(liffMode === 'pickup' && liffOrderNo) && liffMode !== 'whoami' && liffMode !== 'mypickup' && !isPickupTabMode;
 var firstPendingLoad = isNormalMode ? loadPendingOrders() : null;
 
 liff.init({ liffId: LIFF_ID }).then(function () {
@@ -1067,6 +1460,8 @@ liff.init({ liffId: LIFF_ID }).then(function () {
     liffDisplayName = profile.displayName || '';
     if (liffMode === 'pickup' && liffOrderNo) return null;
     if (liffMode === 'whoami') return null;
+    if (liffMode === 'mypickup') return null;
+    if (isPickupTabMode) return loadPickupWaiting();
     return firstPendingLoad;
   });
 }).then(function () {
@@ -1076,10 +1471,20 @@ liff.init({ liffId: LIFF_ID }).then(function () {
     loadPickupItems();
   } else if (liffMode === 'whoami') {
     showWhoamiView();
+  } else if (liffMode === 'mypickup') {
+    showMyPickupView();
+    loadMyPickup();
+  } else if (isPickupTabMode) {
+    switchTab('pickup');
+    showTabsView();
+    renderPickupSalesChips();
+    renderPickupList();
   } else {
     showTabsView();
     // โหลดประวัติรอไว้เบื้องหลัง พอคลังกดแท็บ "ประวัติ" จะขึ้นทันทีไม่ต้องรอ
     if (historyOrders.length === 0) loadHistoryOrders();
+    // โหลดแท็บ "รอลูกค้ารับ" เบื้องหลังด้วย — ได้ตัวเลขบนป้ายแท็บ และรู้สิทธิ์ (เซลล์จะเห็นแค่แท็บนี้)
+    loadPickupWaiting();
   }
 }).catch(function (err) {
   document.getElementById('loadingBox').textContent = 'เกิดข้อผิดพลาด: ' + err;
