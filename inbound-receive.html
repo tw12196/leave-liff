@@ -351,6 +351,7 @@
       <div style="margin-top:12px">
         <label style="font-size:13px; color:#666; display:block; margin-bottom:6px;">วันที่ของออกจากร้าน (ลูกค้ามารับ / ร้านไปส่ง)</label>
         <input type="date" id="myPickupDate" style="width:100%; padding:10px; font-size:16px; border:1px solid #ccc; border-radius:8px; box-sizing:border-box;" />
+        <div class="msg" id="myPickupDateWarn"></div>
       </div>
     </div>
     <button class="primary" id="myPickupConfirmBtn" disabled>ยืนยันของออกจากร้านแล้ว</button>
@@ -775,10 +776,26 @@ function selectedMyPickupItems() {
   return chosen;
 }
 
+// ตั้ง max ของช่องวันที่เป็นวันนี้ (เวลาไทย) ทุกครั้งที่เรียก (เผื่อเปิดหน้าค้างข้ามเที่ยงคืน) และขึ้นเตือนทันทีถ้าค่าในช่อง
+// เกินวันนี้ (พิมพ์เอง / เครื่องที่ตัวเลือกวันที่ไม่บังคับ max) — คืน true ถ้าวันที่ในช่องเป็นอนาคต
+function refreshMyPickupDate_() {
+  var input = document.getElementById('myPickupDate');
+  var warn = document.getElementById('myPickupDateWarn');
+  input.max = todayDateStr_();
+  var bad = isFutureDate_(input.value);
+  warn.className = bad ? 'msg err' : 'msg';
+  warn.textContent = bad ? FUTURE_DATE_MSG : '';
+  // แก้วันที่ถูกแล้ว → เคลียร์ข้อความเตือนเรื่องวันที่ที่ค้างอยู่ด้านล่างปุ่มด้วย (ข้อความ error อื่นไม่แตะ)
+  var msg = document.getElementById('myPickupMsg');
+  if (!bad && msg.textContent === FUTURE_DATE_MSG) { msg.className = 'msg'; msg.textContent = ''; }
+  return bad;
+}
+
 function updateMyPickupConfirmBtn() {
   var n = selectedMyPickupItems().length;
   var btn = document.getElementById('myPickupConfirmBtn');
-  btn.disabled = n === 0;
+  var dateBad = refreshMyPickupDate_();
+  btn.disabled = n === 0 || dateBad;
   btn.textContent = n === 0 ? 'ยืนยันของออกจากร้านแล้ว' : 'ยืนยันของออกจากร้านแล้ว (' + n + ' รายการ)';
   var all = document.querySelectorAll('#myPickupItems .myPickupCheck');
   document.getElementById('myPickupAll').checked = all.length > 0 && n === all.length;
@@ -789,6 +806,7 @@ function confirmMyPickup() {
   var pickupDate = document.getElementById('myPickupDate').value;
   if (chosen.length === 0) return;
   if (!pickupDate) { showMyPickupMsg('err', 'กรุณาเลือกวันที่ของออกจากร้าน'); return; }
+  if (refreshMyPickupDate_()) { showMyPickupMsg('err', FUTURE_DATE_MSG); return; } // กันไว้ก่อนส่ง ไม่ต้องรอ backend ตอบ error
 
   var btn = document.getElementById('myPickupConfirmBtn');
   btn.disabled = true;
@@ -1268,11 +1286,25 @@ function renderPickupItems() {
   });
 }
 
+/* วันนี้ตามเวลา Asia/Bangkok รูปแบบ YYYY-MM-DD — ใช้ร่วมกันทั้งหน้า mode=pickup และ mode=mypickup
+ * (แก้ 13 พ.ย. 2569: เดิมใช้วันที่ตามเวลาเครื่อง ถ้าเครื่องตั้งโซนเวลาไม่ใช่ไทยจะได้วันไม่ตรงกับ backend ที่เช็คตาม
+ * INB_TZ = Asia/Bangkok; ไม่ใช้ new Date().toISOString() ตรงๆ เพราะเป็น UTC ช่วง 00:00–07:00 น. จะได้วันของเมื่อวาน) */
 function todayDateStr_() {
-  var d = new Date();
-  var mm = String(d.getMonth() + 1).padStart(2, '0');
-  var dd = String(d.getDate()).padStart(2, '0');
-  return d.getFullYear() + '-' + mm + '-' + dd;
+  try {
+    var parts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+    var p = {};
+    parts.forEach(function (x) { p[x.type] = x.value; });
+    if (p.year && p.month && p.day) return p.year + '-' + p.month + '-' + p.day;
+  } catch (e) { /* webview เก่าที่ไม่รองรับ timeZone ใน Intl → ใช้วิธีคำนวณเองด้านล่าง */ }
+  // ไทย = UTC+7 ไม่มี DST: เลื่อนเวลาไป +7 ชม. แล้วอ่านวันที่แบบ UTC
+  return new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10);
+}
+
+var FUTURE_DATE_MSG = 'เลือกวันที่ในอนาคตไม่ได้ — เลือกได้แค่วันนี้หรือย้อนหลัง';
+
+// 'YYYY-MM-DD' เทียบเป็นข้อความได้ตรงๆ — ว่าง/ไม่ใช่วันที่ ถือว่าไม่เกินวันนี้ (ไปเช็ค "กรุณาเลือกวันที่" แยกต่างหาก)
+function isFutureDate_(dateStr) {
+  return !!dateStr && String(dateStr) > todayDateStr_();
 }
 
 function loadPickupItems() {
@@ -1300,6 +1332,10 @@ function confirmPickup() {
   var pickupDate = document.getElementById('pickupDateInput').value;
   if (!pickupDate) {
     showPickupMsg('err', 'กรุณาเลือกวันที่ลูกค้ามารับ');
+    return;
+  }
+  if (isFutureDate_(pickupDate)) {
+    showPickupMsg('err', FUTURE_DATE_MSG);
     return;
   }
 
@@ -1425,6 +1461,9 @@ document.getElementById('myPickupAll').addEventListener('change', function () {
   updateMyPickupConfirmBtn();
 });
 document.getElementById('myPickupConfirmBtn').addEventListener('click', confirmMyPickup);
+// เปลี่ยนวันที่แล้วเช็คทันที (input = ตอนพิมพ์/เลื่อน, change = ตอนเลือกจากปฏิทินแล้วปิด)
+document.getElementById('myPickupDate').addEventListener('input', updateMyPickupConfirmBtn);
+document.getElementById('myPickupDate').addEventListener('change', updateMyPickupConfirmBtn);
 document.getElementById('myPickupContinueBtn').addEventListener('click', function () {
   document.getElementById('myPickupMsg').className = 'msg';
   renderMyPickupSelect();
